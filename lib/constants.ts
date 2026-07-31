@@ -88,10 +88,6 @@ export const OPT_KEYMAP: Record<string, string> = {
 };
 
 /* ---------- access ---------- */
-/* Temporary shared password for everyone. Replace with real per-user
-   authentication when the app moves to a backend (BillToBox phase). */
-export const SHARED_PASSWORD = "grensrock";
-
 export const ROLES: Record<Role, string> = {
   admin: "Admin — full access",
   user: "User — sponsors & agreements",

@@ -2,7 +2,8 @@
 
 import ImageStore from "@/components/ui/ImageStore";
 import { RETURN_EXAMPLES, type ReturnExampleType } from "@/lib/constants";
-import { exampleKey, exampleLabel } from "@/lib/logo";
+import { exampleLabel } from "@/lib/logo";
+import { exampleRef } from "@/lib/supabase/storage";
 
 /* Admin: manage the example pictures shown to sponsors */
 export default function ExampleImagesManager({ onClose }: { onClose: () => void }) {
@@ -16,7 +17,7 @@ export default function ExampleImagesManager({ onClose }: { onClose: () => void 
         {(Object.keys(RETURN_EXAMPLES) as ReturnExampleType[]).map((k) => (
           <div key={k} className="gr-examplecell">
             <span className="gr-label">{exampleLabel(k, "en")}</span>
-            <ImageStore storageKey={exampleKey(k)} compact />
+            <ImageStore image={exampleRef(k)} compact />
           </div>
         ))}
       </div>

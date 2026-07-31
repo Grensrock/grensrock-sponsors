@@ -3,94 +3,139 @@
 import { useState } from "react";
 import PickLines from "@/components/ui/PickLines";
 import PickLogo from "@/components/ui/PickLogo";
-import { SHARED_PASSWORD } from "@/lib/constants";
-import { canLogIn, sponsorContacts } from "@/lib/contacts";
-import { sameEmail } from "@/lib/email-validate";
-import type { Sponsor, User } from "@/types";
+import { supabase } from "@/lib/supabase/client";
 
-/* ---------- Landing (choose team vs sponsor access) ---------- */
+/* ---------- Landing (choose team vs sponsor access) ----------
 
-export default function Landing({
-  users,
-  sponsors,
-  onTeam,
-  onPortal,
-}: {
-  users: User[];
-  sponsors: Sponsor[];
-  onTeam: (userId: string | null) => void;
-  onPortal: (sponsorId: string, contactId: string) => void;
-}) {
+   Real authentication (Stage 2):
+   - team members sign in with e-mail + password (Supabase Auth);
+   - the very first team member signs up and then completes the setup in
+     the app, where bootstrap_first_admin() only succeeds while there is
+     no team account at all — so this path can be offered unconditionally,
+     the database is what enforces "first person through the door is admin"
+     (a landing page has no session, so it cannot read `profiles` to find
+     out whether team accounts exist);
+   - sponsor contacts get a magic link (no password): the link itself
+     drives the transition, via app/auth/callback/route.ts.
+*/
+
+export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promise<void> }) {
   const [side, setSide] = useState<null | "team" | "sponsor">(null); // null | 'team' | 'sponsor'
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
+  const [busy, setBusy] = useState(false);
   const [lng, setLng] = useState("nl");
   const L = (nl: string, en: string) => (lng === "nl" ? nl : en);
-  const noAccounts = users.length === 0;
 
-  const check = (who: "team" | "sponsor") => {
-    if (pwd !== SHARED_PASSWORD) {
-      setErr(L("Verkeerd wachtwoord.", "Wrong password."));
-      return;
-    }
-    if (who === "team") {
-      const u = users.find((x) => sameEmail(x.email, email));
-      if (u) {
-        onTeam(u.id);
-        return;
-      }
-      setErr(
-        L(
-          "Geen teamaccount met dit e-mailadres. Vraag een beheerder om u toe te voegen.",
-          "No team account with that email address. Ask an admin to add you.",
-        ),
-      );
-    } else {
-      let found: { sponsorId: string; contactId: string } | null = null,
-        inactive = false;
-      for (const sp of sponsors) {
-        const c = sponsorContacts(sp).find((x) => x.email && sameEmail(x.email, email));
-        if (c) {
-          if (canLogIn(c)) {
-            found = { sponsorId: sp.id, contactId: c.id };
-          } else {
-            inactive = true;
-          }
-          break;
-        }
-      }
-      if (found) {
-        onPortal(found.sponsorId, found.contactId);
-        return;
-      }
-      setErr(
-        inactive
-          ? L(
-              "Dit account is nog niet geactiveerd. Vraag uw Grensrock-contact, of een collega die al toegang heeft, om het te activeren.",
-              "This account hasn't been activated yet. Ask your Grensrock contact, or a colleague who already has access, to activate it.",
-            )
-          : L(
-              "Dit e-mailadres kennen we niet. Gebruik het adres dat wij van u hebben.",
-              "We don't know that email address. Use the address we have on file for you.",
-            ),
-      );
-    }
+  const reset = () => {
+    setSide(null);
+    setEmail("");
+    setPwd("");
+    setErr("");
+    setInfo("");
   };
 
-  const form = (who: "team" | "sponsor", label: string) => (
+  /* Team: e-mail + password */
+  const teamLogin = async () => {
+    if (busy) return;
+    setErr("");
+    setInfo("");
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pwd });
+    setBusy(false);
+    if (error) {
+      setErr(
+        L(
+          "Aanmelden lukte niet. Controleer uw e-mailadres en wachtwoord.",
+          "Could not sign in. Check your email address and password.",
+        ),
+      );
+      return;
+    }
+    await onSignedIn();
+  };
+
+  /* Team: create the very first account (the database rejects this once one exists) */
+  const teamSignUp = async () => {
+    if (busy) return;
+    setErr("");
+    setInfo("");
+    if (pwd.length < 6) {
+      setErr(L("Kies een wachtwoord van minstens 6 tekens.", "Choose a password of at least 6 characters."));
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: pwd,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setBusy(false);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
+    if (!data.session) {
+      /* E-mail confirmation is switched on for this project: the account
+         exists, but the session only starts once the link is clicked. */
+      setInfo(
+        L(
+          "Bevestig eerst uw e-mailadres via de link die we u net stuurden, en meld u daarna aan.",
+          "Confirm your email address via the link we just sent you, then sign in.",
+        ),
+      );
+      return;
+    }
+    await onSignedIn();
+  };
+
+  /* Sponsor: magic link, no password */
+  const sponsorLogin = async () => {
+    if (busy) return;
+    setErr("");
+    setInfo("");
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setBusy(false);
+    if (error) {
+      setErr(
+        L(
+          "We konden geen aanmeldlink versturen. Probeer het zo dadelijk opnieuw.",
+          "We couldn't send a login link. Please try again in a moment.",
+        ),
+      );
+      return;
+    }
+    setInfo(
+      L(
+        "We stuurden u een aanmeldlink. Open die link in deze browser om uw pagina te openen.",
+        "We've sent you a login link. Open it in this browser to reach your page.",
+      ),
+    );
+  };
+
+  const emailField = (onEnter: () => void) => (
+    <input
+      type="email"
+      placeholder="uw@email.com"
+      value={email}
+      onChange={(e) => {
+        setEmail(e.target.value);
+        setErr("");
+      }}
+      onKeyDown={(e) => e.key === "Enter" && onEnter()}
+      autoFocus
+    />
+  );
+
+  const teamForm = (
     <>
-      <input
-        type="email"
-        placeholder="uw@email.com"
-        value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-          setErr("");
-        }}
-        onKeyDown={(e) => e.key === "Enter" && check(who)}
-        autoFocus
-      />
+      {emailField(teamLogin)}
       <input
         type="password"
         placeholder={L("Wachtwoord", "Password")}
@@ -99,20 +144,27 @@ export default function Landing({
           setPwd(e.target.value);
           setErr("");
         }}
-        onKeyDown={(e) => e.key === "Enter" && check(who)}
+        onKeyDown={(e) => e.key === "Enter" && teamLogin()}
       />
-      <button className="gr-btn" onClick={() => check(who)}>
-        {label}
+      <button className="gr-btn" disabled={busy} onClick={teamLogin}>
+        {L("Aanmelden", "Log in")}
       </button>
-      <button
-        className="gr-linkbtn"
-        onClick={() => {
-          setSide(null);
-          setEmail("");
-          setPwd("");
-          setErr("");
-        }}
-      >
+      <button className="gr-linkbtn" disabled={busy} onClick={teamSignUp}>
+        {L("Eerste beheerder instellen", "Set up the first admin")}
+      </button>
+      <button className="gr-linkbtn" onClick={reset}>
+        {L("Terug", "Back")}
+      </button>
+    </>
+  );
+
+  const sponsorForm = (
+    <>
+      {emailField(sponsorLogin)}
+      <button className="gr-btn" disabled={busy} onClick={sponsorLogin}>
+        {L("Aanmeldlink sturen", "Send login link")}
+      </button>
+      <button className="gr-linkbtn" onClick={reset}>
         {L("Terug", "Back")}
       </button>
     </>
@@ -135,20 +187,8 @@ export default function Landing({
       <div className="gr-landcards">
         <div className={"gr-landcard" + (side === "team" ? " on" : "")}>
           <h3 className="gr-h3">{L("Organisatie", "Organisation")}</h3>
-          {noAccounts ? (
-            <>
-              <p className="gr-muted">
-                {L(
-                  "Nog geen teamaccounts — stel de eerste beheerder in.",
-                  "No team accounts yet — set up the first admin.",
-                )}
-              </p>
-              <button className="gr-btn" onClick={() => onTeam(null)}>
-                {L("Instellen", "Set up")}
-              </button>
-            </>
-          ) : side === "team" ? (
-            form("team", L("Aanmelden", "Log in"))
+          {side === "team" ? (
+            teamForm
           ) : (
             <>
               <p className="gr-muted">
@@ -161,6 +201,7 @@ export default function Landing({
                 className="gr-btn"
                 onClick={() => {
                   setErr("");
+                  setInfo("");
                   setSide("team");
                 }}
               >
@@ -172,7 +213,7 @@ export default function Landing({
         <div className={"gr-landcard" + (side === "sponsor" ? " on" : "")}>
           <h3 className="gr-h3">Sponsor</h3>
           {side === "sponsor" ? (
-            form("sponsor", L("Mijn pagina openen", "Open my page"))
+            sponsorForm
           ) : (
             <>
               <p className="gr-muted">
@@ -185,6 +226,7 @@ export default function Landing({
                 className="gr-btn-ghost"
                 onClick={() => {
                   setErr("");
+                  setInfo("");
                   setSide("sponsor");
                 }}
               >
@@ -195,6 +237,7 @@ export default function Landing({
         </div>
       </div>
       {err && <p style={{ color: "var(--red)", fontWeight: 600 }}>{err}</p>}
+      {info && !err && <p style={{ color: "#fff", fontWeight: 600 }}>{info}</p>}
     </div>
   );
 }

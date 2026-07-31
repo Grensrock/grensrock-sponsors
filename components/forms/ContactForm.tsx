@@ -98,9 +98,9 @@ export default function ContactForm({
         {!c.email
           ? T("Vul eerst een e-mailadres in.", "Renseignez d'abord une adresse e-mail.", "Enter an email address first.")
           : T(
-              "Zonder deze activering kan deze persoon niet aanmelden. Later ontvangt hij een e-mail om zelf een wachtwoord in te stellen; voorlopig geldt het gedeelde wachtwoord.",
-              "Sans cette activation, cette personne ne peut pas se connecter. Plus tard, elle recevra un e-mail pour définir son mot de passe ; pour l'instant, le mot de passe partagé s'applique.",
-              "Without this activation this person can't log in. In future they'll receive an email to set their own password; for now the shared password applies.",
+              "Zonder deze activering kan deze persoon niet aanmelden. Eenmaal actief kan hij zich aanmelden met een link die naar dit e-mailadres wordt gestuurd — geen wachtwoord nodig.",
+              "Sans cette activation, cette personne ne peut pas se connecter. Une fois activée, elle peut se connecter via un lien envoyé à cette adresse e-mail — aucun mot de passe requis.",
+              "Without this activation this person can't log in. Once active, they can sign in with a link sent to this email address — no password needed.",
             )}
       </p>
       <div className="gr-actions">

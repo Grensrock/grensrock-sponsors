@@ -358,7 +358,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "nc.elsewhereok": ["U kan deze persoon toch toevoegen — dezelfde persoon kan bij meerdere sponsors horen.", "You can still add this person — the same individual can belong to several sponsors."],
   "nc.nosponsor": ["Geen sponsor gevonden met die naam.", "No sponsor found with that name."],
   "nc.portalaccess": ["Toegang tot het sponsorportaal geven", "Give access to the sponsor portal"],
-  "nc.portalhint": ["Deze persoon kan aanmelden met dit e-mailadres en het gedeelde wachtwoord.", "This person can log in with this email address and the shared password."],
+  "nc.portalhint": ["Deze persoon kan aanmelden via een link die naar dit e-mailadres wordt gestuurd.", "This person can log in via a link sent to this email address."],
   "nc.portalneedsmail": ["Vul eerst een geldig e-mailadres in om portaaltoegang te kunnen geven.", "Enter a valid email address first to be able to grant portal access."],
   "im.selcompany": ["Selecteer welke kolom de bedrijfsnaam bevat.", "Select which column contains the company name."],
   "im.selsponsor": ["Selecteer welke kolom de sponsornaam bevat.", "Select which column contains the sponsor name."],

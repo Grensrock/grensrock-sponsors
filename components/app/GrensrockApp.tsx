@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import ContactForm from "@/components/forms/ContactForm";
 import DealForm, { type DealFormState } from "@/components/forms/DealForm";
@@ -24,32 +24,37 @@ import FolderOverview from "@/components/views/FolderOverview";
 import Landing from "@/components/views/Landing";
 import SponsorDetail from "@/components/views/SponsorDetail";
 import SponsorPortal from "@/components/views/SponsorPortal";
-import { changedSinceAcceptance, fmtDateTime, isAccepted, termsSnapshot } from "@/lib/acceptance";
+import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
 import { formatAddress } from "@/lib/address";
-import { AUDIT_MAX, diffForAudit } from "@/lib/audit-engine";
 import { auditActorLabel } from "@/lib/audit-engine";
+import * as auditApi from "@/lib/api/audit";
+import * as contactsApi from "@/lib/api/contacts";
+import * as dealsApi from "@/lib/api/deals";
+import * as editionsApi from "@/lib/api/editions";
+import * as formulasApi from "@/lib/api/formulas";
+import * as settingsApi from "@/lib/api/settings";
+import * as sponsorsApi from "@/lib/api/sponsors";
+import * as usersApi from "@/lib/api/users";
+import * as vouchersApi from "@/lib/api/vouchers";
+import { supabase } from "@/lib/supabase/client";
+import { logoRef, removeImage } from "@/lib/supabase/storage";
 import {
   ADMIN_TABS,
   COMMS,
   FOLDER_OPTS,
   LANGS,
   POSTER_OPTS,
-  SHARED_PASSWORD,
-  STORAGE_KEY,
   TEAM_LANGS,
   VOUCHER_STATUS,
   VOUCHER_TYPES,
   WEBSITE_OPTS,
   emptySponsor,
-  uid,
   type CommKey,
 } from "@/lib/constants";
 import { contactName, primaryContact, sponsorContacts, voucherContact } from "@/lib/contacts";
 import { sameEmail } from "@/lib/email-validate";
 import { defaultTickoweb, tickoweb } from "@/lib/integrations/tickoweb";
 import { defaultVies } from "@/lib/integrations/vies";
-import { logoKey } from "@/lib/logo";
-import { migrate, type StoredAppData } from "@/lib/migrate";
 import {
   dealTotalCost,
   eur,
@@ -60,19 +65,19 @@ import {
   refRequiredFor,
 } from "@/lib/money";
 import { ledLabel, normFolder, normLed, normNameKey, normVatKey } from "@/lib/normalize";
-import { storage } from "@/lib/storage";
 import { isAdmin, responsibleName, userName } from "@/lib/users";
 import { teamT } from "@/lib/i18n";
-import { dealFromFormula, expectedVouchers, ticketLines, visibilityLines } from "@/lib/vouchers";
+import { expectedVouchers, ticketLines, visibilityLines } from "@/lib/vouchers";
 import type {
   AppData,
-  AuditActor,
   AuditEntity,
+  AuditEntry,
   Contact,
   Deal,
   DealDraft,
   Edition,
   Formula,
+  Settings,
   Sponsor,
   TeamLanguage,
   TickowebConfig,
@@ -106,14 +111,30 @@ type ViewMode =
   | { view: "team" }
   | { view: "portal"; sponsorId: string; contactId: string };
 
+const EMPTY_DATA: AppData = { sponsors: [], editions: [], deals: [], users: [], vouchers: [], audit: [] };
+
+/* The database keeps contacts and formulas in their own tables; the components
+   were written against sponsors with an embedded contacts[] and editions with an
+   embedded formulas[], so the flat rows are grouped back under their parent here
+   and nothing downstream has to change. */
+const groupContacts = (sponsors: Sponsor[], contacts: contactsApi.ContactWithSponsor[]): Sponsor[] =>
+  sponsors.map((s) => ({
+    ...s,
+    contacts: contacts
+      .filter((c) => c.sponsorId === s.id)
+      .map(({ sponsorId: _sponsorId, ...c }) => c as Contact),
+  }));
+
+const groupFormulas = (editions: Edition[], formulas: formulasApi.FormulaWithEdition[]): Edition[] =>
+  editions.map((e) => ({
+    ...e,
+    formulas: formulas
+      .filter((f) => f.editionId === e.id)
+      .map(({ editionId: _editionId, ...f }) => f as Formula),
+  }));
+
 export default function GrensrockApp() {
-  const [data, setData] = useState<AppData>({
-    sponsors: [],
-    editions: [],
-    deals: [],
-    users: [],
-    settings: { teamCode: "" },
-  });
+  const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [loaded, setLoaded] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
   const [mode, setMode] = useState<ViewMode>({ view: "landing" }); // landing | team | portal
@@ -149,74 +170,98 @@ export default function GrensrockApp() {
     setDialog({ message, onConfirm, danger: true, ...opts });
   const notify = (message: string, title?: string) => setDialog({ message, title: title || "Done" });
 
-  /* ----- load & save (shared storage: whole team + sponsors work on the same data) ----- */
+  /* ----- error surface for every write ----- */
+  const failWith = useCallback((e: unknown, title = "Couldn't save") => {
+    console.error(e);
+    setSaveErr(true);
+    setDialog({ message: String((e as Error)?.message || e), title });
+  }, []);
+
+  /* ----- load: one parallel read per table, assembled into the shape the UI expects ----- */
+  const loadAll = useCallback(async (scope: "team" | "portal", asAdmin: boolean) => {
+    const [sponsorRows, contactRows, editionRows, formulaRows, dealRows, voucherRows, userRows, settings, auditRows] =
+      await Promise.all([
+        sponsorsApi.listSponsors(),
+        contactsApi.listContacts(),
+        editionsApi.listEditions(),
+        formulasApi.listFormulas(),
+        dealsApi.listDeals(),
+        vouchersApi.listVouchers(),
+        scope === "team" ? usersApi.listUsers() : Promise.resolve([] as User[]),
+        scope === "team" ? settingsApi.getSettings() : Promise.resolve({} as Settings),
+        scope === "team" && asAdmin ? auditApi.listAudit() : Promise.resolve([] as AuditEntry[]),
+      ]);
+    setData({
+      sponsors: groupContacts(sponsorRows, contactRows),
+      editions: groupFormulas(editionRows, formulaRows),
+      deals: dealRows,
+      vouchers: voucherRows,
+      users: userRows,
+      audit: auditRows,
+      settings,
+    });
+    setSaveErr(false);
+  }, []);
+
+  /* Where a visitor lands is decided by their Supabase session, not by a click:
+     a profiles row means team, a claimed contacts row means sponsor portal. */
+  const enterSession = useCallback(async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        setUserId(null);
+        setData(EMPTY_DATA);
+        setMode({ view: "landing" });
+        return;
+      }
+
+      const profile = await usersApi.getMyProfile();
+      if (profile) {
+        setUserId(profile.id);
+        setMode({ view: "team" });
+        setTab("overview");
+        await loadAll("team", profile.role === "admin");
+        return;
+      }
+
+      const contact = await contactsApi.getMyContact();
+      if (contact) {
+        setUserId(null);
+        setMode({ view: "portal", sponsorId: contact.sponsorId, contactId: contact.id });
+        await loadAll("portal", false);
+        return;
+      }
+
+      /* Signed in, but neither a team profile nor a claimed sponsor contact —
+         this is the first-admin setup state (sign-up done, profile still to be
+         created through the setup bar). Every write stays blocked by RLS until
+         bootstrap_first_admin() succeeds. */
+      setUserId(null);
+      setMode({ view: "team" });
+      setTab("overview");
+      await loadAll("team", false);
+    } catch (e) {
+      console.error(e);
+      setSaveErr(true);
+    } finally {
+      setLoaded(true);
+    }
+  }, [loadAll]);
+
   useEffect(() => {
     (async () => {
-      let d: StoredAppData | null = null;
-      try {
-        const r = await storage.get(STORAGE_KEY, true);
-        if (r && r.value) d = JSON.parse(r.value);
-      } catch {
-        /* no shared data yet */
-      }
-      if (!d) {
-        // One-time migration from the old per-user storage
-        try {
-          const old = await storage.get(STORAGE_KEY);
-          if (old && old.value) {
-            d = JSON.parse(old.value);
-            await storage.set(STORAGE_KEY, JSON.stringify(migrate(d!)), true);
-          }
-        } catch {
-          /* nothing to migrate */
-        }
-      }
-      if (d) {
-        const migrated = migrate(d);
-        setData(migrated);
-        // Persist newly generated codes/keys so they stay stable across sessions
-        if (JSON.stringify(migrated) !== JSON.stringify(d)) {
-          try {
-            await storage.set(STORAGE_KEY, JSON.stringify(migrated), true);
-          } catch {
-            /* retried on next save */
-          }
-        }
-      }
-      setLoaded(true);
+      await enterSession();
     })();
-  }, []);
+  }, [enterSession]);
 
-  /* Who is making changes right now — used to attribute audit entries */
-  const actorRef = useRef<AuditActor>({ type: "system" });
-  useEffect(() => {
-    const u = (data.users || []).find((x) => x.id === userId);
-    actorRef.current = u ? { type: "team", id: u.id, name: userName(u) } : { type: "system" };
-  }, [userId, data.users]);
-
-  const persist = useCallback(async (next: AppData) => {
-    let toSave = next;
-    setData((prev) => {
-      try {
-        const entries = diffForAudit(prev, next, actorRef.current);
-        if (entries.length) {
-          const log = [...entries, ...(prev.audit || [])].slice(0, AUDIT_MAX);
-          toSave = { ...next, audit: log };
-        } else {
-          toSave = { ...next, audit: prev.audit || [] };
-        }
-      } catch {
-        toSave = next;
-      }
-      return toSave;
-    });
-    try {
-      await storage.set(STORAGE_KEY, JSON.stringify(toSave), true);
-      setSaveErr(false);
-    } catch {
-      setSaveErr(true);
-    }
-  }, []);
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUserId(null);
+    setData(EMPTY_DATA);
+    setMode({ view: "landing" });
+  };
 
   /* ----- derived ----- */
   const { sponsors, editions, deals } = data;
@@ -226,11 +271,25 @@ export default function GrensrockApp() {
   const admin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
   // A non-admin should never sit on an admin-only tab (e.g. after losing admin, or stale state)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- unchanged Stage-1 guard
     if (!admin && (ADMIN_TABS.includes(tab) || tab === "folder" || tab === "invoicing")) setTab("overview");
   }, [admin, tab]);
+  /* The audit log is written by database triggers now, so it is re-read when the
+     tab is opened instead of being kept up to date in memory. */
+  useEffect(() => {
+    if (tab !== "audit" || !admin || mode.view !== "team") return;
+    let live = true;
+    auditApi
+      .listAudit()
+      .then((rows) => live && setData((d) => ({ ...d, audit: rows })))
+      .catch((e) => console.error(e));
+    return () => {
+      live = false;
+    };
+  }, [tab, admin, mode.view]);
   const [langOverride, setLangOverride] = useState<TeamLanguage | null>(null); // header switcher, this session only
   const uiLang: TeamLanguage = langOverride || me?.language || "nl";
-  const t = useCallback((key: string) => teamT(key, uiLang), [uiLang]);
+  const t = (key: string) => teamT(key, uiLang);
   const activeEditions = editions.filter((e) => e.active);
   const sortedEditions = [...editions].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
 
@@ -357,16 +416,38 @@ export default function GrensrockApp() {
 
   const openSponsor = sponsors.find((s) => s.id === openSponsorId);
 
-  /* ----- mutations ----- */
-  const saveUser = (u: UserFormState) => {
-    const bootstrap = users.length === 0;
-    const created: User = { ...u, id: uid() };
-    const next: AppData = u.id
-      ? { ...data, users: users.map((x) => (x.id === u.id ? { ...x, ...u } : x)) }
-      : { ...data, users: [...users, bootstrap ? { ...created, role: "admin" } : created] };
-    persist(next);
-    setModal(null);
-    if (bootstrap) setUserId(created.id); // stay logged in as the new admin
+  /* ----- mutations -----
+     Every one of these is a targeted call into lib/api: team-side writes are
+     plain table calls under the is_team()/is_admin() policies, sponsor-portal
+     writes go through the SECURITY DEFINER RPCs. Local React state is updated
+     from what the database actually returned, never from an optimistic guess. */
+  const saveUser = async (u: UserFormState) => {
+    try {
+      if (u.id) {
+        const saved = await usersApi.updateUser(u.id, u);
+        setData((d) => ({ ...d, users: (d.users || []).map((x) => (x.id === saved.id ? saved : x)) }));
+      } else if (users.length === 0) {
+        /* First account ever: the caller signed up on the landing page and now
+           becomes the admin. The RPC refuses once any profile exists. */
+        await usersApi.bootstrapFirstAdmin(u.firstName, u.lastName);
+        const profile = await usersApi.getMyProfile();
+        if (!profile) throw new Error("The admin account could not be read back.");
+        const saved =
+          u.language && u.language !== profile.language
+            ? await usersApi.updateUser(profile.id, { language: u.language })
+            : profile;
+        setUserId(saved.id); // stay logged in as the new admin
+        setData((d) => ({ ...d, users: [saved] }));
+      } else {
+        /* Everyone else needs an auth user, which only the server can create. */
+        const created = await usersApi.inviteUser(u);
+        setData((d) => ({ ...d, users: [...(d.users || []), created] }));
+      }
+      setSaveErr(false);
+      setModal(null);
+    } catch (e) {
+      failWith(e);
+    }
   };
   const deleteUser = (id: string) => {
     const u = users.find((x) => x.id === id);
@@ -377,11 +458,14 @@ export default function GrensrockApp() {
     }
     ask(
       `Remove the account of ${userName(u)}? They lose access immediately.`,
-      () => {
-        persist({ ...data, users: users.filter((x) => x.id !== id) });
-        if (id === userId) {
-          setUserId(null);
-          setMode({ view: "landing" });
+      async () => {
+        try {
+          await usersApi.deleteUser(id);
+          setData((d) => ({ ...d, users: (d.users || []).filter((x) => x.id !== id) }));
+          setSaveErr(false);
+          if (id === userId) await signOut();
+        } catch (e) {
+          failWith(e);
         }
       },
       { title: "Remove account", confirmLabel: "Remove" },
@@ -399,93 +483,125 @@ export default function GrensrockApp() {
         : "Delete this agreement?";
     ask(
       msg,
-      () => {
-        persist({
-          ...data,
-          deals: deals.filter((x) => x.id !== dealId),
-          vouchers: vouchers
-            .filter((v) => !(v.dealId === dealId && v.status === "pending"))
-            .map((v) =>
-              v.dealId === dealId
-                ? { ...v, status: "cancelled" as VoucherStatus, cancelledAt: v.cancelledAt || new Date().toISOString() }
-                : v,
-            ),
-        });
-        setModal(null);
+      async () => {
+        try {
+          /* vouchers.deal_id cascades, so the agreement's voucher rows go with it. */
+          await dealsApi.deleteDeal(dealId);
+          setData((d) => ({
+            ...d,
+            deals: d.deals.filter((x) => x.id !== dealId),
+            vouchers: (d.vouchers || []).filter((v) => v.dealId !== dealId),
+          }));
+          setSaveErr(false);
+          setModal(null);
+        } catch (e) {
+          failWith(e);
+        }
       },
       { title: "Delete agreement", confirmLabel: "Delete" },
     );
   };
 
-  /* Sponsor accepts the agreement: record who, when, and freeze the terms */
-  const acceptAgreement = (dealId: string, contact?: Contact | null) => {
-    persist({
-      ...data,
-      deals: deals.map((d) =>
-        d.id === dealId && !isAccepted(d)
-          ? {
-              ...d,
-              acceptance: {
-                acceptedAt: new Date().toISOString(),
-                name: contactName(contact) || "",
-                email: contact?.email || "",
-                contactId: contact?.id || "",
-                snapshot: termsSnapshot(d),
-              },
-            }
-          : d,
-      ),
-    });
+  /* Sponsor accepts the agreement: accept_deal() records who, when, and freezes
+     the terms server-side from the caller's own contacts row. */
+  const acceptAgreement = async (dealId: string) => {
+    try {
+      await dealsApi.portalAcceptDeal(dealId);
+      const fresh = await dealsApi.getDeal(dealId);
+      if (fresh) setData((d) => ({ ...d, deals: d.deals.map((x) => (x.id === dealId ? fresh : x)) }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
   };
 
   /* Sponsor tops up their food & drink value. Allowed until the food vouchers are created.
      Changing the total drops the pending food split + any pending food voucher records so they
      regenerate for the new amount. */
-  const updateDealExtra = (dealId: string, patch: Partial<Deal>) => {
+  const updateDealExtra = async (dealId: string, patch: Partial<Deal>) => {
     if (vouchers.some((v) => v.dealId === dealId && v.type === "food" && v.status !== "pending")) return;
-    persist({
-      ...data,
-      deals: deals.map((d) => (d.id === dealId ? { ...d, ...patch, foodDrinkVouchers: [] } : d)),
-      vouchers: vouchers.filter((v) => !(v.dealId === dealId && v.type === "food" && v.status === "pending")),
-    });
+    try {
+      await dealsApi.portalUpdateFoodDrink(dealId, patch.foodDrinkValue);
+      await refreshDealAndVouchers(dealId);
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
   };
 
-  const updateDealSplit = (dealId: string, pool: "drink" | "food", rows: Deal["drinkVouchers"]) => {
-    const type = pool === "drink" ? "drink" : "food";
-    const field = pool === "drink" ? "drinkVouchers" : "foodDrinkVouchers";
-    if (vouchers.some((v) => v.dealId === dealId && v.type === type && v.status !== "pending")) return;
-    persist({
-      ...data,
-      deals: deals.map((d) => (d.id === dealId ? { ...d, [field]: rows } : d)),
-      vouchers: vouchers.filter((v) => !(v.dealId === dealId && v.type === type && v.status === "pending")),
-    });
+  const updateDealSplit = async (dealId: string, pool: "drink" | "food", rows: Deal["drinkVouchers"]) => {
+    if (vouchers.some((v) => v.dealId === dealId && v.type === pool && v.status !== "pending")) return;
+    try {
+      await dealsApi.portalUpdateSplit(dealId, pool, rows);
+      await refreshDealAndVouchers(dealId);
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
   };
 
-  /* A sponsor picked a formula themselves: create the agreement exactly as the formula defines it */
-  const requestFormula = (sponsorId: string, editionId: string, formulaName: string, byName: string) => {
-    const ed = editions.find((e) => e.id === editionId);
-    const f = (ed?.formulas || []).find((x) => x.name === formulaName);
-    if (!f) return;
-    if (deals.some((d) => d.sponsorId === sponsorId && d.editionId === editionId)) return; // already has one
-    const deal: Deal = {
-      ...dealFromFormula(f, sponsorId, editionId),
-      id: uid(),
-      createdAt: new Date().toISOString(),
-      requestedAt: new Date().toISOString(),
-      requestedBy: byName || "",
-    };
-    persist({ ...data, deals: [...deals, deal] });
+  /* Both RPCs above drop the deal's pending vouchers for that pool, so the deal
+     and the voucher list are re-read together. */
+  const refreshDealAndVouchers = async (dealId: string) => {
+    const [fresh, voucherRows] = await Promise.all([dealsApi.getDeal(dealId), vouchersApi.listVouchers()]);
+    setData((d) => ({
+      ...d,
+      deals: fresh ? d.deals.map((x) => (x.id === dealId ? fresh : x)) : d.deals,
+      vouchers: voucherRows,
+    }));
+  };
+
+  /* A sponsor picked a formula themselves: request_formula() builds the agreement
+     from the formula's own columns, server-side. */
+  const requestFormula = async (editionId: string, formulaName: string, byName: string) => {
+    try {
+      const dealId = await dealsApi.portalRequestFormula(editionId, formulaName, byName);
+      const fresh = await dealsApi.getDeal(dealId);
+      if (fresh)
+        setData((d) => ({
+          ...d,
+          deals: d.deals.some((x) => x.id === fresh.id)
+            ? d.deals.map((x) => (x.id === fresh.id ? fresh : x))
+            : [...d.deals, fresh],
+        }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
   };
 
   /* ----- vouchers ----- */
-  const updateVoucher = (id: string, patch: Partial<Voucher>) =>
-    persist({ ...data, vouchers: vouchers.map((v) => (v.id === id ? { ...v, ...patch } : v)) });
+  const updateVoucher = async (id: string, patch: Partial<Voucher>) => {
+    try {
+      const saved = await vouchersApi.updateVoucher(id, patch);
+      setData((d) => ({ ...d, vouchers: (d.vouchers || []).map((v) => (v.id === id ? saved : v)) }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
+  };
+
+  /* The portal may only ever change a voucher's recipient, and only via the RPC. */
+  const assignVoucherRecipient = async (id: string, patch: Partial<Voucher>) => {
+    try {
+      await vouchersApi.portalAssignRecipient(id, patch.recipientName || "", patch.recipientEmail || "");
+      setData((d) => ({
+        ...d,
+        vouchers: (d.vouchers || []).map((v) =>
+          v.id === id ? { ...v, recipientName: patch.recipientName || "", recipientEmail: patch.recipientEmail || "" } : v,
+        ),
+      }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
+  };
 
   /* Create voucher records for everything the agreements of an edition entitle to.
      Existing (incl. cancelled) records are kept; only the shortfall is added. */
-  const generateVouchers = (editionId: string) => {
+  const generateVouchers = async (editionId: string) => {
     const edDeals = deals.filter((d) => d.editionId === editionId);
-    const added: Voucher[] = [];
+    const added: Array<Partial<Voucher>> = [];
     edDeals.forEach((d) => {
       const wanted = expectedVouchers(d);
       const have = vouchers.filter((v) => v.dealId === d.id && v.status !== "cancelled");
@@ -499,7 +615,6 @@ export default function GrensrockApp() {
         const need = countBy(wanted, w.type, w.value) - countBy(have, w.type, w.value);
         for (let i = 0; i < need; i++) {
           added.push({
-            id: uid(),
             sponsorId: d.sponsorId,
             editionId,
             dealId: d.id,
@@ -522,8 +637,14 @@ export default function GrensrockApp() {
       notify("Everything is already generated for this edition.", "Nothing to add");
       return;
     }
-    persist({ ...data, vouchers: [...vouchers, ...added] });
-    notify(`${added.length} voucher(s) added as "to create".`, "Vouchers generated");
+    try {
+      const created = await vouchersApi.createVouchers(added);
+      setData((d) => ({ ...d, vouchers: [...(d.vouchers || []), ...created] }));
+      setSaveErr(false);
+      notify(`${created.length} voucher(s) added as "to create".`, "Vouchers generated");
+    } catch (e) {
+      failWith(e);
+    }
   };
 
   /* Run a Tickoweb action over a selection, one by one so a failure doesn't stop the rest */
@@ -542,6 +663,7 @@ export default function GrensrockApp() {
     const cfg: TickowebConfig = data.settings?.tickoweb || defaultTickoweb;
     setVoBusy(true);
     let next = vouchers;
+    let failed = false;
     for (const id of ids) {
       const v = next.find((x) => x.id === id);
       if (!v) continue;
@@ -579,14 +701,27 @@ export default function GrensrockApp() {
           if (v.code) await tickoweb.cancel(cfg, { voucher: v });
           patch = { status: "cancelled", cancelledAt: new Date().toISOString(), error: "" };
         }
-        next = next.map((x) => (x.id === id ? { ...x, ...patch } : x));
+        if (Object.keys(patch).length === 0) continue; // nothing to write for this one
+        const saved = await vouchersApi.updateVoucher(id, patch);
+        next = next.map((x) => (x.id === id ? saved : x));
       } catch (ex) {
-        next = next.map((x) =>
-          x.id === id ? { ...x, status: "error" as VoucherStatus, error: String((ex as Error).message || ex) } : x,
-        );
+        /* One voucher failing must not stop the rest — record why on the row itself. */
+        const errPatch: Partial<Voucher> = {
+          status: "error" as VoucherStatus,
+          error: String((ex as Error).message || ex),
+        };
+        try {
+          const saved = await vouchersApi.updateVoucher(id, errPatch);
+          next = next.map((x) => (x.id === id ? saved : x));
+        } catch (writeEx) {
+          console.error(writeEx);
+          failed = true;
+          next = next.map((x) => (x.id === id ? { ...x, ...errPatch } : x));
+        }
       }
     }
-    await persist({ ...data, vouchers: next });
+    setData((d) => ({ ...d, vouchers: next }));
+    setSaveErr(failed);
     setVoSel([]);
     setVoBusy(false);
   };
@@ -604,13 +739,34 @@ export default function GrensrockApp() {
   };
 
   const saveSponsor = (s: Sponsor) => {
-    const commit = () => {
-      const next: AppData = s.id
-        ? // the edit modal no longer handles contacts — keep the stored ones
-          { ...data, sponsors: sponsors.map((x) => (x.id === s.id ? { ...x, ...s, contacts: sponsorContacts(x) } : x)) }
-        : { ...data, sponsors: [...sponsors, { ...s, id: uid(), contacts: s.contacts || [] }] };
-      persist(next);
-      setModal(null);
+    const commit = async () => {
+      try {
+        if (s.id) {
+          // the edit modal no longer handles contacts — keep the stored ones
+          const saved = await sponsorsApi.updateSponsor(s.id, s);
+          setData((d) => ({
+            ...d,
+            sponsors: d.sponsors.map((x) => (x.id === s.id ? { ...saved, contacts: sponsorContacts(x) } : x)),
+          }));
+        } else {
+          const created = await sponsorsApi.createSponsor(s);
+          const contacts = s.contacts || [];
+          const savedContacts = contacts.length
+            ? await contactsApi.createContacts(contacts.map((c) => ({ sponsorId: created.id, contact: c })))
+            : [];
+          setData((d) => ({
+            ...d,
+            sponsors: [
+              ...d.sponsors,
+              { ...created, contacts: savedContacts.map(({ sponsorId: _s, ...c }) => c as Contact) },
+            ],
+          }));
+        }
+        setSaveErr(false);
+        setModal(null);
+      } catch (e) {
+        failWith(e);
+      }
     };
     // Only check on creation (editing an existing sponsor shouldn't warn about itself)
     if (!s.id) {
@@ -627,7 +783,7 @@ export default function GrensrockApp() {
     }
     commit();
   };
-  const saveContact = (
+  const saveContact = async (
     sponsorId: string,
     contact: Contact,
     { onDuplicate }: { onDuplicate?: (clash: Contact) => void } = {},
@@ -644,8 +800,8 @@ export default function GrensrockApp() {
         }
         ask(
           `${sponsor.companyName} ${t("nc.dupehas")} ${contact.email} (${contactName(clash) || "?"}). ${t("dup.addanyway")}`,
-          () => {
-            commitContact(sponsorId, contact);
+          async () => {
+            await commitContact(sponsorId, contact);
             setModal(null);
           },
           { title: t("dup.title"), confirmLabel: t("dup.add"), danger: false },
@@ -653,187 +809,313 @@ export default function GrensrockApp() {
         return false;
       }
     }
-    commitContact(sponsorId, contact);
+    await commitContact(sponsorId, contact);
     setModal(null);
     return true;
   };
-  const commitContact = (sponsorId: string, contact: Contact) => {
-    persist({
-      ...data,
-      sponsors: sponsors.map((s) => {
-        if (s.id !== sponsorId) return s;
-        const list = sponsorContacts(s);
-        return {
-          ...s,
-          contacts: list.some((c) => c.id === contact.id)
-            ? list.map((c) => (c.id === contact.id ? contact : c))
-            : [...list, contact],
-        };
-      }),
-    });
+  const commitContact = async (sponsorId: string, contact: Contact) => {
+    try {
+      const sponsor = sponsors.find((s) => s.id === sponsorId);
+      const known = sponsorContacts(sponsor).some((c) => c.id === contact.id);
+      /* A contact that isn't in the sponsor's list yet only has a form-generated
+         id, so it is an insert — the database assigns the real uuid. */
+      const saved = known
+        ? await contactsApi.updateContact(contact.id, contact)
+        : await contactsApi.createContact(sponsorId, contact);
+      const { sponsorId: _s, ...clean } = saved;
+      setData((d) => ({
+        ...d,
+        sponsors: d.sponsors.map((s) => {
+          if (s.id !== sponsorId) return s;
+          const list = sponsorContacts(s);
+          return {
+            ...s,
+            contacts: known
+              ? list.map((c) => (c.id === contact.id ? (clean as Contact) : c))
+              : [...list, clean as Contact],
+          };
+        }),
+      }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
   };
-  const importContacts = (list: ContactImportRow[]) => {
-    const bySponsor = list.reduce<Record<string, Contact[]>>(
-      (a, x) => ({ ...a, [x.sponsorId]: [...(a[x.sponsorId] || []), x.contact] }),
-      {},
-    );
-    persist({
-      ...data,
-      sponsors: sponsors.map((s) =>
-        bySponsor[s.id] ? { ...s, contacts: [...sponsorContacts(s), ...bySponsor[s.id]] } : s,
-      ),
-    });
+  const importContacts = async (list: ContactImportRow[]) => {
+    try {
+      const created = await contactsApi.createContacts(
+        list.map((x) => ({ sponsorId: x.sponsorId, contact: x.contact })),
+      );
+      setData((d) => ({
+        ...d,
+        sponsors: d.sponsors.map((s) => {
+          const mine = created.filter((c) => c.sponsorId === s.id).map(({ sponsorId: _s, ...c }) => c as Contact);
+          return mine.length ? { ...s, contacts: [...sponsorContacts(s), ...mine] } : s;
+        }),
+      }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
   };
   const deleteContact = (sponsorId: string, contactId: string) =>
     ask(
       "Remove this contact person? They lose access to the sponsor portal.",
-      () => {
-        persist({
-          ...data,
-          sponsors: sponsors.map((s) =>
-            s.id === sponsorId ? { ...s, contacts: sponsorContacts(s).filter((c) => c.id !== contactId) } : s,
-          ),
-        });
-        setModal(null);
+      async () => {
+        try {
+          await contactsApi.deleteContact(contactId);
+          setData((d) => ({
+            ...d,
+            sponsors: d.sponsors.map((s) =>
+              s.id === sponsorId ? { ...s, contacts: sponsorContacts(s).filter((c) => c.id !== contactId) } : s,
+            ),
+          }));
+          setSaveErr(false);
+          setModal(null);
+        } catch (e) {
+          failWith(e);
+        }
       },
       { title: "Remove contact", confirmLabel: "Remove" },
     );
 
-  const updateSponsorInfo = (id: string, patch: Partial<Sponsor>) =>
-    persist({ ...data, sponsors: sponsors.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
-  const addSponsorInline = (s: Sponsor) => {
-    const created: Sponsor = { ...emptySponsor, ...s, id: uid() };
-    persist({ ...data, sponsors: [...sponsors, created] });
+  /* The sponsor portal's own save button. Never a table write: the company
+     details go through update_sponsor_info(), each contact through
+     upsert_sponsor_contact()/delete_sponsor_contact() — all three re-derive
+     the caller's sponsor server-side. */
+  const portalSaveSponsor = async (id: string, patch: Partial<Sponsor>) => {
+    try {
+      const { contacts, ...info } = patch;
+      if (Object.keys(info).length) await sponsorsApi.portalUpdateSponsorInfo(info);
+
+      if (contacts) {
+        const before = sponsorContacts(sponsors.find((s) => s.id === id));
+        for (const c of contacts) {
+          const was = before.find((x) => x.id === c.id);
+          if (!was || JSON.stringify(was) !== JSON.stringify(c)) await contactsApi.portalUpsertContact(c);
+        }
+        for (const gone of before.filter((x) => !contacts.some((c) => c.id === x.id))) {
+          await contactsApi.portalDeleteContact(gone.id);
+        }
+      }
+
+      const [fresh, freshContacts] = await Promise.all([sponsorsApi.getSponsor(id), contactsApi.listContacts()]);
+      setData((d) => ({
+        ...d,
+        sponsors: d.sponsors.map((s) =>
+          s.id === id
+            ? {
+                ...(fresh || s),
+                contacts: freshContacts.filter((c) => c.sponsorId === id).map(({ sponsorId: _s, ...c }) => c as Contact),
+              }
+            : s,
+        ),
+      }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
+  };
+  const addSponsorInline = async (s: Sponsor): Promise<Sponsor> => {
+    const created = await sponsorsApi.createSponsor({ ...emptySponsor, ...s });
+    setData((d) => ({ ...d, sponsors: [...d.sponsors, created] }));
+    setSaveErr(false);
     return created;
   };
-  const importSponsors = (list: SponsorImportRow[]) => {
-    const created = list.map(
-      ({ vatInvalid: _v, mailInvalid: _m, contactPreview: _c, emailPreview: _e, langPreview: _l, ...s }) =>
-        ({ ...emptySponsor, ...s, id: uid() }) as Sponsor,
-    );
-    persist({ ...data, sponsors: [...sponsors, ...created] });
+  const importSponsors = async (list: SponsorImportRow[]) => {
+    try {
+      const payload = list.map(
+        ({ vatInvalid: _v, mailInvalid: _m, contactPreview: _c, emailPreview: _e, langPreview: _l, ...s }) =>
+          ({ ...emptySponsor, ...s }) as Sponsor,
+      );
+      const created = await sponsorsApi.createSponsors(payload);
+      setData((d) => ({ ...d, sponsors: [...d.sponsors, ...created] }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
   };
   const deleteSponsor = (id: string) => {
     ask(
       "Delete this sponsor, all their agreements and vouchers?",
-      () => {
-        persist({
-          ...data,
-          sponsors: sponsors.filter((s) => s.id !== id),
-          deals: deals.filter((d) => d.sponsorId !== id),
-          vouchers: vouchers.filter((v) => v.sponsorId !== id),
-        });
-        storage.delete(logoKey(id), true).catch(() => {
-          /* no logo stored */
-        });
-        setOpenSponsorId(null);
+      async () => {
+        try {
+          /* contacts, deals and vouchers cascade with the sponsor row. */
+          await sponsorsApi.deleteSponsor(id);
+          removeImage(logoRef(id)).catch(() => {
+            /* no logo stored */
+          });
+          setData((d) => ({
+            ...d,
+            sponsors: d.sponsors.filter((s) => s.id !== id),
+            deals: d.deals.filter((x) => x.sponsorId !== id),
+            vouchers: (d.vouchers || []).filter((v) => v.sponsorId !== id),
+          }));
+          setSaveErr(false);
+          setOpenSponsorId(null);
+        } catch (e) {
+          failWith(e);
+        }
       },
       { title: "Delete sponsor", confirmLabel: "Delete" },
     );
   };
-  const saveEdition = (ed: Edition) => {
-    const next: AppData = ed.id
-      ? { ...data, editions: editions.map((x) => (x.id === ed.id ? { ...x, ...ed } : x)) }
-      : { ...data, editions: [...editions, { ...ed, id: uid(), formulas: ed.formulas || [] }] };
-    persist(next);
-    setModal(null);
+  const saveEdition = async (ed: Edition) => {
+    try {
+      if (ed.id) {
+        const saved = await editionsApi.updateEdition(ed.id, ed);
+        setData((d) => ({
+          ...d,
+          editions: d.editions.map((x) => (x.id === ed.id ? { ...saved, formulas: x.formulas || [] } : x)),
+        }));
+      } else {
+        const created = await editionsApi.createEdition(ed);
+        setData((d) => ({ ...d, editions: [...d.editions, created] }));
+      }
+      setSaveErr(false);
+      setModal(null);
+    } catch (e) {
+      failWith(e);
+    }
   };
-  const toggleEdition = (id: string) =>
-    persist({ ...data, editions: editions.map((e) => (e.id === id ? { ...e, active: !e.active } : e)) });
+  const toggleEdition = async (id: string) => {
+    const current = editions.find((e) => e.id === id);
+    try {
+      const saved = await editionsApi.updateEdition(id, { active: !current?.active });
+      setData((d) => ({
+        ...d,
+        editions: d.editions.map((e) => (e.id === id ? { ...saved, formulas: e.formulas || [] } : e)),
+      }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
+  };
   const deleteEdition = (id: string) => {
     const n = deals.filter((d) => d.editionId === id).length;
     ask(
       n ? `This edition has ${n} agreement(s). Delete the edition, its agreements and vouchers?` : "Delete this edition?",
-      () => {
-        persist({
-          ...data,
-          editions: editions.filter((e) => e.id !== id),
-          deals: deals.filter((d) => d.editionId !== id),
-          vouchers: vouchers.filter((v) => v.editionId !== id),
-        });
+      async () => {
+        try {
+          /* formulas, deals and vouchers cascade with the edition row. */
+          await editionsApi.deleteEdition(id);
+          setData((d) => ({
+            ...d,
+            editions: d.editions.filter((e) => e.id !== id),
+            deals: d.deals.filter((x) => x.editionId !== id),
+            vouchers: (d.vouchers || []).filter((v) => v.editionId !== id),
+          }));
+          setSaveErr(false);
+        } catch (e) {
+          failWith(e);
+        }
       },
       { title: "Delete edition", confirmLabel: "Delete" },
     );
   };
-  const saveFormula = (editionId: string, f: Formula, originalName?: string) => {
-    persist({
-      ...data,
-      editions: editions.map((e) => {
-        if (e.id !== editionId) return e;
-        const fs = e.formulas || [];
-        return {
-          ...e,
-          formulas: originalName ? fs.map((x) => (x.name === originalName ? f : x)) : [...fs, f],
-        };
-      }),
-    });
-    setModal(null);
+  const saveFormula = async (editionId: string, f: Formula, originalName?: string) => {
+    try {
+      const saved = originalName
+        ? await formulasApi.updateFormula(editionId, originalName, f)
+        : await formulasApi.createFormula(editionId, f);
+      const { editionId: _e, ...clean } = saved;
+      setData((d) => ({
+        ...d,
+        editions: d.editions.map((e) => {
+          if (e.id !== editionId) return e;
+          const fs = e.formulas || [];
+          return {
+            ...e,
+            formulas: originalName
+              ? fs.map((x) => (x.name === originalName ? (clean as Formula) : x))
+              : [...fs, clean as Formula],
+          };
+        }),
+      }));
+      setSaveErr(false);
+      setModal(null);
+    } catch (e) {
+      failWith(e);
+    }
   };
   const deleteFormula = (editionId: string, name: string) =>
     ask(
       `Delete formula "${name}"? Existing agreements keep their values.`,
-      () => {
-        persist({
-          ...data,
-          editions: editions.map((e) =>
-            e.id === editionId ? { ...e, formulas: (e.formulas || []).filter((f) => f.name !== name) } : e,
-          ),
-        });
+      async () => {
+        try {
+          await formulasApi.deleteFormula(editionId, name);
+          setData((d) => ({
+            ...d,
+            editions: d.editions.map((e) =>
+              e.id === editionId ? { ...e, formulas: (e.formulas || []).filter((f) => f.name !== name) } : e,
+            ),
+          }));
+          setSaveErr(false);
+        } catch (e) {
+          failWith(e);
+        }
       },
       { title: "Delete formula", confirmLabel: "Delete" },
     );
-  const saveDeal = (d: DealFormState) => {
-    const next: AppData = d.id
-      ? {
-          ...data,
-          deals: deals.map((x) =>
-            x.id === d.id
-              ? {
-                  ...x,
-                  ...d,
-                  confirmedAt: x.requestedAt && !x.confirmedAt ? new Date().toISOString() : x.confirmedAt,
-                }
-              : x,
-          ),
-        }
-      : {
-          ...data,
-          deals: [
-            ...deals,
-            {
-              ...d,
-              id: uid(),
-              createdAt: new Date().toISOString(),
-              responsible: d.responsible || userName(me) || "",
-            } as Deal,
-          ],
-        };
-    persist(next);
-    setModal(null);
-    // Offer the email right after creating a new agreement
-    if (!d.id) {
-      const created = next.deals[next.deals.length - 1];
-      setModal({ type: "email", payload: created });
+  const saveDeal = async (d: DealFormState) => {
+    try {
+      if (d.id) {
+        const current = deals.find((x) => x.id === d.id);
+        const saved = await dealsApi.updateDeal(d.id, {
+          ...d,
+          confirmedAt: current?.requestedAt && !current?.confirmedAt ? new Date().toISOString() : current?.confirmedAt,
+        });
+        setData((prev) => ({ ...prev, deals: prev.deals.map((x) => (x.id === saved.id ? saved : x)) }));
+        setSaveErr(false);
+        setModal(null);
+      } else {
+        const created = await dealsApi.createDeal({ ...d, responsible: d.responsible || userName(me) || "" });
+        setData((prev) => ({ ...prev, deals: [...prev.deals, created] }));
+        setSaveErr(false);
+        // Offer the email right after creating a new agreement
+        setModal({ type: "email", payload: created });
+      }
+    } catch (e) {
+      failWith(e);
     }
   };
-  const markEmailSent = (dealId: string) => {
-    persist({
-      ...data,
-      deals: deals.map((d) => (d.id === dealId ? { ...d, emailSentAt: new Date().toISOString() } : d)),
-    });
-    setModal(null);
+  const markEmailSent = async (dealId: string) => {
+    try {
+      const saved = await dealsApi.updateDeal(dealId, { emailSentAt: new Date().toISOString() });
+      setData((d) => ({ ...d, deals: d.deals.map((x) => (x.id === dealId ? saved : x)) }));
+      setSaveErr(false);
+      setModal(null);
+    } catch (e) {
+      failWith(e);
+    }
   };
-  const setInvoice = (dealId: string, patch: Partial<Deal>) =>
-    persist({
-      ...data,
-      deals: deals.map((d) => {
-        if (d.id !== dealId) return d;
-        const next = { ...d, ...patch };
-        // Never allow "invoice created" while a required reference is still missing
-        if (refMissing(next, sponsors.find((x) => x.id === next.sponsorId))) next.invoiceCreated = false;
-        return next;
-      }),
-    });
+  const setInvoice = async (dealId: string, patch: Partial<Deal>) => {
+    const current = deals.find((d) => d.id === dealId);
+    if (!current) return;
+    const next = { ...current, ...patch };
+    // Never allow "invoice created" while a required reference is still missing
+    if (refMissing(next, sponsors.find((x) => x.id === next.sponsorId))) patch = { ...patch, invoiceCreated: false };
+    try {
+      const saved = await dealsApi.updateDeal(dealId, patch);
+      setData((d) => ({ ...d, deals: d.deals.map((x) => (x.id === dealId ? saved : x)) }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
+  };
+
+  /* Integration settings (admin only). The Tickoweb API key is not stored here —
+     secrets live in integration_secrets, which no browser session can reach. */
+  const saveSettings = async (patch: Settings) => {
+    try {
+      const saved = await settingsApi.updateSettings({ ...(data.settings || {}), ...patch });
+      setData((d) => ({ ...d, settings: saved }));
+      setSaveErr(false);
+      setModal(null);
+    } catch (e) {
+      failWith(e);
+    }
+  };
 
   /* ----- overview stats ----- */
   const pendingRequests = deals.filter((d) => d.requestedAt && !d.confirmedAt);
@@ -857,33 +1139,18 @@ export default function GrensrockApp() {
   if (mode.view === "landing") {
     return (
       <div className="gr-root">
-        <Landing
-          users={users}
-          sponsors={sponsors}
-          onTeam={(uid2) => {
-            setUserId(uid2);
-            setMode({ view: "team" });
-            setTab("overview");
-          }}
-          onPortal={(sponsorId, contactId) => setMode({ view: "portal", sponsorId, contactId })}
-        />
+        <Landing onSignedIn={enterSession} />
       </div>
     );
   }
   if (mode.view === "portal") {
     const ps = sponsors.find((s) => s.id === mode.sponsorId);
-    const portalContact = ps && sponsorContacts(ps).find((c) => c.id === mode.contactId);
-    actorRef.current = {
-      type: "sponsor",
-      id: ps?.id,
-      name: (portalContact ? contactName(portalContact) + " · " : "") + (ps?.companyName || ""),
-    };
     if (!ps) {
       return (
         <div className="gr-root">
           <div className="gr-landing">
             <p style={{ color: "#fff" }}>{t("po.unavail")}</p>
-            <button className="gr-btn-ghost" onClick={() => setMode({ view: "landing" })}>
+            <button className="gr-btn-ghost" onClick={signOut}>
               {t("po.backstart")}
             </button>
           </div>
@@ -897,18 +1164,13 @@ export default function GrensrockApp() {
         deals={deals}
         editions={editions}
         vouchers={vouchers}
-        onSaveSponsor={updateSponsorInfo}
-        onAssignVoucher={(id, patch) => updateVoucher(id, patch)}
-        onRequestFormula={(editionId, formulaName, byName) => requestFormula(ps.id, editionId, formulaName, byName)}
+        onSaveSponsor={portalSaveSponsor}
+        onAssignVoucher={assignVoucherRecipient}
+        onRequestFormula={requestFormula}
         onUpdateSplit={updateDealSplit}
         onUpdateExtra={updateDealExtra}
-        onAcceptAgreement={(dealId) =>
-          acceptAgreement(
-            dealId,
-            sponsorContacts(ps).find((c) => c.id === mode.contactId),
-          )
-        }
-        onExit={() => setMode({ view: "landing" })}
+        onAcceptAgreement={acceptAgreement}
+        onExit={signOut}
       />
     );
   }
@@ -973,13 +1235,7 @@ export default function GrensrockApp() {
               "setup"
             )}
           </span>
-          <button
-            onClick={() => {
-              setUserId(null);
-              setMode({ view: "landing" });
-            }}
-            title={t("common.logout")}
-          >
+          <button onClick={signOut} title={t("common.logout")}>
             {t("common.logout")}
           </button>
         </nav>
@@ -2522,8 +2778,8 @@ export default function GrensrockApp() {
                   </div>
                 )}
                 <p className="gr-muted" style={{ marginTop: 10 }}>
-                  The most recent {AUDIT_MAX} changes are kept. Export regularly if you need a permanent record — a
-                  full history belongs on a server, which is also where per-user logins will live.
+                  Changes are recorded on the server; the 1000 most recent ones are shown here. Export if you need a
+                  copy outside the tool.
                 </p>
               </section>
             );
@@ -2616,12 +2872,9 @@ export default function GrensrockApp() {
               <strong>User</strong> — can view and update all sponsors and their agreements.
             </p>
             <div className="gr-portalbox" style={{ marginTop: 14 }}>
-              Everyone logs in with their email address and the shared password
-              <strong className="gr-code" style={{ marginLeft: 6 }}>
-                {SHARED_PASSWORD}
-              </strong>
+              Everyone logs in with their own email address and password.
               <p className="gr-muted" style={{ margin: "6px 0 0" }}>
-                Temporary arrangement — personal passwords come with the move to a real backend.
+                A new team account gets an invitation email to set that password.
               </p>
             </div>
           </section>
@@ -2873,12 +3126,18 @@ export default function GrensrockApp() {
                       onClick={() =>
                         ask(
                           "Ask the sponsor to accept again? The current acceptance is cleared.",
-                          () => {
-                            persist({
-                              ...data,
-                              deals: deals.map((x) => (x.id === d.id ? { ...x, acceptance: null } : x)),
-                            });
-                            setModal(null);
+                          async () => {
+                            try {
+                              const saved = await dealsApi.updateDeal(d.id, { acceptance: null });
+                              setData((prev) => ({
+                                ...prev,
+                                deals: prev.deals.map((x) => (x.id === d.id ? saved : x)),
+                              }));
+                              setSaveErr(false);
+                              setModal(null);
+                            } catch (e) {
+                              failWith(e);
+                            }
                           },
                           { title: "Reset acceptance", confirmLabel: "Reset" },
                         )
@@ -2901,10 +3160,7 @@ export default function GrensrockApp() {
         <Modal title="VAT lookup (VIES)" onClose={() => setModal(null)}>
           <ViesSettings
             value={data.settings?.vies || defaultVies}
-            onSave={(cfg) => {
-              persist({ ...data, settings: { ...(data.settings || {}), vies: cfg } });
-              setModal(null);
-            }}
+            onSave={(cfg) => saveSettings({ vies: cfg })}
             onCancel={() => setModal(null)}
           />
         </Modal>
@@ -2914,10 +3170,7 @@ export default function GrensrockApp() {
           <TickowebSettings
             t={t}
             value={data.settings?.tickoweb || defaultTickoweb}
-            onSave={(cfg) => {
-              persist({ ...data, settings: { ...(data.settings || {}), tickoweb: cfg } });
-              setModal(null);
-            }}
+            onSave={(cfg) => saveSettings({ tickoweb: cfg })}
             onCancel={() => setModal(null)}
           />
         </Modal>

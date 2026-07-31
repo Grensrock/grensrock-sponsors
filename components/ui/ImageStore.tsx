@@ -3,20 +3,22 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
 import Tag from "@/components/ui/Tag";
-import { LOGO_ACCEPT, LOGO_MIN_PX, parseLogo, prettyBytes, readLogoFile, type LogoRecord } from "@/lib/logo";
-import { storage } from "@/lib/storage";
+import { LOGO_ACCEPT, LOGO_MIN_PX, prettyBytes, readLogoFile, type LogoRecord } from "@/lib/logo";
+import { loadImage, removeImage, uploadImage, type ImageRef } from "@/lib/supabase/storage";
 import type { Tone, TranslateFn } from "@/types";
 
-/* Reusable logo block: shows current logo, allows upload/replace/remove */
+/* Reusable logo block: shows current logo, allows upload/replace/remove.
+   Backed by Supabase Storage (private buckets, RLS-scoped) — see
+   lib/supabase/storage.ts for the path conventions. */
 export default function ImageStore({
-  storageKey,
+  image,
   compact,
   readOnly,
   label,
   requirements,
   t = (k) => k,
 }: {
-  storageKey: string;
+  image: ImageRef;
   compact?: boolean;
   readOnly?: boolean;
   label?: string;
@@ -27,12 +29,13 @@ export default function ImageStore({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  const { bucket, folder, base } = image;
   useEffect(() => {
     let live = true;
     (async () => {
       try {
-        const r = await storage.get(storageKey, true);
-        if (live && r && r.value) setLogo(parseLogo(r.value));
+        const r = await loadImage({ bucket, folder, base });
+        if (live) setLogo(r);
       } catch {
         /* nothing stored yet */
       }
@@ -40,7 +43,7 @@ export default function ImageStore({
     return () => {
       live = false;
     };
-  }, [storageKey]);
+  }, [bucket, folder, base]);
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files && e.target.files[0];
@@ -48,8 +51,8 @@ export default function ImageStore({
     setErr("");
     setBusy(true);
     try {
-      const record = await readLogoFile(file);
-      await storage.set(storageKey, JSON.stringify(record), true);
+      const record = await readLogoFile(file); // validates size, type and resolution
+      await uploadImage(image, file);
       setLogo(record);
     } catch (ex) {
       setErr((ex as Error).message || "Couldn't read this file.");
@@ -60,11 +63,11 @@ export default function ImageStore({
 
   const remove = async () => {
     try {
-      await storage.delete(storageKey, true);
-    } catch {
-      /* already gone */
+      await removeImage(image);
+      setLogo(null);
+    } catch (ex) {
+      setErr((ex as Error).message || "Couldn't remove this file.");
     }
-    setLogo(null);
   };
 
   /* What we can actually render: SVG/PNG/JPEG inline, other vectors as a file card */

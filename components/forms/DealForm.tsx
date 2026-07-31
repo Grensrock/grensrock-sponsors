@@ -35,7 +35,8 @@ export default function DealForm({
   onSave: (d: DealFormState) => void;
   onCancel: () => void;
   onDelete?: (id: string) => void;
-  onAddSponsor: (s: Sponsor) => Sponsor;
+  /* Creating a sponsor is a round-trip to the database now, so this may be async. */
+  onAddSponsor: (s: Sponsor) => Sponsor | Promise<Sponsor>;
   t?: TranslateFn;
 }) {
   const [d, setD] = useState<DealFormState>({ ...emptyDeal, ...initial });
@@ -91,8 +92,8 @@ export default function DealForm({
           viesCfg={viesCfg}
           existingSponsors={sponsors}
           t={t}
-          onSave={(s) => {
-            const created = onAddSponsor(s);
+          onSave={async (s) => {
+            const created = await onAddSponsor(s);
             set("sponsorId", created.id);
             setNewSponsorDraft(null);
           }}

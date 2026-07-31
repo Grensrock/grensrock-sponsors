@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(npm -v)",
+      "Bash(npx --yes create-next-app@latest . --typescript --eslint --tailwind --app --no-src-dir --import-alias \"@/*\" --use-npm)"
+    ]
+  }
+}

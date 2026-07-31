@@ -1,0 +1,310 @@
+import { DRINK_TICKET_VALUE, LED_ZONES, SHARED_PASSWORD } from "@/lib/constants";
+import { contactName, primaryContact } from "@/lib/contacts";
+import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
+import { normFolder, normLed } from "@/lib/normalize";
+import { userName } from "@/lib/users";
+import { drinkPoolValue, voucherText } from "@/lib/vouchers";
+import type { Contact, Deal, Edition, Language, Sponsor, User } from "@/types";
+
+/* ---------- portal invitation text ---------- */
+export function buildInvitation(sponsor: Sponsor, contact?: Contact | null, responsible?: string) {
+  const c = contact || primaryContact(sponsor) || ({} as Partial<Contact>);
+  const lang: Language = c.language || "nl";
+  const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+  return B(
+    `Beste ${contactName(c) || sponsor.companyName},
+
+Via onze sponsortool kan u de gegevens van ${sponsor.companyName} voor Grensrock zelf nakijken en aanpassen, en uw logo opladen (voor de folder, ledboarding, website, ...).
+
+Link: [link naar de sponsortool]
+Meld u aan met uw e-mailadres (${c.email || "het adres dat wij van u hebben"}) en het wachtwoord: ${SHARED_PASSWORD}
+
+Alvast bedankt!
+${responsible || "Het Grensrock-team"}`,
+    `Cher/Chère ${contactName(c) || sponsor.companyName},
+
+Via notre outil sponsors, vous pouvez vérifier et modifier vous-même les données de ${sponsor.companyName} pour Grensrock, et télécharger votre logo (pour le dépliant, le ledboarding, le site web, ...).
+
+Lien : [lien vers l'outil sponsors]
+Connectez-vous avec votre adresse e-mail (${c.email || "l'adresse que nous avons"}) et le mot de passe : ${SHARED_PASSWORD}
+
+Merci d'avance !
+${responsible || "L'équipe Grensrock"}`,
+    `Dear ${contactName(c) || sponsor.companyName},
+
+Through our sponsor tool you can review and update ${sponsor.companyName}'s details for Grensrock yourself, and upload your logo (for the folder, LED boarding, website, ...).
+
+Link: [link to the sponsor tool]
+Log in with your email address (${c.email || "the address we have on file"}) and the password: ${SHARED_PASSWORD}
+
+Thank you!
+${responsible || "The Grensrock team"}`,
+  );
+}
+
+/* ---------- Email / contract templates ---------- */
+
+export function buildEmail(
+  deal: Deal,
+  sponsor: Sponsor,
+  edition: Edition,
+  contact?: Contact | null,
+): { subject: string; body: string } {
+  const c = contact || primaryContact(sponsor) || ({} as Partial<Contact>);
+  const lang: Language = c.language || "nl";
+  const benefits: string[] = [];
+  const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+
+  if (Number(deal.vipFriday) > 0)
+    benefits.push(
+      B(
+        `${deal.vipFriday} VIP-tickets vrijdag`,
+        `${deal.vipFriday} tickets VIP vendredi`,
+        `${deal.vipFriday} VIP tickets Friday`,
+      ),
+    );
+  if (Number(deal.vipSaturday) > 0)
+    benefits.push(
+      B(
+        `${deal.vipSaturday} VIP-tickets zaterdag`,
+        `${deal.vipSaturday} tickets VIP samedi`,
+        `${deal.vipSaturday} VIP tickets Saturday`,
+      ),
+    );
+  if (Number(deal.vipGuests) > 0)
+    benefits.push(
+      B(
+        `${deal.vipGuests} VIP-tickets voor genodigden`,
+        `${deal.vipGuests} tickets VIP pour invités`,
+        `${deal.vipGuests} VIP tickets for guests`,
+      ),
+    );
+  if (Number(deal.drinkTickets) > 0) {
+    const dvt = voucherText(deal.drinkVouchers);
+    benefits.push(
+      dvt
+        ? B(
+            `Drankbonnen ter waarde van ${eur(drinkPoolValue(deal))}, verdeeld in: ${dvt}`,
+            `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}, répartis en : ${dvt}`,
+            `Drink vouchers worth ${eur(drinkPoolValue(deal))}, divided into: ${dvt}`,
+          )
+        : B(
+            `${deal.drinkTickets} drankbonnen (waarde ${eur(DRINK_TICKET_VALUE)} per bon)`,
+            `${deal.drinkTickets} tickets boissons (valeur ${eur(DRINK_TICKET_VALUE)} par ticket)`,
+            `${deal.drinkTickets} drink tickets (value ${eur(DRINK_TICKET_VALUE)} each)`,
+          ),
+    );
+  }
+  if (Number(deal.foodDrinkValue) > 0) {
+    const vt = voucherText(deal.foodDrinkVouchers);
+    const split = vt
+      ? B(`, verdeeld in bonnen: ${vt}`, `, répartis en bons : ${vt}`, `, divided into vouchers: ${vt}`)
+      : "";
+    benefits.push(
+      B(
+        `Bonnen eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
+        `Bons food & boissons d'une valeur de ${eur(deal.foodDrinkValue)}${split}`,
+        `Food & drink vouchers worth ${eur(deal.foodDrinkValue)}${split}`,
+      ),
+    );
+  }
+  const folder = normFolder(deal.folderMention);
+  if (folder !== "none") {
+    const size = {
+      full: B("volledige pagina", "page entière", "full page"),
+      half: B("halve pagina", "demi-page", "half page"),
+      quarter: B("1/4 pagina", "1/4 de page", "1/4 page"),
+      eighth: B("1/8 pagina", "1/8 de page", "1/8 page"),
+    }[folder];
+    benefits.push(
+      B(
+        `Vermelding in de festivalfolder (${size})`,
+        `Mention dans le dépliant du festival (${size})`,
+        `Mention in the festival folder (${size})`,
+      ),
+    );
+  }
+  if (deal.websiteMention !== "none")
+    benefits.push(
+      deal.websiteMention === "logo"
+        ? B("Logo op de website", "Logo sur le site web", "Logo on the website")
+        : B("Naamsvermelding op de website", "Mention du nom sur le site web", "Name mention on the website"),
+    );
+  if (deal.posterMention && deal.posterMention !== "none")
+    benefits.push(
+      deal.posterMention === "logo"
+        ? B("Logo op de festivalaffiche", "Logo sur l'affiche du festival", "Logo on the festival poster")
+        : B(
+            "Naamsvermelding op de festivalaffiche",
+            "Mention du nom sur l'affiche du festival",
+            "Name mention on the festival poster",
+          ),
+    );
+  if (Number(deal.barrierCovers) > 0)
+    benefits.push(
+      B(
+        `${deal.barrierCovers} hoes(sen) voor nadarhekken`,
+        `${deal.barrierCovers} housse(s) pour barrières Nadar`,
+        `${deal.barrierCovers} crowd control barrier cover(s)`,
+      ),
+    );
+  if (Number(deal.herasCovers) > 0)
+    benefits.push(
+      B(
+        `${deal.herasCovers} hoes(sen) voor Heras-hekken`,
+        `${deal.herasCovers} housse(s) pour clôtures Heras`,
+        `${deal.herasCovers} Heras fence cover(s)`,
+      ),
+    );
+  const zones = normLed(deal.ledboarding);
+  if (zones.length > 0) {
+    const zoneList = zones.map((z) => LED_ZONES[z]).join(" + ");
+    benefits.push(
+      B(
+        `Vermelding op ledboarding (${zoneList})`,
+        `Mention sur le ledboarding (${zoneList})`,
+        `Mention on LED boarding (${zoneList})`,
+      ),
+    );
+  }
+
+  const list = benefits.map((b) => "  • " + b).join("\n");
+  const dates = edition.startDate ? ` (${edition.startDate}${edition.endDate ? " – " + edition.endDate : ""})` : "";
+  const notes = (deal.notes || "").trim();
+
+  /* Contribution + settlement wording */
+  const inKind = (deal.inKindDescription || "").trim();
+  const toInvoice = invoiceAmount(deal);
+  /* NOTE: the prototype's Dutch line referenced `contribution` inside its own
+     initialiser (a TDZ self-reference that threw at runtime, so this template
+     could never be produced). Restored to the obvious intent, matching the FR/EN
+     lines below. */
+  const contribution = B(
+    `Bijdrage: ${eur(deal.cost)}`,
+    `Contribution : ${eur(deal.cost)}`,
+    `Contribution: ${eur(deal.cost)}`,
+  );
+  const ref = String(deal.invoiceReference || "").trim();
+  const refLine = refRequiredFor(deal, sponsor)
+    ? ref
+      ? B(
+          `\nReferentie op de factuur: ${ref}`,
+          `\nRéférence sur la facture : ${ref}`,
+          `\nReference on the invoice: ${ref}`,
+        )
+      : B(
+          "\nGelieve ons de referentie te bezorgen die op de factuur moet komen.",
+          "\nMerci de nous communiquer la référence à mentionner sur la facture.",
+          "\nPlease let us know the reference to put on the invoice.",
+        )
+    : "";
+  let settlementBlock: string;
+  if (deal.settlement === "inkind") {
+    settlementBlock = B(
+      `Deze sponsoring gebeurt in natura${inKind ? `:\n${inKind}` : "."}
+Er wordt hiervoor geen factuur opgemaakt.`,
+      `Ce sponsoring se fait en nature${inKind ? ` :\n${inKind}` : "."}
+Aucune facture ne sera établie pour cet accord.`,
+      `This sponsorship is provided in kind${inKind ? `:\n${inKind}` : "."}
+No invoice will be issued for this agreement.`,
+    );
+  } else if (deal.settlement === "mixed") {
+    settlementBlock = B(
+      `Een deel van deze sponsoring gebeurt in natura${inKind ? `:\n${inKind}` : "."}
+Te factureren bedrag: ${eur(toInvoice)}. De facturatie volgt via e-invoicing (BillToBox).${refLine}`,
+      `Une partie de ce sponsoring se fait en nature${inKind ? ` :\n${inKind}` : "."}
+Montant à facturer : ${eur(toInvoice)}. La facturation suivra par e-invoicing (BillToBox).${refLine}`,
+      `Part of this sponsorship is provided in kind${inKind ? `:\n${inKind}` : "."}
+Amount to be invoiced: ${eur(toInvoice)}. Invoicing will follow via e-invoicing (BillToBox).${refLine}`,
+    );
+  } else {
+    settlementBlock = B(
+      `De facturatie volgt via e-invoicing (BillToBox).${refLine}`,
+      `La facturation suivra par e-invoicing (BillToBox).${refLine}`,
+      `Invoicing will follow via e-invoicing (BillToBox).${refLine}`,
+    );
+  }
+
+  const confirm = B(
+    'Dit overzicht geldt als contract. Gelieve dit ter bevestiging te beantwoorden met "akkoord".',
+    "Cet aperçu fait office de contrat. Veuillez répondre « accord » pour confirmation.",
+    'This overview serves as the contract. Please reply "agreed" to confirm.',
+  );
+
+  const subject = B(
+    `Bevestiging sponsorovereenkomst ${edition.name}`,
+    `Confirmation de l'accord de sponsoring ${edition.name}`,
+    `Confirmation of sponsorship agreement ${edition.name}`,
+  );
+
+  const body = B(
+    `Beste ${contactName(c) || sponsor.companyName},
+
+Hartelijk dank voor uw steun aan ${edition.name}${dates}. Hieronder vindt u een overzicht van de afgesproken sponsorformule${deal.formulaName ? ` "${deal.formulaName}"` : ""}.
+
+Sponsor: ${sponsor.companyName}
+BTW-nummer: ${sponsor.vatNumber || "—"}
+${contribution}
+
+Inbegrepen:
+${list || "  • (geen voordelen geselecteerd)"}
+${notes ? "\nOpmerkingen:\n" + notes + "\n" : ""}
+${settlementBlock}
+
+${confirm}
+
+Met vriendelijke groeten,
+${deal.responsible || "Het Grensrock-team"}
+Grensrock`,
+    `Cher/Chère ${contactName(c) || sponsor.companyName},
+
+Merci beaucoup pour votre soutien à ${edition.name}${dates}. Vous trouverez ci-dessous un aperçu de la formule de sponsoring convenue${deal.formulaName ? ` « ${deal.formulaName} »` : ""}.
+
+Sponsor : ${sponsor.companyName}
+Numéro de TVA : ${sponsor.vatNumber || "—"}
+${contribution}
+
+Inclus :
+${list || "  • (aucun avantage sélectionné)"}
+${notes ? "\nRemarques :\n" + notes + "\n" : ""}
+${settlementBlock}
+
+${confirm}
+
+Cordialement,
+${deal.responsible || "L'équipe Grensrock"}
+Grensrock`,
+    `Dear ${contactName(c) || sponsor.companyName},
+
+Thank you very much for supporting ${edition.name}${dates}. Below you will find an overview of the agreed sponsorship formula${deal.formulaName ? ` "${deal.formulaName}"` : ""}.
+
+Sponsor: ${sponsor.companyName}
+VAT number: ${sponsor.vatNumber || "—"}
+${contribution}
+
+Included:
+${list || "  • (no benefits selected)"}
+${notes ? "\nNotes:\n" + notes + "\n" : ""}
+${settlementBlock}
+
+${confirm}
+
+Kind regards,
+${deal.responsible || "The Grensrock team"}
+Grensrock`,
+  );
+
+  return { subject, body };
+}
+
+export function buildUserInvite(user: User) {
+  return `Hi ${userName(user)},
+
+You have access to the Grensrock sponsor tool.
+
+Link: [link to the tool]
+Log in with your email address (${user.email}) and the password: ${SHARED_PASSWORD}
+Your role: ${user.role === "admin" ? "admin (full access)" : "user (sponsors & agreements)"}
+
+Grensrock`;
+}

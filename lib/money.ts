@@ -1,0 +1,29 @@
+import type { Deal, NumLike } from "@/types";
+
+export const eur = (n?: NumLike | null) => {
+  const v = Number(n) || 0;
+  return "€ " + v.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/* The part of the F&D value the sponsor added on top of what the formula included */
+export const foodDrinkExtra = (d: Partial<Deal>) =>
+  Math.max(0, (Number(d.foodDrinkValue) || 0) - (Number(d.baseFoodDrink) || 0));
+
+/* Amount that actually has to be invoiced */
+export const dealTotalCost = (d: Partial<Deal>) => (Number(d.cost) || 0) + foodDrinkExtra(d);
+
+export const invoiceAmount = (d: Partial<Deal>) => {
+  const cost = dealTotalCost(d);
+  if (d.settlement === "inkind") return foodDrinkExtra(d); // the top-up is always billable, even for in-kind deals
+  if (d.settlement === "mixed") return Math.max(0, cost - (Number(d.inKindValue) || 0));
+  return cost;
+};
+
+export const needsInvoice = (d: Partial<Deal>) => invoiceAmount(d) > 0;
+
+/* A reference is required when the sponsor is flagged as such (or the agreement overrides it) */
+export const refRequiredFor = (d?: Partial<Deal> | null, sponsor?: { refRequired?: boolean } | null) =>
+  !!(sponsor?.refRequired || d?.refRequired);
+
+export const refMissing = (d: Partial<Deal>, sponsor?: { refRequired?: boolean } | null) =>
+  needsInvoice(d) && refRequiredFor(d, sponsor) && !String(d.invoiceReference || "").trim();

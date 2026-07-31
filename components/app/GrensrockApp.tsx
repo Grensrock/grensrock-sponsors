@@ -1,0 +1,2992 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import * as XLSX from "xlsx";
+import ContactForm from "@/components/forms/ContactForm";
+import DealForm, { type DealFormState } from "@/components/forms/DealForm";
+import EditionForm from "@/components/forms/EditionForm";
+import FormulaForm from "@/components/forms/FormulaForm";
+import SponsorForm from "@/components/forms/SponsorForm";
+import TickowebSettings from "@/components/forms/TickowebSettings";
+import UserForm, { type UserFormState } from "@/components/forms/UserForm";
+import ViesSettings from "@/components/forms/ViesSettings";
+import ContactImportModal, { type ContactImportRow } from "@/components/modals/ContactImportModal";
+import EmailModal from "@/components/modals/EmailModal";
+import ExampleImagesManager from "@/components/modals/ExampleImagesManager";
+import ImportModal, { type SponsorImportRow } from "@/components/modals/ImportModal";
+import NewContactModal from "@/components/modals/NewContactModal";
+import ConfirmDialog, { type DialogSpec } from "@/components/ui/ConfirmDialog";
+import Modal from "@/components/ui/Modal";
+import PickLogo from "@/components/ui/PickLogo";
+import Tag from "@/components/ui/Tag";
+import CopyUserInvite from "@/components/views/CopyUserInvite";
+import FolderOverview from "@/components/views/FolderOverview";
+import Landing from "@/components/views/Landing";
+import SponsorDetail from "@/components/views/SponsorDetail";
+import SponsorPortal from "@/components/views/SponsorPortal";
+import { changedSinceAcceptance, fmtDateTime, isAccepted, termsSnapshot } from "@/lib/acceptance";
+import { formatAddress } from "@/lib/address";
+import { AUDIT_MAX, diffForAudit } from "@/lib/audit-engine";
+import { auditActorLabel } from "@/lib/audit-engine";
+import {
+  ADMIN_TABS,
+  COMMS,
+  FOLDER_OPTS,
+  LANGS,
+  POSTER_OPTS,
+  SHARED_PASSWORD,
+  STORAGE_KEY,
+  TEAM_LANGS,
+  VOUCHER_STATUS,
+  VOUCHER_TYPES,
+  WEBSITE_OPTS,
+  emptySponsor,
+  uid,
+  type CommKey,
+} from "@/lib/constants";
+import { contactName, primaryContact, sponsorContacts, voucherContact } from "@/lib/contacts";
+import { sameEmail } from "@/lib/email-validate";
+import { defaultTickoweb, tickoweb } from "@/lib/integrations/tickoweb";
+import { defaultVies } from "@/lib/integrations/vies";
+import { logoKey } from "@/lib/logo";
+import { migrate, type StoredAppData } from "@/lib/migrate";
+import {
+  dealTotalCost,
+  eur,
+  foodDrinkExtra,
+  invoiceAmount,
+  needsInvoice,
+  refMissing,
+  refRequiredFor,
+} from "@/lib/money";
+import { ledLabel, normFolder, normLed, normNameKey, normVatKey } from "@/lib/normalize";
+import { storage } from "@/lib/storage";
+import { isAdmin, responsibleName, userName } from "@/lib/users";
+import { teamT } from "@/lib/i18n";
+import { dealFromFormula, expectedVouchers, ticketLines, visibilityLines } from "@/lib/vouchers";
+import type {
+  AppData,
+  AuditActor,
+  AuditEntity,
+  Contact,
+  Deal,
+  DealDraft,
+  Edition,
+  Formula,
+  Sponsor,
+  TeamLanguage,
+  TickowebConfig,
+  User,
+  Voucher,
+  VoucherStatus,
+} from "@/types";
+
+/* ============================================================
+   Main app
+   ============================================================ */
+
+type ModalState =
+  | { type: "sponsor"; payload?: Sponsor }
+  | { type: "contact"; payload: { sponsorId: string; contact: Contact | null } }
+  | { type: "newContact" }
+  | { type: "importContacts" }
+  | { type: "acceptance"; payload: Deal }
+  | { type: "examples" }
+  | { type: "vies" }
+  | { type: "tickoweb" }
+  | { type: "user"; payload?: Partial<User> }
+  | { type: "import" }
+  | { type: "edition"; payload?: Edition }
+  | { type: "formula"; payload: { editionId: string; formula?: Formula } }
+  | { type: "deal"; payload?: DealDraft }
+  | { type: "email"; payload: Deal };
+
+type ViewMode =
+  | { view: "landing" }
+  | { view: "team" }
+  | { view: "portal"; sponsorId: string; contactId: string };
+
+export default function GrensrockApp() {
+  const [data, setData] = useState<AppData>({
+    sponsors: [],
+    editions: [],
+    deals: [],
+    users: [],
+    settings: { teamCode: "" },
+  });
+  const [loaded, setLoaded] = useState(false);
+  const [saveErr, setSaveErr] = useState(false);
+  const [mode, setMode] = useState<ViewMode>({ view: "landing" }); // landing | team | portal
+  const [userId, setUserId] = useState<string | null>(null);
+  const [tab, setTab] = useState("overview");
+  const [modal, setModal] = useState<ModalState | null>(null); // {type, payload}
+  const [query, setQuery] = useState("");
+  const [openSponsorId, setOpenSponsorId] = useState<string | null>(null);
+  const [invEdition, setInvEdition] = useState("");
+  const [voEdition, setVoEdition] = useState("");
+  const [voSponsor, setVoSponsor] = useState("");
+  const [voStatus, setVoStatus] = useState("");
+  const [voSel, setVoSel] = useState<string[]>([]);
+  const [voBusy, setVoBusy] = useState(false);
+  const [folEdition, setFolEdition] = useState("");
+  const [coQuery, setCoQuery] = useState("");
+  const [coComm, setCoComm] = useState("");
+  const [coLang, setCoLang] = useState("");
+  const [auQuery, setAuQuery] = useState("");
+  const [auEntity, setAuEntity] = useState("");
+  const [agQuery, setAgQuery] = useState("");
+  const [agEdition, setAgEdition] = useState("");
+  const [agResponsible, setAgResponsible] = useState("");
+  const [agStatus, setAgStatus] = useState("");
+  const [agSettle, setAgSettle] = useState("");
+  const [adminSub, setAdminSub] = useState("editions");
+  const [dialog, setDialog] = useState<DialogSpec | null>(null);
+  const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "companyName", dir: 1 });
+  const [fEdition, setFEdition] = useState(""); // "" = all editions
+  const [fResponsible, setFResponsible] = useState(""); // "" = everyone, "me", "none", or a user id
+  const toggleSort = (key: string) => setSort((p) => (p.key === key ? { key, dir: -p.dir } : { key, dir: 1 }));
+  const ask = (message: string, onConfirm: () => void, opts: Partial<DialogSpec> = {}) =>
+    setDialog({ message, onConfirm, danger: true, ...opts });
+  const notify = (message: string, title?: string) => setDialog({ message, title: title || "Done" });
+
+  /* ----- load & save (shared storage: whole team + sponsors work on the same data) ----- */
+  useEffect(() => {
+    (async () => {
+      let d: StoredAppData | null = null;
+      try {
+        const r = await storage.get(STORAGE_KEY, true);
+        if (r && r.value) d = JSON.parse(r.value);
+      } catch {
+        /* no shared data yet */
+      }
+      if (!d) {
+        // One-time migration from the old per-user storage
+        try {
+          const old = await storage.get(STORAGE_KEY);
+          if (old && old.value) {
+            d = JSON.parse(old.value);
+            await storage.set(STORAGE_KEY, JSON.stringify(migrate(d!)), true);
+          }
+        } catch {
+          /* nothing to migrate */
+        }
+      }
+      if (d) {
+        const migrated = migrate(d);
+        setData(migrated);
+        // Persist newly generated codes/keys so they stay stable across sessions
+        if (JSON.stringify(migrated) !== JSON.stringify(d)) {
+          try {
+            await storage.set(STORAGE_KEY, JSON.stringify(migrated), true);
+          } catch {
+            /* retried on next save */
+          }
+        }
+      }
+      setLoaded(true);
+    })();
+  }, []);
+
+  /* Who is making changes right now — used to attribute audit entries */
+  const actorRef = useRef<AuditActor>({ type: "system" });
+  useEffect(() => {
+    const u = (data.users || []).find((x) => x.id === userId);
+    actorRef.current = u ? { type: "team", id: u.id, name: userName(u) } : { type: "system" };
+  }, [userId, data.users]);
+
+  const persist = useCallback(async (next: AppData) => {
+    let toSave = next;
+    setData((prev) => {
+      try {
+        const entries = diffForAudit(prev, next, actorRef.current);
+        if (entries.length) {
+          const log = [...entries, ...(prev.audit || [])].slice(0, AUDIT_MAX);
+          toSave = { ...next, audit: log };
+        } else {
+          toSave = { ...next, audit: prev.audit || [] };
+        }
+      } catch {
+        toSave = next;
+      }
+      return toSave;
+    });
+    try {
+      await storage.set(STORAGE_KEY, JSON.stringify(toSave), true);
+      setSaveErr(false);
+    } catch {
+      setSaveErr(true);
+    }
+  }, []);
+
+  /* ----- derived ----- */
+  const { sponsors, editions, deals } = data;
+  const users = data.users || [];
+  const vouchers = data.vouchers || [];
+  const me = users.find((u) => u.id === userId) || null;
+  const admin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
+  // A non-admin should never sit on an admin-only tab (e.g. after losing admin, or stale state)
+  useEffect(() => {
+    if (!admin && (ADMIN_TABS.includes(tab) || tab === "folder" || tab === "invoicing")) setTab("overview");
+  }, [admin, tab]);
+  const [langOverride, setLangOverride] = useState<TeamLanguage | null>(null); // header switcher, this session only
+  const uiLang: TeamLanguage = langOverride || me?.language || "nl";
+  const t = useCallback((key: string) => teamT(key, uiLang), [uiLang]);
+  const activeEditions = editions.filter((e) => e.active);
+  const sortedEditions = [...editions].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
+
+  const filteredSponsors = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = [...sponsors];
+
+    /* Only sponsors with an agreement for this edition */
+    if (fEdition) list = list.filter((s) => deals.some((d) => d.sponsorId === s.id && d.editionId === fEdition));
+
+    /* Responsible team member */
+    if (fResponsible === "me") list = list.filter((s) => s.responsibleId === userId);
+    else if (fResponsible === "none") list = list.filter((s) => !s.responsibleId);
+    else if (fResponsible) list = list.filter((s) => s.responsibleId === fResponsible);
+
+    if (q)
+      list = list.filter((s) =>
+        [
+          s.companyName,
+          s.vatNumber,
+          responsibleName(s, users),
+          formatAddress(s),
+          s.postalCode,
+          s.city,
+          ...sponsorContacts(s).flatMap((c) => [contactName(c), c.email]),
+        ].some((f) => (f || "").toLowerCase().includes(q)),
+      );
+
+    const dealsOf = (s: Sponsor) => deals.filter((d) => d.sponsorId === s.id);
+    const value = (s: Sponsor): string | number => {
+      switch (sort.key) {
+        case "contact":
+          return contactName(primaryContact(s)) || "";
+        case "language":
+          return [...new Set(sponsorContacts(s).map((c) => c.language || "nl"))].sort().join(",");
+        case "responsible":
+          return responsibleName(s, users);
+        case "city":
+          return s.city || "";
+        case "editions":
+          return dealsOf(s).length;
+        case "lifetime":
+          return dealsOf(s).reduce((sum, d) => sum + dealTotalCost(d), 0);
+        default:
+          return s.companyName || "";
+      }
+    };
+    return list.sort((a, b) => {
+      const va = value(a),
+        vb = value(b);
+      const cmp =
+        typeof va === "number" && typeof vb === "number"
+          ? va - vb
+          : String(va).localeCompare(String(vb), "nl", { sensitivity: "base" });
+      /* empty values always sink to the bottom, whichever direction */
+      if (String(va) === "" && String(vb) !== "") return 1;
+      if (String(vb) === "" && String(va) !== "") return -1;
+      return cmp * sort.dir;
+    });
+  }, [sponsors, query, deals, users, sort, fEdition, fResponsible, userId]);
+
+  /* Export the currently filtered & sorted sponsor list to .xlsx */
+  const exportSponsors = () => {
+    if (filteredSponsors.length === 0) {
+      notify(t("ex.emptymsg"), t("ex.empty"));
+      return;
+    }
+    const rows = filteredSponsors.map((s) => {
+      const sDeals = deals.filter((d) => d.sponsorId === s.id);
+      const pc = primaryContact(s);
+      const vc = voucherContact(s);
+      return {
+        [t("sp.company")]: s.companyName,
+        [t("c.type")]: s.entityType === "legal" ? t("c.legal") : t("c.person"),
+        [t("c.vat")]: s.vatNumber || "",
+        [t("sf.street")]: s.street || "",
+        [t("sf.number")]: s.houseNumber || "",
+        [t("sf.postal")]: s.postalCode || "",
+        [t("sp.city")]: s.city || "",
+        [t("sp.contact")]: contactName(pc) || "",
+        [t("c.email")]: pc?.email || "",
+        [t("c.phone")]: pc?.phone || "",
+        [t("sp.language")]: [...new Set(sponsorContacts(s).map((c) => (c.language || "nl").toUpperCase()))].join(", "),
+        [t("vc.receiver")]: vc ? `${contactName(vc) || "?"} <${vc.email}>` : "",
+        [t("sp.responsible")]: responsibleName(s, users),
+        [t("sp.editions")]: sDeals.length,
+        [t("sp.lifetime")]: sDeals.reduce((sum, d) => sum + dealTotalCost(d), 0),
+        [t("inv.reference")]: s.refRequired ? "yes" : "",
+        [t("c.contact") + "s"]: sponsorContacts(s).length,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 28 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 20 },
+      { wch: 8 },
+      { wch: 9 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 26 },
+      { wch: 16 },
+      { wch: 10 },
+      { wch: 30 },
+      { wch: 18 },
+      { wch: 9 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 9 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sponsors");
+    // filename reflects the active filters so exports don't get confused
+    const parts = ["grensrock-sponsors"];
+    if (fResponsible === "me") parts.push("mine");
+    else if (fResponsible === "none") parts.push("unassigned");
+    else if (fResponsible)
+      parts.push((userName(users.find((u) => u.id === fResponsible)) || "resp").toLowerCase().replace(/\s+/g, "-"));
+    if (fEdition)
+      parts.push((editions.find((e) => e.id === fEdition)?.name || "edition").toLowerCase().replace(/\s+/g, "-"));
+    XLSX.writeFile(wb, parts.join("-") + ".xlsx");
+  };
+
+  const openSponsor = sponsors.find((s) => s.id === openSponsorId);
+
+  /* ----- mutations ----- */
+  const saveUser = (u: UserFormState) => {
+    const bootstrap = users.length === 0;
+    const created: User = { ...u, id: uid() };
+    const next: AppData = u.id
+      ? { ...data, users: users.map((x) => (x.id === u.id ? { ...x, ...u } : x)) }
+      : { ...data, users: [...users, bootstrap ? { ...created, role: "admin" } : created] };
+    persist(next);
+    setModal(null);
+    if (bootstrap) setUserId(created.id); // stay logged in as the new admin
+  };
+  const deleteUser = (id: string) => {
+    const u = users.find((x) => x.id === id);
+    const admins = users.filter(isAdmin);
+    if (isAdmin(u) && admins.length <= 1) {
+      notify("You can't remove the last admin.", "Not possible");
+      return;
+    }
+    ask(
+      `Remove the account of ${userName(u)}? They lose access immediately.`,
+      () => {
+        persist({ ...data, users: users.filter((x) => x.id !== id) });
+        if (id === userId) {
+          setUserId(null);
+          setMode({ view: "landing" });
+        }
+      },
+      { title: "Remove account", confirmLabel: "Remove" },
+    );
+  };
+  const deleteDeal = (dealId: string) => {
+    const d = deals.find((x) => x.id === dealId);
+    if (!d) return;
+    const linked = vouchers.filter((v) => v.dealId === dealId);
+    const issued = linked.filter((v) => v.status === "created" || v.status === "sent");
+    const msg = issued.length
+      ? `Delete this agreement?\n\n${issued.length} voucher(s) were already created or sent — they will be marked as cancelled here. Cancel them in Tickoweb as well.`
+      : linked.length
+        ? `Delete this agreement and its ${linked.length} voucher(s) that were not created yet?`
+        : "Delete this agreement?";
+    ask(
+      msg,
+      () => {
+        persist({
+          ...data,
+          deals: deals.filter((x) => x.id !== dealId),
+          vouchers: vouchers
+            .filter((v) => !(v.dealId === dealId && v.status === "pending"))
+            .map((v) =>
+              v.dealId === dealId
+                ? { ...v, status: "cancelled" as VoucherStatus, cancelledAt: v.cancelledAt || new Date().toISOString() }
+                : v,
+            ),
+        });
+        setModal(null);
+      },
+      { title: "Delete agreement", confirmLabel: "Delete" },
+    );
+  };
+
+  /* Sponsor accepts the agreement: record who, when, and freeze the terms */
+  const acceptAgreement = (dealId: string, contact?: Contact | null) => {
+    persist({
+      ...data,
+      deals: deals.map((d) =>
+        d.id === dealId && !isAccepted(d)
+          ? {
+              ...d,
+              acceptance: {
+                acceptedAt: new Date().toISOString(),
+                name: contactName(contact) || "",
+                email: contact?.email || "",
+                contactId: contact?.id || "",
+                snapshot: termsSnapshot(d),
+              },
+            }
+          : d,
+      ),
+    });
+  };
+
+  /* Sponsor tops up their food & drink value. Allowed until the food vouchers are created.
+     Changing the total drops the pending food split + any pending food voucher records so they
+     regenerate for the new amount. */
+  const updateDealExtra = (dealId: string, patch: Partial<Deal>) => {
+    if (vouchers.some((v) => v.dealId === dealId && v.type === "food" && v.status !== "pending")) return;
+    persist({
+      ...data,
+      deals: deals.map((d) => (d.id === dealId ? { ...d, ...patch, foodDrinkVouchers: [] } : d)),
+      vouchers: vouchers.filter((v) => !(v.dealId === dealId && v.type === "food" && v.status === "pending")),
+    });
+  };
+
+  const updateDealSplit = (dealId: string, pool: "drink" | "food", rows: Deal["drinkVouchers"]) => {
+    const type = pool === "drink" ? "drink" : "food";
+    const field = pool === "drink" ? "drinkVouchers" : "foodDrinkVouchers";
+    if (vouchers.some((v) => v.dealId === dealId && v.type === type && v.status !== "pending")) return;
+    persist({
+      ...data,
+      deals: deals.map((d) => (d.id === dealId ? { ...d, [field]: rows } : d)),
+      vouchers: vouchers.filter((v) => !(v.dealId === dealId && v.type === type && v.status === "pending")),
+    });
+  };
+
+  /* A sponsor picked a formula themselves: create the agreement exactly as the formula defines it */
+  const requestFormula = (sponsorId: string, editionId: string, formulaName: string, byName: string) => {
+    const ed = editions.find((e) => e.id === editionId);
+    const f = (ed?.formulas || []).find((x) => x.name === formulaName);
+    if (!f) return;
+    if (deals.some((d) => d.sponsorId === sponsorId && d.editionId === editionId)) return; // already has one
+    const deal: Deal = {
+      ...dealFromFormula(f, sponsorId, editionId),
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      requestedAt: new Date().toISOString(),
+      requestedBy: byName || "",
+    };
+    persist({ ...data, deals: [...deals, deal] });
+  };
+
+  /* ----- vouchers ----- */
+  const updateVoucher = (id: string, patch: Partial<Voucher>) =>
+    persist({ ...data, vouchers: vouchers.map((v) => (v.id === id ? { ...v, ...patch } : v)) });
+
+  /* Create voucher records for everything the agreements of an edition entitle to.
+     Existing (incl. cancelled) records are kept; only the shortfall is added. */
+  const generateVouchers = (editionId: string) => {
+    const edDeals = deals.filter((d) => d.editionId === editionId);
+    const added: Voucher[] = [];
+    edDeals.forEach((d) => {
+      const wanted = expectedVouchers(d);
+      const have = vouchers.filter((v) => v.dealId === d.id && v.status !== "cancelled");
+      const countBy = (list: Array<{ type: string; value: number }>, ty: string, val: number) =>
+        list.filter((x) => x.type === ty && Number(x.value) === Number(val)).length;
+      const seen = new Set<string>();
+      wanted.forEach((w) => {
+        const key = `${w.type}|${w.value}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const need = countBy(wanted, w.type, w.value) - countBy(have, w.type, w.value);
+        for (let i = 0; i < need; i++) {
+          added.push({
+            id: uid(),
+            sponsorId: d.sponsorId,
+            editionId,
+            dealId: d.id,
+            type: w.type,
+            value: w.value,
+            status: "pending",
+            code: "",
+            url: "",
+            recipientName: "",
+            recipientEmail: "",
+            createdAt: null,
+            sentAt: null,
+            cancelledAt: null,
+            error: "",
+          });
+        }
+      });
+    });
+    if (added.length === 0) {
+      notify("Everything is already generated for this edition.", "Nothing to add");
+      return;
+    }
+    persist({ ...data, vouchers: [...vouchers, ...added] });
+    notify(`${added.length} voucher(s) added as "to create".`, "Vouchers generated");
+  };
+
+  /* Run a Tickoweb action over a selection, one by one so a failure doesn't stop the rest */
+  const runVoucherAction = async (action: string, ids: string[]) => {
+    if (action === "cancel") {
+      ask(`Cancel ${ids.length} voucher(s)?`, () => doVoucherAction(action, ids), {
+        title: "Cancel vouchers",
+        confirmLabel: "Cancel vouchers",
+      });
+      return;
+    }
+    return doVoucherAction(action, ids);
+  };
+
+  const doVoucherAction = async (action: string, ids: string[]) => {
+    const cfg: TickowebConfig = data.settings?.tickoweb || defaultTickoweb;
+    setVoBusy(true);
+    let next = vouchers;
+    for (const id of ids) {
+      const v = next.find((x) => x.id === id);
+      if (!v) continue;
+      const sponsor = sponsors.find((s) => s.id === v.sponsorId);
+      const edition = editions.find((e) => e.id === v.editionId);
+      const target = v.recipientEmail
+        ? { name: v.recipientName, email: v.recipientEmail }
+        : (() => {
+            const c = voucherContact(sponsor);
+            return c ? { name: contactName(c), email: c.email } : null;
+          })();
+      try {
+        let patch: Partial<Voucher> = {};
+        if (action === "createSend") {
+          if (v.status === "pending") {
+            const r = await tickoweb.create(cfg, { voucher: v, sponsor, edition, recipient: target });
+            patch = {
+              ...patch,
+              code: r.code || v.code,
+              url: r.url || v.url,
+              createdAt: new Date().toISOString(),
+              status: "created",
+              error: "",
+            };
+          }
+          const sendable = { ...v, ...patch };
+          if (sendable.code || cfg.mode !== "live") {
+            await tickoweb.send(cfg, { voucher: sendable, recipient: target });
+            patch = { ...patch, status: "sent", sentAt: new Date().toISOString() };
+          }
+        } else if (action === "resend") {
+          await tickoweb.send(cfg, { voucher: v, recipient: target });
+          patch = { status: "sent", sentAt: new Date().toISOString(), error: "" };
+        } else if (action === "cancel") {
+          if (v.code) await tickoweb.cancel(cfg, { voucher: v });
+          patch = { status: "cancelled", cancelledAt: new Date().toISOString(), error: "" };
+        }
+        next = next.map((x) => (x.id === id ? { ...x, ...patch } : x));
+      } catch (ex) {
+        next = next.map((x) =>
+          x.id === id ? { ...x, status: "error" as VoucherStatus, error: String((ex as Error).message || ex) } : x,
+        );
+      }
+    }
+    await persist({ ...data, vouchers: next });
+    setVoSel([]);
+    setVoBusy(false);
+  };
+
+  /* Find a possible duplicate sponsor by VAT (strong) or name (soft) */
+  const findDuplicateSponsor = (s: Sponsor) => {
+    const vk = normVatKey(s.vatNumber);
+    const nk = normNameKey(s.companyName);
+    const others = sponsors.filter((x) => x.id !== s.id);
+    const byVat = vk ? others.find((x) => normVatKey(x.vatNumber) === vk) : null;
+    if (byVat) return { sponsor: byVat, on: "vat" };
+    const byName = nk ? others.find((x) => normNameKey(x.companyName) === nk) : null;
+    if (byName) return { sponsor: byName, on: "name" };
+    return null;
+  };
+
+  const saveSponsor = (s: Sponsor) => {
+    const commit = () => {
+      const next: AppData = s.id
+        ? // the edit modal no longer handles contacts — keep the stored ones
+          { ...data, sponsors: sponsors.map((x) => (x.id === s.id ? { ...x, ...s, contacts: sponsorContacts(x) } : x)) }
+        : { ...data, sponsors: [...sponsors, { ...s, id: uid(), contacts: s.contacts || [] }] };
+      persist(next);
+      setModal(null);
+    };
+    // Only check on creation (editing an existing sponsor shouldn't warn about itself)
+    if (!s.id) {
+      const dup = findDuplicateSponsor(s);
+      if (dup) {
+        const which = dup.on === "vat" ? `${t("dup.samevat")} ${dup.sponsor.vatNumber}` : t("dup.samename");
+        ask(`${dup.sponsor.companyName}: ${which} ${t("dup.addanyway")}`, commit, {
+          title: t("dup.title"),
+          confirmLabel: t("dup.add"),
+          danger: false,
+        });
+        return;
+      }
+    }
+    commit();
+  };
+  const saveContact = (
+    sponsorId: string,
+    contact: Contact,
+    { onDuplicate }: { onDuplicate?: (clash: Contact) => void } = {},
+  ) => {
+    const sponsor = sponsors.find((s) => s.id === sponsorId);
+    if (sponsor && contact.email) {
+      const clash = sponsorContacts(sponsor).find(
+        (c) => c.id !== contact.id && c.email && sameEmail(c.email, contact.email),
+      );
+      if (clash) {
+        if (onDuplicate) {
+          onDuplicate(clash);
+          return false;
+        }
+        ask(
+          `${sponsor.companyName} ${t("nc.dupehas")} ${contact.email} (${contactName(clash) || "?"}). ${t("dup.addanyway")}`,
+          () => {
+            commitContact(sponsorId, contact);
+            setModal(null);
+          },
+          { title: t("dup.title"), confirmLabel: t("dup.add"), danger: false },
+        );
+        return false;
+      }
+    }
+    commitContact(sponsorId, contact);
+    setModal(null);
+    return true;
+  };
+  const commitContact = (sponsorId: string, contact: Contact) => {
+    persist({
+      ...data,
+      sponsors: sponsors.map((s) => {
+        if (s.id !== sponsorId) return s;
+        const list = sponsorContacts(s);
+        return {
+          ...s,
+          contacts: list.some((c) => c.id === contact.id)
+            ? list.map((c) => (c.id === contact.id ? contact : c))
+            : [...list, contact],
+        };
+      }),
+    });
+  };
+  const importContacts = (list: ContactImportRow[]) => {
+    const bySponsor = list.reduce<Record<string, Contact[]>>(
+      (a, x) => ({ ...a, [x.sponsorId]: [...(a[x.sponsorId] || []), x.contact] }),
+      {},
+    );
+    persist({
+      ...data,
+      sponsors: sponsors.map((s) =>
+        bySponsor[s.id] ? { ...s, contacts: [...sponsorContacts(s), ...bySponsor[s.id]] } : s,
+      ),
+    });
+  };
+  const deleteContact = (sponsorId: string, contactId: string) =>
+    ask(
+      "Remove this contact person? They lose access to the sponsor portal.",
+      () => {
+        persist({
+          ...data,
+          sponsors: sponsors.map((s) =>
+            s.id === sponsorId ? { ...s, contacts: sponsorContacts(s).filter((c) => c.id !== contactId) } : s,
+          ),
+        });
+        setModal(null);
+      },
+      { title: "Remove contact", confirmLabel: "Remove" },
+    );
+
+  const updateSponsorInfo = (id: string, patch: Partial<Sponsor>) =>
+    persist({ ...data, sponsors: sponsors.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  const addSponsorInline = (s: Sponsor) => {
+    const created: Sponsor = { ...emptySponsor, ...s, id: uid() };
+    persist({ ...data, sponsors: [...sponsors, created] });
+    return created;
+  };
+  const importSponsors = (list: SponsorImportRow[]) => {
+    const created = list.map(
+      ({ vatInvalid: _v, mailInvalid: _m, contactPreview: _c, emailPreview: _e, langPreview: _l, ...s }) =>
+        ({ ...emptySponsor, ...s, id: uid() }) as Sponsor,
+    );
+    persist({ ...data, sponsors: [...sponsors, ...created] });
+  };
+  const deleteSponsor = (id: string) => {
+    ask(
+      "Delete this sponsor, all their agreements and vouchers?",
+      () => {
+        persist({
+          ...data,
+          sponsors: sponsors.filter((s) => s.id !== id),
+          deals: deals.filter((d) => d.sponsorId !== id),
+          vouchers: vouchers.filter((v) => v.sponsorId !== id),
+        });
+        storage.delete(logoKey(id), true).catch(() => {
+          /* no logo stored */
+        });
+        setOpenSponsorId(null);
+      },
+      { title: "Delete sponsor", confirmLabel: "Delete" },
+    );
+  };
+  const saveEdition = (ed: Edition) => {
+    const next: AppData = ed.id
+      ? { ...data, editions: editions.map((x) => (x.id === ed.id ? { ...x, ...ed } : x)) }
+      : { ...data, editions: [...editions, { ...ed, id: uid(), formulas: ed.formulas || [] }] };
+    persist(next);
+    setModal(null);
+  };
+  const toggleEdition = (id: string) =>
+    persist({ ...data, editions: editions.map((e) => (e.id === id ? { ...e, active: !e.active } : e)) });
+  const deleteEdition = (id: string) => {
+    const n = deals.filter((d) => d.editionId === id).length;
+    ask(
+      n ? `This edition has ${n} agreement(s). Delete the edition, its agreements and vouchers?` : "Delete this edition?",
+      () => {
+        persist({
+          ...data,
+          editions: editions.filter((e) => e.id !== id),
+          deals: deals.filter((d) => d.editionId !== id),
+          vouchers: vouchers.filter((v) => v.editionId !== id),
+        });
+      },
+      { title: "Delete edition", confirmLabel: "Delete" },
+    );
+  };
+  const saveFormula = (editionId: string, f: Formula, originalName?: string) => {
+    persist({
+      ...data,
+      editions: editions.map((e) => {
+        if (e.id !== editionId) return e;
+        const fs = e.formulas || [];
+        return {
+          ...e,
+          formulas: originalName ? fs.map((x) => (x.name === originalName ? f : x)) : [...fs, f],
+        };
+      }),
+    });
+    setModal(null);
+  };
+  const deleteFormula = (editionId: string, name: string) =>
+    ask(
+      `Delete formula "${name}"? Existing agreements keep their values.`,
+      () => {
+        persist({
+          ...data,
+          editions: editions.map((e) =>
+            e.id === editionId ? { ...e, formulas: (e.formulas || []).filter((f) => f.name !== name) } : e,
+          ),
+        });
+      },
+      { title: "Delete formula", confirmLabel: "Delete" },
+    );
+  const saveDeal = (d: DealFormState) => {
+    const next: AppData = d.id
+      ? {
+          ...data,
+          deals: deals.map((x) =>
+            x.id === d.id
+              ? {
+                  ...x,
+                  ...d,
+                  confirmedAt: x.requestedAt && !x.confirmedAt ? new Date().toISOString() : x.confirmedAt,
+                }
+              : x,
+          ),
+        }
+      : {
+          ...data,
+          deals: [
+            ...deals,
+            {
+              ...d,
+              id: uid(),
+              createdAt: new Date().toISOString(),
+              responsible: d.responsible || userName(me) || "",
+            } as Deal,
+          ],
+        };
+    persist(next);
+    setModal(null);
+    // Offer the email right after creating a new agreement
+    if (!d.id) {
+      const created = next.deals[next.deals.length - 1];
+      setModal({ type: "email", payload: created });
+    }
+  };
+  const markEmailSent = (dealId: string) => {
+    persist({
+      ...data,
+      deals: deals.map((d) => (d.id === dealId ? { ...d, emailSentAt: new Date().toISOString() } : d)),
+    });
+    setModal(null);
+  };
+  const setInvoice = (dealId: string, patch: Partial<Deal>) =>
+    persist({
+      ...data,
+      deals: deals.map((d) => {
+        if (d.id !== dealId) return d;
+        const next = { ...d, ...patch };
+        // Never allow "invoice created" while a required reference is still missing
+        if (refMissing(next, sponsors.find((x) => x.id === next.sponsorId))) next.invoiceCreated = false;
+        return next;
+      }),
+    });
+
+  /* ----- overview stats ----- */
+  const pendingRequests = deals.filter((d) => d.requestedAt && !d.confirmedAt);
+  const awaitingAcceptance = deals.filter((d) => !isAccepted(d) && editions.find((e) => e.id === d.editionId)?.active);
+  const overviewEdition = activeEditions[0] || sortedEditions[0];
+  const ovDeals = overviewEdition ? deals.filter((d) => d.editionId === overviewEdition.id) : [];
+  const ovTotal = ovDeals.reduce((s, d) => s + dealTotalCost(d), 0);
+  const ovCash = ovDeals.reduce((s, d) => s + invoiceAmount(d), 0);
+  const ovKind = ovTotal - ovCash;
+  const ovBillable = ovDeals.filter(needsInvoice);
+  const ovInvoiced = ovBillable.filter((d) => d.invoiceCreated).length;
+
+  if (!loaded)
+    return (
+      <div className="gr-root">
+        <p className="gr-loading">Loading…</p>
+      </div>
+    );
+
+  /* ----- access modes ----- */
+  if (mode.view === "landing") {
+    return (
+      <div className="gr-root">
+        <Landing
+          users={users}
+          sponsors={sponsors}
+          onTeam={(uid2) => {
+            setUserId(uid2);
+            setMode({ view: "team" });
+            setTab("overview");
+          }}
+          onPortal={(sponsorId, contactId) => setMode({ view: "portal", sponsorId, contactId })}
+        />
+      </div>
+    );
+  }
+  if (mode.view === "portal") {
+    const ps = sponsors.find((s) => s.id === mode.sponsorId);
+    const portalContact = ps && sponsorContacts(ps).find((c) => c.id === mode.contactId);
+    actorRef.current = {
+      type: "sponsor",
+      id: ps?.id,
+      name: (portalContact ? contactName(portalContact) + " · " : "") + (ps?.companyName || ""),
+    };
+    if (!ps) {
+      return (
+        <div className="gr-root">
+          <div className="gr-landing">
+            <p style={{ color: "#fff" }}>{t("po.unavail")}</p>
+            <button className="gr-btn-ghost" onClick={() => setMode({ view: "landing" })}>
+              {t("po.backstart")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <SponsorPortal
+        sponsor={ps}
+        asContact={sponsorContacts(ps).find((c) => c.id === mode.contactId)}
+        deals={deals}
+        editions={editions}
+        vouchers={vouchers}
+        onSaveSponsor={updateSponsorInfo}
+        onAssignVoucher={(id, patch) => updateVoucher(id, patch)}
+        onRequestFormula={(editionId, formulaName, byName) => requestFormula(ps.id, editionId, formulaName, byName)}
+        onUpdateSplit={updateDealSplit}
+        onUpdateExtra={updateDealExtra}
+        onAcceptAgreement={(dealId) =>
+          acceptAgreement(
+            dealId,
+            sponsorContacts(ps).find((c) => c.id === mode.contactId),
+          )
+        }
+        onExit={() => setMode({ view: "landing" })}
+      />
+    );
+  }
+
+  const invEd = editions.find((e) => e.id === (invEdition || overviewEdition?.id));
+  const invDeals = invEd ? deals.filter((d) => d.editionId === invEd.id) : [];
+
+  return (
+    <div className="gr-root">
+      <header className="gr-header">
+        <div className="gr-brand">
+          <PickLogo size={54} />
+          <span className="gr-brandsub">{t("hd.subtitle")}</span>
+        </div>
+        <nav className="gr-nav">
+          {(
+            [
+              ["overview", t("nav.overview")],
+              ["sponsors", t("nav.sponsors")],
+              ["agreements", t("nav.agreements")],
+              ["contacts", t("nav.contacts")],
+              ["vouchers", t("nav.vouchers")],
+              ["analytics", t("nav.analytics")],
+              ...(admin
+                ? ([
+                    ["folder", t("nav.folder")],
+                    ["invoicing", t("nav.invoicing")],
+                    ["admin", t("nav.admin")],
+                  ] as Array<[string, string]>)
+                : []),
+            ] as Array<[string, string]>
+          ).map(([k, l]) => (
+            <button
+              key={k}
+              className={tab === k || (k === "admin" && ADMIN_TABS.includes(tab)) ? "on" : ""}
+              onClick={() => {
+                setTab(k === "admin" ? adminSub : k);
+                setOpenSponsorId(null);
+              }}
+            >
+              {l}
+            </button>
+          ))}
+          <select
+            className="gr-langswitch"
+            value={uiLang}
+            onChange={(e) => setLangOverride(e.target.value as TeamLanguage)}
+            title="Interface language"
+          >
+            {Object.entries(TEAM_LANGS).map(([k]) => (
+              <option key={k} value={k}>
+                {k.toUpperCase()}
+              </option>
+            ))}
+          </select>
+          <span className="gr-whoami">
+            {me ? (
+              <>
+                {userName(me)} <Tag tone={admin ? "green" : "grey"}>{admin ? "admin" : "user"}</Tag>
+              </>
+            ) : (
+              "setup"
+            )}
+          </span>
+          <button
+            onClick={() => {
+              setUserId(null);
+              setMode({ view: "landing" });
+            }}
+            title={t("common.logout")}
+          >
+            {t("common.logout")}
+          </button>
+        </nav>
+      </header>
+      <div className="gr-borderline" aria-hidden="true" />
+      {saveErr && <div className="gr-warn">{t("hd.saveerr")}</div>}
+      {users.length === 0 && (
+        <div className="gr-setupbar">
+          {t("hd.setupbar")}
+          <button className="gr-mini" onClick={() => setModal({ type: "user", payload: { role: "admin" } })}>
+            {t("hd.createadmin")}
+          </button>
+        </div>
+      )}
+
+      <main className="gr-main">
+        {/* Admin panel sub-navigation */}
+        {admin && ADMIN_TABS.includes(tab) && (
+          <div className="gr-subnav">
+            {(
+              [
+                ["editions", t("nav.editions")],
+                ["team", t("nav.team")],
+                ["audit", t("nav.audit")],
+              ] as Array<[string, string]>
+            ).map(([k, l]) => (
+              <button
+                key={k}
+                className={tab === k ? "on" : ""}
+                onClick={() => {
+                  setTab(k);
+                  setAdminSub(k);
+                }}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ---------- OVERVIEW ---------- */}
+        {tab === "overview" && (
+          <section>
+            {editions.length === 0 && sponsors.length === 0 ? (
+              <div className="gr-onboard">
+                <h2 className="gr-h2">{t("on.welcome")}</h2>
+                <p>{t("ov.setupsteps")}</p>
+                <ol>
+                  <li>
+                    <strong>{t("ov.createedition")}</strong> {t("ov.step1rest")}
+                  </li>
+                  <li>
+                    <strong>{t("ov.addsponsors")}</strong> {t("ov.step2rest")}
+                  </li>
+                  <li>
+                    <strong>{t("ov.regagreements")}</strong> {t("ov.step3rest")}
+                  </li>
+                </ol>
+                <div className="gr-actions" style={{ justifyContent: "flex-start" }}>
+                  <button className="gr-btn" onClick={() => setModal({ type: "edition" })}>
+                    {t("on.first")}
+                  </button>
+                  <button className="gr-btn-ghost" onClick={() => setModal({ type: "sponsor" })}>
+                    {t("ov.addsponsor")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="gr-h2">{overviewEdition ? overviewEdition.name : t("ov.noedition")}</h2>
+                {overviewEdition && (
+                  <p className="gr-muted">
+                    {overviewEdition.startDate}
+                    {overviewEdition.endDate ? " – " + overviewEdition.endDate : ""}
+                    {overviewEdition.location && " · " + overviewEdition.location}
+                    {" · "}
+                    {overviewEdition.active ? <Tag tone="green">{t("ov.active")}</Tag> : <Tag>{t("ov.inactive")}</Tag>}
+                  </p>
+                )}
+                {awaitingAcceptance.length > 0 && (
+                  <div className="gr-setupbar" style={{ background: "#E7F0F7", color: "var(--blue-deep)" }}>
+                    {awaitingAcceptance.length}{" "}
+                    {awaitingAcceptance.length > 1 ? t("ov.agrsnotaccepted") : t("ov.agrnotaccepted")}
+                    <button
+                      className="gr-mini"
+                      onClick={() => {
+                        setTab("agreements");
+                        setAgQuery("");
+                        setAgEdition("");
+                        setAgResponsible("");
+                        setAgSettle("");
+                        setAgStatus("toaccept");
+                      }}
+                    >
+                      {t("ov.view")}
+                    </button>
+                  </div>
+                )}
+                {pendingRequests.length > 0 && (
+                  <div className="gr-setupbar">
+                    {pendingRequests.length} {pendingRequests.length > 1 ? t("ov.reqsmade") : t("ov.reqmade")}
+                    <button
+                      className="gr-mini"
+                      onClick={() => {
+                        setTab("sponsors");
+                        setOpenSponsorId(pendingRequests[0].sponsorId);
+                      }}
+                    >
+                      {t("ov.review")}
+                    </button>
+                  </div>
+                )}
+                <div className="gr-statrow">
+                  <div className="gr-stat">
+                    <span>{ovDeals.length}</span>
+                    {t("ov.sponsorsedition")}
+                  </div>
+                  <div className="gr-stat">
+                    <span>{eur(ovTotal)}</span>
+                    {t("ov.totalvalue")}
+                  </div>
+                  <div className="gr-stat">
+                    <span>{eur(ovCash)}</span>
+                    {t("ov.toinvoice")}
+                    {ovKind > 0 ? ` · ${eur(ovKind)} ${t("sd.inkind")}` : ""}
+                  </div>
+                  <div className="gr-stat">
+                    <span>
+                      {ovInvoiced} / {ovBillable.length}
+                    </span>
+                    {t("ov.invoiced")}
+                  </div>
+                </div>
+                <div className="gr-actions" style={{ justifyContent: "flex-start" }}>
+                  <button className="gr-btn" onClick={() => setModal({ type: "deal" })}>
+                    {t("ov.newagreement")}
+                  </button>
+                  <button className="gr-btn-ghost" onClick={() => setModal({ type: "sponsor" })}>
+                    {t("ov.newsponsor")}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {/* ---------- SPONSORS ---------- */}
+        {tab === "sponsors" && !openSponsor && (
+          <section>
+            <div className="gr-toolbar">
+              <input
+                className="gr-search"
+                placeholder={t("common.search")}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <button className="gr-btn-ghost" onClick={() => setModal({ type: "import" })}>
+                {t("common.import")}
+              </button>
+              <button className="gr-btn-ghost" onClick={exportSponsors}>
+                {t("common.export")}
+              </button>
+              <button className="gr-btn" onClick={() => setModal({ type: "sponsor" })}>
+                {t("sp.new")}
+              </button>
+            </div>
+            <div className="gr-toolbar">
+              <select
+                className="gr-search"
+                style={{ maxWidth: 260 }}
+                value={fResponsible}
+                onChange={(e) => setFResponsible(e.target.value)}
+              >
+                {me && <option value="me">{t("sp.myspon")}</option>}
+                <option value="">{t("sp.allresp")}</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {userName(u)}
+                  </option>
+                ))}
+                <option value="none">{t("sp.notassigned")}</option>
+              </select>
+              <select
+                className="gr-search"
+                style={{ maxWidth: 260 }}
+                value={fEdition}
+                onChange={(e) => setFEdition(e.target.value)}
+              >
+                <option value="">{t("sp.alleditions")}</option>
+                {sortedEditions.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {t("sp.withagr")} {e.name}
+                  </option>
+                ))}
+              </select>
+              {(fEdition || fResponsible || query) && (
+                <button
+                  className="gr-mini"
+                  onClick={() => {
+                    setFEdition("");
+                    setFResponsible("");
+                    setQuery("");
+                  }}
+                >
+                  {t("common.clear")}
+                </button>
+              )}
+              <span className="gr-muted">
+                {filteredSponsors.length} {t("common.of")} {sponsors.length} {t("sp.count")}
+              </span>
+            </div>
+            {filteredSponsors.length === 0 ? (
+              <p className="gr-empty">
+                {sponsors.length === 0 ? "No sponsors yet — add your first one." : "No sponsors match your search."}
+              </p>
+            ) : (
+              <div className="gr-tablewrap">
+                <table className="gr-table gr-clickable">
+                  <thead>
+                    <tr>
+                      {(
+                        [
+                          ["companyName", t("sp.company"), ""],
+                          ["contact", t("sp.contact"), ""],
+                          ["city", t("sp.city"), ""],
+                          ["language", t("sp.language"), ""],
+                          ["responsible", t("sp.responsible"), ""],
+                          ["editions", t("sp.editions"), "gr-r"],
+                          ["lifetime", t("sp.lifetime"), "gr-r"],
+                        ] as Array<[string, string, string]>
+                      ).map(([k, label, cls]) => (
+                        <th key={k} className={"gr-sortable " + cls} onClick={() => toggleSort(k)} title="Click to sort">
+                          {label}
+                          <span className="gr-sortarrow">{sort.key === k ? (sort.dir === 1 ? "▲" : "▼") : "↕"}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSponsors.map((s) => {
+                      const hs = deals.filter((d) => d.sponsorId === s.id);
+                      const tot = hs.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
+                      return (
+                        <tr key={s.id} onClick={() => setOpenSponsorId(s.id)}>
+                          <td>
+                            <strong>{s.companyName}</strong>
+                            {s.vatNumber && <span className="gr-muted"> · {s.vatNumber}</span>}
+                            {s.refRequired && (
+                              <>
+                                {" "}
+                                <Tag tone="amber">ref.</Tag>
+                              </>
+                            )}
+                          </td>
+                          <td>
+                            {(() => {
+                              const pc = primaryContact(s);
+                              const extra = sponsorContacts(s).length - 1;
+                              return pc ? (
+                                <>
+                                  {contactName(pc)}
+                                  {pc.email && <span className="gr-muted"> · {pc.email}</span>}
+                                  {extra > 0 && <span className="gr-muted"> +{extra}</span>}
+                                </>
+                              ) : (
+                                <span className="gr-muted">—</span>
+                              );
+                            })()}
+                          </td>
+                          <td>{s.city || <span className="gr-muted">—</span>}</td>
+                          <td>
+                            {[...new Set(sponsorContacts(s).map((c) => (c.language || "nl").toUpperCase()))].join(
+                              ", ",
+                            ) || "—"}
+                          </td>
+                          <td>{responsibleName(s, users) || "—"}</td>
+                          <td className="gr-r">{hs.length}</td>
+                          <td className="gr-r">
+                            <strong>{eur(tot)}</strong>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === "sponsors" && openSponsor && (
+          <SponsorDetail
+            sponsor={openSponsor}
+            deals={deals}
+            editions={editions}
+            users={users}
+            vouchers={vouchers}
+            t={t}
+            onBack={() => setOpenSponsorId(null)}
+            onEdit={() => setModal({ type: "sponsor", payload: openSponsor })}
+            canDelete={admin}
+            onDelete={() => deleteSponsor(openSponsor.id)}
+            onAddDeal={() => setModal({ type: "deal", payload: { sponsorId: openSponsor.id, lockSponsor: true } })}
+            onEditDeal={(d) => setModal({ type: "deal", payload: d })}
+            onDeleteDeal={deleteDeal}
+            onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
+            onShowAcceptance={(d) => setModal({ type: "acceptance", payload: d })}
+            onActivateContact={(c) => saveContact(openSponsor.id, { ...c, portalAccess: true })}
+            onEmail={(d) => setModal({ type: "email", payload: d })}
+          />
+        )}
+
+        {/* ---------- EDITIONS ---------- */}
+        {tab === "editions" && admin && (
+          <section>
+            <div className="gr-toolbar">
+              <h2 className="gr-h2" style={{ margin: 0 }}>
+                {t("ed.editionstitle")}
+              </h2>
+              {admin && (
+                <>
+                  <button className="gr-mini" onClick={() => setModal({ type: "examples" })}>
+                    {t("ed.examples")}
+                  </button>
+                  <button className="gr-mini" onClick={() => setModal({ type: "vies" })}>
+                    {t("ed.vatlookup")}
+                  </button>
+                  <button className="gr-btn" onClick={() => setModal({ type: "edition" })}>
+                    {t("ed.new")}
+                  </button>
+                </>
+              )}
+            </div>
+            {sortedEditions.length === 0 && <p className="gr-empty">{t("ed.none")}</p>}
+            {sortedEditions.map((ed) => {
+              const edDeals = deals.filter((d) => d.editionId === ed.id);
+              const tot = edDeals.reduce((s, d) => s + (Number(d.cost) || 0), 0);
+              return (
+                <div key={ed.id} className="gr-card">
+                  <div className="gr-cardhead">
+                    <div>
+                      <h3 className="gr-h3">
+                        {ed.name} {ed.active ? <Tag tone="green">active</Tag> : <Tag>inactive</Tag>}
+                      </h3>
+                      <p className="gr-muted">
+                        {ed.startDate}
+                        {ed.endDate ? " – " + ed.endDate : ""}
+                        {ed.location && " · " + ed.location}
+                        {" · "}
+                        {edDeals.length} sponsor(s) · {eur(tot)}
+                      </p>
+                    </div>
+                    <div className="gr-detail-btns">
+                      {admin && (
+                        <>
+                          <button className="gr-mini" onClick={() => setModal({ type: "edition", payload: ed })}>
+                            Edit
+                          </button>
+                          <button className="gr-mini" onClick={() => toggleEdition(ed.id)}>
+                            {ed.active ? "Deactivate" : "Activate"}
+                          </button>
+                          <button className="gr-mini gr-danger" onClick={() => deleteEdition(ed.id)}>
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="gr-formulas">
+                    <div className="gr-formulahead">
+                      <span className="gr-label">Formulas</span>
+                      {admin && (
+                        <button
+                          className="gr-mini"
+                          onClick={() => setModal({ type: "formula", payload: { editionId: ed.id } })}
+                        >
+                          + Formula
+                        </button>
+                      )}
+                    </div>
+                    {(ed.formulas || []).length === 0 ? (
+                      <p className="gr-muted" style={{ margin: "4px 0 0" }}>
+                        {t("ed.noformulas")}
+                      </p>
+                    ) : (
+                      <div className="gr-tablewrap">
+                        <table className="gr-table gr-compact gr-clickable">
+                          <thead>
+                            <tr>
+                              <th>{t("c.name")}</th>
+                              <th className="gr-r">{t("c.cost")}</th>
+                              <th className="gr-r">{t("th.vipfsg")}</th>
+                              <th className="gr-r">{t("th.drinks")}</th>
+                              <th className="gr-r">{t("th.fooddrink")}</th>
+                              <th>{t("th.folder")}</th>
+                              <th>{t("th.website")}</th>
+                              <th>{t("th.poster")}</th>
+                              <th>{t("th.led")}</th>
+                              <th className="gr-r">{t("th.covers")}</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(ed.formulas || []).map((f) => (
+                              <tr
+                                key={f.name}
+                                title="Click to view or edit this formula"
+                                onClick={() =>
+                                  admin && setModal({ type: "formula", payload: { editionId: ed.id, formula: f } })
+                                }
+                              >
+                                <td>
+                                  <strong>{f.name}</strong>
+                                </td>
+                                <td className="gr-r">{eur(f.cost)}</td>
+                                <td className="gr-r">
+                                  {f.vipFriday || 0} / {f.vipSaturday || 0} / {f.vipGuests || 0}
+                                </td>
+                                <td className="gr-r">{f.drinkTickets || 0}</td>
+                                <td className="gr-r">{Number(f.foodDrinkValue) > 0 ? eur(f.foodDrinkValue) : "—"}</td>
+                                <td>
+                                  {normFolder(f.folderMention) !== "none"
+                                    ? FOLDER_OPTS[normFolder(f.folderMention)]
+                                    : "—"}
+                                </td>
+                                <td>{f.websiteMention !== "none" ? WEBSITE_OPTS[f.websiteMention] : "—"}</td>
+                                <td>
+                                  {f.posterMention && f.posterMention !== "none" ? POSTER_OPTS[f.posterMention] : "—"}
+                                </td>
+                                <td>{normLed(f.ledboarding).length > 0 ? ledLabel(f.ledboarding) : "—"}</td>
+                                <td className="gr-r">
+                                  {(Number(f.barrierCovers) || 0) + (Number(f.herasCovers) || 0) > 0
+                                    ? `${Number(f.barrierCovers) || 0} / ${Number(f.herasCovers) || 0}`
+                                    : "—"}
+                                </td>
+                                <td className="gr-rowbtns">
+                                  {admin && (
+                                    <button
+                                      className="gr-mini gr-danger"
+                                      title="Delete formula"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteFormula(ed.id, f.name);
+                                      }}
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        )}
+
+        {/* ---------- VOUCHERS ---------- */}
+        {tab === "vouchers" &&
+          (() => {
+            const ved = editions.find((e) => e.id === (voEdition || overviewEdition?.id));
+            const all = ved ? vouchers.filter((v) => v.editionId === ved.id) : [];
+            const shown = all.filter(
+              (v) => (voSponsor ? v.sponsorId === voSponsor : true) && (voStatus ? v.status === voStatus : true),
+            );
+            const counts = (Object.keys(VOUCHER_STATUS) as VoucherStatus[]).reduce<Record<string, number>>(
+              (a, k) => ({ ...a, [k]: all.filter((v) => v.status === k).length }),
+              {},
+            );
+            const selectable = shown.filter((v) => v.status !== "cancelled");
+            const cfg: TickowebConfig = data.settings?.tickoweb || defaultTickoweb;
+
+            return (
+              <section>
+                <div className="gr-toolbar">
+                  <h2 className="gr-h2" style={{ margin: 0 }}>
+                    {t("vo.title")}
+                  </h2>
+                  <div className="gr-detail-btns">
+                    {admin && (
+                      <button className="gr-mini" onClick={() => setModal({ type: "tickoweb" })}>
+                        {t("vo.tickoweb")}
+                      </button>
+                    )}
+                    {ved && (
+                      <button className="gr-btn" onClick={() => generateVouchers(ved.id)}>
+                        {t("vo.generate")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="gr-toolbar">
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 220 }}
+                    value={voEdition || overviewEdition?.id || ""}
+                    onChange={(e) => {
+                      setVoEdition(e.target.value);
+                      setVoSel([]);
+                    }}
+                  >
+                    {sortedEditions.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 220 }}
+                    value={voSponsor}
+                    onChange={(e) => setVoSponsor(e.target.value)}
+                  >
+                    <option value="">{t("vo.allspon")}</option>
+                    {[...new Set(all.map((v) => v.sponsorId))].map((id) => {
+                      const sp = sponsors.find((x) => x.id === id);
+                      return (
+                        <option key={id} value={id}>
+                          {sp ? sp.companyName : "?"}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 200 }}
+                    value={voStatus}
+                    onChange={(e) => setVoStatus(e.target.value)}
+                  >
+                    <option value="">{t("vo.allstatus")}</option>
+                    {Object.entries(VOUCHER_STATUS).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {cfg.mode !== "live" && (
+                  <p className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
+                    Manual mode — nothing is sent to Tickoweb automatically. Create the voucher there and paste the
+                    code back here.
+                  </p>
+                )}
+
+                <div className="gr-statrow">
+                  {Object.entries(VOUCHER_STATUS).map(([k, v]) => (
+                    <div className="gr-stat" key={k}>
+                      <span>{counts[k] || 0}</span>
+                      {v.label.toLowerCase()}
+                    </div>
+                  ))}
+                </div>
+
+                {shown.length === 0 ? (
+                  <p className="gr-empty">
+                    {all.length === 0
+                      ? 'No vouchers yet for this edition — use "Generate from agreements".'
+                      : "No vouchers match these filters."}
+                  </p>
+                ) : (
+                  <>
+                    <div className="gr-toolbar">
+                      <div className="gr-detail-btns">
+                        <button className="gr-mini" onClick={() => setVoSel(selectable.map((v) => v.id))}>
+                          {t("vo.selectall")}
+                        </button>
+                        <button className="gr-mini" onClick={() => setVoSel([])}>
+                          {t("common.clear")}
+                        </button>
+                      </div>
+                      <div className="gr-detail-btns">
+                        <button
+                          className="gr-btn"
+                          disabled={voSel.length === 0 || voBusy}
+                          onClick={() => runVoucherAction("createSend", voSel)}
+                        >
+                          {voBusy ? "…" : `${t("vo.createsend")} (${voSel.length})`}
+                        </button>
+                        <button
+                          className="gr-mini"
+                          disabled={voSel.length === 0 || voBusy}
+                          onClick={() => runVoucherAction("resend", voSel)}
+                        >
+                          {t("vo.resend")}
+                        </button>
+                        <button
+                          className="gr-mini gr-danger"
+                          disabled={voSel.length === 0 || voBusy}
+                          onClick={() => runVoucherAction("cancel", voSel)}
+                        >
+                          {t("common.cancel")}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="gr-tablewrap">
+                      <table className="gr-table">
+                        <thead>
+                          <tr>
+                            <th></th>
+                            <th>{t("c.company")}</th>
+                            <th>{t("c.type")}</th>
+                            <th className="gr-r">{t("c.value")}</th>
+                            <th>{t("c.status")}</th>
+                            <th>{t("vo.code")}</th>
+                            <th>{t("c.assignedto")}</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {shown.map((v) => {
+                            const sp = sponsors.find((x) => x.id === v.sponsorId);
+                            const st = VOUCHER_STATUS[v.status] || VOUCHER_STATUS.pending;
+                            return (
+                              <tr key={v.id} className={v.status === "cancelled" ? "gr-cancelled" : undefined}>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    disabled={v.status === "cancelled"}
+                                    checked={voSel.includes(v.id)}
+                                    onChange={(e) =>
+                                      setVoSel(e.target.checked ? [...voSel, v.id] : voSel.filter((x) => x !== v.id))
+                                    }
+                                  />
+                                </td>
+                                <td>{sp ? sp.companyName : "?"}</td>
+                                <td>{VOUCHER_TYPES[v.type]?.label || v.type}</td>
+                                <td className="gr-r">{v.value > 0 ? eur(v.value) : "—"}</td>
+                                <td>
+                                  <Tag tone={st.tone}>{st.label}</Tag>
+                                  {v.error && (
+                                    <div className="gr-muted" style={{ color: "var(--red)", fontSize: 11 }}>
+                                      {v.error}
+                                    </div>
+                                  )}
+                                </td>
+                                <td>
+                                  <input
+                                    className="gr-inline-input"
+                                    placeholder="code from Tickoweb"
+                                    value={v.code || ""}
+                                    onChange={(e) => updateVoucher(v.id, { code: e.target.value })}
+                                  />
+                                </td>
+                                <td>
+                                  {v.recipientName || v.recipientEmail ? (
+                                    <>
+                                      {v.recipientName}
+                                      <div className="gr-muted" style={{ fontSize: 11 }}>
+                                        {v.recipientEmail}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <span className="gr-muted">sponsor</span>
+                                  )}
+                                </td>
+                                <td className="gr-rowbtns">
+                                  {v.url && (
+                                    <a className="gr-mini gr-btn-link" href={v.url} target="_blank" rel="noreferrer">
+                                      View
+                                    </a>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </section>
+            );
+          })()}
+
+        {/* ---------- CONTACTS ---------- */}
+        {tab === "contacts" &&
+          (() => {
+            const all = sponsors.flatMap((sp) => sponsorContacts(sp).map((c) => ({ contact: c, sponsor: sp })));
+            const q = coQuery.trim().toLowerCase();
+            const rows = all
+              .filter(({ contact: c }) => (coComm ? !!c.prefs?.[coComm as CommKey] : true))
+              .filter(({ contact: c }) => (coLang ? (c.language || "nl") === coLang : true))
+              .filter(
+                ({ contact: c, sponsor: sp }) =>
+                  !q ||
+                  [contactName(c), c.email, c.phone, sp.companyName, responsibleName(sp, users)].some((f) =>
+                    (f || "").toLowerCase().includes(q),
+                  ),
+              )
+              .sort(
+                (a, b) =>
+                  a.sponsor.companyName.localeCompare(b.sponsor.companyName) ||
+                  contactName(a.contact).localeCompare(contactName(b.contact)),
+              );
+
+            const exportContacts = () => {
+              const rowData = rows.map(({ contact: c, sponsor: sp }) => ({
+                Sponsor: sp.companyName,
+                "First name": c.firstName || "",
+                "Last name": c.lastName || "",
+                Email: c.email || "",
+                Phone: c.phone || "",
+                Language: (c.language || "nl").toUpperCase(),
+                "Portal access": c.portalAccess ? "active" : "not activated",
+                Information: c.prefs?.info ? "yes" : "",
+                Invoicing: c.prefs?.invoice ? "yes" : "",
+                "Receives vouchers": voucherContact(sp)?.id === c.id ? "yes" : "",
+                Responsible: responsibleName(sp, users),
+                City: sp.city || "",
+              }));
+              if (rowData.length === 0) {
+                notify("Nothing to export with these filters.", "Empty list");
+                return;
+              }
+              const ws = XLSX.utils.json_to_sheet(rowData);
+              ws["!cols"] = [
+                { wch: 28 },
+                { wch: 14 },
+                { wch: 18 },
+                { wch: 28 },
+                { wch: 16 },
+                { wch: 9 },
+                { wch: 14 },
+                { wch: 11 },
+                { wch: 10 },
+                { wch: 17 },
+                { wch: 18 },
+                { wch: 16 },
+              ];
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Contacts");
+              const suffix = coComm ? `-${coComm}` : "";
+              XLSX.writeFile(wb, `grensrock-contacts${suffix}.xlsx`);
+            };
+
+            return (
+              <section>
+                <div className="gr-toolbar">
+                  <h2 className="gr-h2" style={{ margin: 0 }}>
+                    {t("nav.contacts")}
+                  </h2>
+                  <div className="gr-detail-btns">
+                    {admin && (
+                      <button className="gr-btn-ghost" onClick={() => setModal({ type: "importContacts" })}>
+                        {t("common.import")}
+                      </button>
+                    )}
+                    <button className="gr-btn-ghost" onClick={() => setModal({ type: "newContact" })}>
+                      {t("sd.addcontact")}
+                    </button>
+                    <button className="gr-btn" onClick={exportContacts}>
+                      {t("common.export")}
+                    </button>
+                  </div>
+                </div>
+                <div className="gr-toolbar">
+                  <input
+                    className="gr-search"
+                    placeholder={t("common.search")}
+                    value={coQuery}
+                    onChange={(e) => setCoQuery(e.target.value)}
+                  />
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 220 }}
+                    value={coComm}
+                    onChange={(e) => setCoComm(e.target.value)}
+                  >
+                    <option value="">{t("c.allcomm")}</option>
+                    {Object.entries(COMMS).map(([k, l]) => (
+                      <option key={k} value={k}>
+                        Receives: {l}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 170 }}
+                    value={coLang}
+                    onChange={(e) => setCoLang(e.target.value)}
+                  >
+                    <option value="">{t("c.alllang")}</option>
+                    {Object.entries(LANGS).map(([k, l]) => (
+                      <option key={k} value={k}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  {(coQuery || coComm || coLang) && (
+                    <button
+                      className="gr-mini"
+                      onClick={() => {
+                        setCoQuery("");
+                        setCoComm("");
+                        setCoLang("");
+                      }}
+                    >
+                      {t("common.clear")}
+                    </button>
+                  )}
+                  <span className="gr-muted">
+                    {rows.length} {t("common.of")} {all.length} {t("nav.contacts").toLowerCase()}
+                  </span>
+                </div>
+
+                {rows.length === 0 ? (
+                  <p className="gr-empty">
+                    {all.length === 0 ? "No contact persons yet." : "No contacts match these filters."}
+                  </p>
+                ) : (
+                  <div className="gr-tablewrap">
+                    <table className="gr-table gr-clickable">
+                      <thead>
+                        <tr>
+                          <th>{t("c.name")}</th>
+                          <th>{t("c.company")}</th>
+                          <th>{t("c.email")}</th>
+                          <th>{t("sp.language")}</th>
+                          <th>{t("c.portal")}</th>
+                          <th>{t("c.receives")}</th>
+                          <th>{t("c.responsible")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(({ contact: c, sponsor: sp }) => (
+                          <tr
+                            key={sp.id + (c.id || "")}
+                            title="Click to edit this contact"
+                            onClick={() => setModal({ type: "contact", payload: { sponsorId: sp.id, contact: c } })}
+                          >
+                            <td>
+                              <strong>{contactName(c) || <span className="gr-muted">no name</span>}</strong>
+                            </td>
+                            <td>{sp.companyName}</td>
+                            <td>{c.email || <span className="gr-muted">—</span>}</td>
+                            <td>{(c.language || "nl").toUpperCase()}</td>
+                            <td onClick={(e) => e.stopPropagation()}>
+                              {c.portalAccess ? (
+                                <Tag tone="green">active</Tag>
+                              ) : c.email ? (
+                                <button
+                                  className="gr-mini"
+                                  onClick={() => saveContact(sp.id, { ...c, portalAccess: true })}
+                                >
+                                  Activate
+                                </button>
+                              ) : (
+                                <span className="gr-muted">no email</span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="gr-commtags">
+                                {(Object.keys(COMMS) as CommKey[])
+                                  .filter((k) => c.prefs?.[k])
+                                  .map((k) => (
+                                    <Tag key={k}>{COMMS[k]}</Tag>
+                                  ))}
+                              </div>
+                            </td>
+                            <td>{responsibleName(sp, users) || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <p className="gr-muted" style={{ marginTop: 10 }}>
+                  Tip: filter on a communication type before exporting — the file then contains exactly the mailing
+                  list you need (e.g. everyone who wants invoicing correspondence).
+                </p>
+              </section>
+            );
+          })()}
+
+        {/* ---------- AGREEMENTS ---------- */}
+        {tab === "agreements" &&
+          (() => {
+            const q = agQuery.trim().toLowerCase();
+            const rows = deals
+              .map((d) => ({
+                deal: d,
+                sponsor: sponsors.find((s) => s.id === d.sponsorId),
+                edition: editions.find((e) => e.id === d.editionId),
+              }))
+              .filter(({ sponsor, edition, deal: d }) => {
+                if (agEdition && d.editionId !== agEdition) return false;
+                if (agResponsible === "me" && sponsor?.responsibleId !== userId) return false;
+                else if (agResponsible === "none" && sponsor?.responsibleId) return false;
+                else if (
+                  agResponsible &&
+                  agResponsible !== "me" &&
+                  agResponsible !== "none" &&
+                  sponsor?.responsibleId !== agResponsible
+                )
+                  return false;
+                if (agStatus === "accepted" && !isAccepted(d)) return false;
+                if (agStatus === "toaccept" && isAccepted(d)) return false;
+                if (agStatus === "requested" && !(d.requestedAt && !d.confirmedAt)) return false;
+                if (agStatus === "invoiced" && !d.invoiceCreated) return false;
+                if (agStatus === "toinvoice" && (!needsInvoice(d) || d.invoiceCreated)) return false;
+                if (agSettle && (d.settlement || "invoice") !== agSettle) return false;
+                if (
+                  q &&
+                  ![sponsor?.companyName, edition?.name, d.formulaName, responsibleName(sponsor, users)].some((f) =>
+                    (f || "").toLowerCase().includes(q),
+                  )
+                )
+                  return false;
+                return true;
+              })
+              .sort(
+                (a, b) =>
+                  (b.edition?.startDate || "").localeCompare(a.edition?.startDate || "") ||
+                  (a.sponsor?.companyName || "").localeCompare(b.sponsor?.companyName || ""),
+              );
+
+            const totalCost = rows.reduce((s, r) => s + dealTotalCost(r.deal), 0);
+            const toInvoice = rows.reduce((s, r) => s + (r.deal.invoiceCreated ? 0 : invoiceAmount(r.deal)), 0);
+
+            const exportAgreements = () => {
+              if (rows.length === 0) {
+                notify(t("ex.emptymsg"), t("ex.empty"));
+                return;
+              }
+              const data2 = rows.map(({ deal: d, sponsor, edition }) => ({
+                [t("c.edition")]: edition?.name || "",
+                [t("sp.company")]: sponsor?.companyName || "",
+                [t("c.formula")]: d.formulaName || t("th.custom"),
+                [t("c.cost")]: dealTotalCost(d),
+                [t("inv.toinvoice")]: invoiceAmount(d),
+                [t("ag.settlement")]: t("set." + (d.settlement || "invoice")),
+                "VIP fr/sa/gu": `${d.vipFriday || 0}/${d.vipSaturday || 0}/${d.vipGuests || 0}`,
+                [t("th.drinks")]: d.drinkTickets || 0,
+                [t("th.fooddrink")]: Number(d.foodDrinkValue) || 0,
+                [t("c.accepted")]: isAccepted(d) ? fmtDateTime(d.acceptance!.acceptedAt) : "",
+                [t("th.invoice")]: d.invoiceCreated ? d.invoiceNumber || "yes" : "",
+                [t("sp.responsible")]: responsibleName(sponsor, users),
+              }));
+              const ws = XLSX.utils.json_to_sheet(data2);
+              ws["!cols"] = [
+                { wch: 16 },
+                { wch: 26 },
+                { wch: 14 },
+                { wch: 11 },
+                { wch: 11 },
+                { wch: 12 },
+                { wch: 12 },
+                { wch: 8 },
+                { wch: 11 },
+                { wch: 16 },
+                { wch: 14 },
+                { wch: 18 },
+              ];
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Agreements");
+              XLSX.writeFile(wb, "grensrock-agreements.xlsx");
+            };
+
+            return (
+              <section>
+                <div className="gr-toolbar">
+                  <h2 className="gr-h2" style={{ margin: 0 }}>
+                    {t("nav.agreements")}
+                  </h2>
+                  <button className="gr-btn" onClick={exportAgreements}>
+                    {t("common.export")}
+                  </button>
+                </div>
+
+                <div className="gr-toolbar">
+                  <input
+                    className="gr-search"
+                    placeholder={t("common.search")}
+                    value={agQuery}
+                    onChange={(e) => setAgQuery(e.target.value)}
+                  />
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 200 }}
+                    value={agEdition}
+                    onChange={(e) => setAgEdition(e.target.value)}
+                  >
+                    <option value="">{t("sp.alleditions")}</option>
+                    {sortedEditions.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 200 }}
+                    value={agResponsible}
+                    onChange={(e) => setAgResponsible(e.target.value)}
+                  >
+                    {me && <option value="me">{t("sp.myspon")}</option>}
+                    <option value="">{t("sp.allresp")}</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {userName(u)}
+                      </option>
+                    ))}
+                    <option value="none">{t("sp.notassigned")}</option>
+                  </select>
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 190 }}
+                    value={agStatus}
+                    onChange={(e) => setAgStatus(e.target.value)}
+                  >
+                    <option value="">{t("ag.allstatus")}</option>
+                    <option value="accepted">{t("ag.accepted")}</option>
+                    <option value="toaccept">{t("ag.toaccept")}</option>
+                    <option value="requested">{t("ag.requested")}</option>
+                    <option value="toinvoice">{t("ag.toinvoice")}</option>
+                    <option value="invoiced">{t("ag.invoiced")}</option>
+                  </select>
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 170 }}
+                    value={agSettle}
+                    onChange={(e) => setAgSettle(e.target.value)}
+                  >
+                    <option value="">{t("ag.allsettle")}</option>
+                    <option value="invoice">{t("set.invoice")}</option>
+                    <option value="inkind">{t("set.inkind")}</option>
+                    <option value="mixed">{t("set.mixed")}</option>
+                  </select>
+                  {(agQuery || agEdition || agResponsible || agStatus || agSettle) && (
+                    <button
+                      className="gr-mini"
+                      onClick={() => {
+                        setAgQuery("");
+                        setAgEdition("");
+                        setAgResponsible("");
+                        setAgStatus("");
+                        setAgSettle("");
+                      }}
+                    >
+                      {t("common.clear")}
+                    </button>
+                  )}
+                </div>
+
+                <div className="gr-statrow">
+                  <div className="gr-stat">
+                    <span>{rows.length}</span>
+                    {t("nav.agreements").toLowerCase()}
+                  </div>
+                  <div className="gr-stat">
+                    <span>{eur(totalCost)}</span>
+                    {t("ag.totalvalue")}
+                  </div>
+                  <div className="gr-stat">
+                    <span>{eur(toInvoice)}</span>
+                    {t("ag.stilltoinvoice")}
+                  </div>
+                </div>
+
+                {rows.length === 0 ? (
+                  <p className="gr-empty">{deals.length === 0 ? t("ag.none") : t("ag.nomatch")}</p>
+                ) : (
+                  <div className="gr-tablewrap">
+                    <table className="gr-table gr-clickable">
+                      <thead>
+                        <tr>
+                          <th>{t("c.edition")}</th>
+                          <th>{t("sp.company")}</th>
+                          <th>{t("c.formula")}</th>
+                          <th className="gr-r">{t("c.cost")}</th>
+                          <th>{t("ag.settlement")}</th>
+                          <th>{t("c.accepted")}</th>
+                          <th>{t("th.invoice")}</th>
+                          <th>{t("sp.responsible")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(({ deal: d, sponsor, edition }) => (
+                          <tr
+                            key={d.id}
+                            title={t("sd.clicktoedit")}
+                            onClick={() => {
+                              setTab("sponsors");
+                              setOpenSponsorId(sponsor?.id ?? null);
+                            }}
+                          >
+                            <td>
+                              {edition?.name || "?"}
+                              {edition && !edition.active && (
+                                <>
+                                  {" "}
+                                  <Tag>{t("th.archived")}</Tag>
+                                </>
+                              )}
+                            </td>
+                            <td>
+                              <strong>{sponsor?.companyName || "?"}</strong>
+                            </td>
+                            <td>
+                              {d.formulaName || <span className="gr-muted">{t("th.custom")}</span>}
+                              {d.requestedAt && !d.confirmedAt && (
+                                <>
+                                  {" "}
+                                  <Tag tone="amber">{t("sd.reqbysponsor")}</Tag>
+                                </>
+                              )}
+                            </td>
+                            <td className="gr-r">
+                              <strong>{eur(dealTotalCost(d))}</strong>
+                              {foodDrinkExtra(d) > 0 && (
+                                <div style={{ fontSize: 11, color: "var(--orange-deep)" }}>
+                                  +{eur(foodDrinkExtra(d))}
+                                </div>
+                              )}
+                            </td>
+                            <td>{t("set." + (d.settlement || "invoice"))}</td>
+                            <td>
+                              {isAccepted(d) ? (
+                                changedSinceAcceptance(d) ? (
+                                  <Tag tone="amber">{t("sd.changed")}</Tag>
+                                ) : (
+                                  <Tag tone="green">{t("c.accepted")}</Tag>
+                                )
+                              ) : (
+                                <Tag tone="amber">{t("sd.notyet")}</Tag>
+                              )}
+                            </td>
+                            <td>
+                              {!needsInvoice(d) ? (
+                                <Tag tone="grey">{t("sd.inkind")}</Tag>
+                              ) : d.invoiceCreated ? (
+                                <Tag tone="green">{d.invoiceNumber || t("sd.created")}</Tag>
+                              ) : (
+                                <Tag tone="amber">{t("sd.pending")}</Tag>
+                              )}
+                            </td>
+                            <td>{responsibleName(sponsor, users) || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            );
+          })()}
+
+        {/* ---------- ANALYTICS ---------- */}
+        {tab === "analytics" &&
+          (() => {
+            // Editions oldest → newest, so "previous edition" is well-defined
+            const chrono = [...editions].sort((a, b) =>
+              (a.startDate || a.name || "").localeCompare(b.startDate || b.name || ""),
+            );
+            const dealsForEdition = (eid: string) => deals.filter((d) => d.editionId === eid);
+            const sponsorIdsForEdition = (eid: string) => new Set(dealsForEdition(eid).map((d) => d.sponsorId));
+
+            // 1) Active sponsors per edition
+            const perEdition = chrono.map((e) => ({
+              edition: e,
+              sponsors: sponsorIdsForEdition(e.id).size,
+              agreements: dealsForEdition(e.id).length,
+            }));
+            const maxSponsors = Math.max(1, ...perEdition.map((x) => x.sponsors));
+
+            // 2) Agreements by type (formula name; custom grouped)
+            const typeCounts: Record<string, number> = {};
+            deals.forEach((d) => {
+              const key = d.formulaName || t("th.custom");
+              typeCounts[key] = (typeCounts[key] || 0) + 1;
+            });
+            const typeRows = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+            const maxType = Math.max(1, ...typeRows.map(([, n]) => n));
+            const typePalette = [
+              "var(--pink)",
+              "var(--blue)",
+              "var(--orange)",
+              "var(--yellow)",
+              "var(--green)",
+              "var(--blue-deep)",
+              "var(--orange-deep)",
+            ];
+
+            // 3) Per responsible: sponsors allocated, agreements, amount
+            const respRows = [
+              ...users.map((u) => ({ ...u, _none: false })),
+              { id: "", firstName: t("sp.notassigned"), lastName: "", _none: true },
+            ]
+              .map((u) => {
+                const mySponsors = sponsors.filter((s) => (s.responsibleId || "") === u.id);
+                const myDeals = deals.filter((d) => mySponsors.some((s) => s.id === d.sponsorId));
+                return {
+                  user: u,
+                  sponsors: mySponsors.length,
+                  agreements: myDeals.length,
+                  amount: myDeals.reduce((sum, d) => sum + dealTotalCost(d), 0),
+                };
+              })
+              .filter((r) => r.sponsors > 0 || r.agreements > 0);
+
+            // 4) New sponsors per edition (no agreement in the immediately previous edition)
+            const newRows = chrono.map((e, i) => {
+              const prev = i > 0 ? chrono[i - 1] : null;
+              const nowIds = sponsorIdsForEdition(e.id);
+              const prevIds = prev ? sponsorIdsForEdition(prev.id) : new Set<string>();
+              let fresh = 0;
+              nowIds.forEach((id) => {
+                if (!prevIds.has(id)) fresh++;
+              });
+              return {
+                edition: e,
+                total: nowIds.size,
+                fresh: prev ? fresh : nowIds.size,
+                returning: prev ? nowIds.size - fresh : 0,
+                hasPrev: !!prev,
+              };
+            });
+
+            const Bar = ({
+              value,
+              max,
+              color,
+              label,
+              right,
+            }: {
+              value: number;
+              max: number;
+              color?: string;
+              label: ReactNode;
+              right?: ReactNode;
+            }) => (
+              <div className="gr-anbar">
+                <span className="gr-anbar-label">{label}</span>
+                <div className="gr-anbar-track">
+                  <div
+                    className="gr-anbar-fill"
+                    style={{ width: `${(value / max) * 100}%`, background: color || "var(--pink)" }}
+                  />
+                </div>
+                <span className="gr-anbar-val">{right ?? value}</span>
+              </div>
+            );
+
+            if (editions.length === 0) return <p className="gr-empty">{t("an.noeditions")}</p>;
+
+            return (
+              <section>
+                <div className="gr-toolbar">
+                  <h2 className="gr-h2" style={{ margin: 0 }}>
+                    {t("nav.analytics")}
+                  </h2>
+                </div>
+
+                {/* 1. Active sponsors per edition */}
+                <div className="gr-card">
+                  <h3 className="gr-h3">{t("an.activeper")}</h3>
+                  <p className="gr-muted" style={{ marginTop: 0 }}>
+                    {t("an.activeperhint")}
+                  </p>
+                  {perEdition.length === 0 ? (
+                    <p className="gr-muted">{t("ag.none")}</p>
+                  ) : (
+                    perEdition.map(({ edition: e, sponsors: n, agreements: a }) => (
+                      <Bar
+                        key={e.id}
+                        value={n}
+                        max={maxSponsors}
+                        color={e.active ? "var(--pink)" : "var(--line)"}
+                        label={
+                          <>
+                            {e.name}
+                            {!e.active && (
+                              <>
+                                {" "}
+                                <Tag>{t("th.archived")}</Tag>
+                              </>
+                            )}
+                          </>
+                        }
+                        right={
+                          <>
+                            {n}{" "}
+                            <span className="gr-muted" style={{ fontWeight: 400 }}>
+                              · {a} {t("nav.agreements").toLowerCase()}
+                            </span>
+                          </>
+                        }
+                      />
+                    ))
+                  )}
+                </div>
+
+                {/* 2. Agreements by type */}
+                <div className="gr-card">
+                  <h3 className="gr-h3">{t("an.bytype")}</h3>
+                  {typeRows.length === 0 ? (
+                    <p className="gr-muted">{t("ag.none")}</p>
+                  ) : (
+                    typeRows.map(([name, n], i) => (
+                      <Bar key={name} value={n} max={maxType} color={typePalette[i % typePalette.length]} label={name} />
+                    ))
+                  )}
+                </div>
+
+                {/* 3. Per responsible */}
+                <div className="gr-card">
+                  <h3 className="gr-h3">{t("an.byresp")}</h3>
+                  {respRows.length === 0 ? (
+                    <p className="gr-muted">{t("an.noresp")}</p>
+                  ) : (
+                    <div className="gr-tablewrap">
+                      <table className="gr-table">
+                        <thead>
+                          <tr>
+                            <th>{t("sp.responsible")}</th>
+                            <th className="gr-r">{t("nav.sponsors")}</th>
+                            <th className="gr-r">{t("nav.agreements")}</th>
+                            <th className="gr-r">{t("ag.totalvalue")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {respRows
+                            .sort((a, b) => b.amount - a.amount)
+                            .map((r) => (
+                              <tr key={r.user.id || "none"}>
+                                <td>
+                                  {r.user._none ? (
+                                    <span className="gr-muted">{r.user.firstName}</span>
+                                  ) : (
+                                    userName(r.user as User)
+                                  )}
+                                </td>
+                                <td className="gr-r">{r.sponsors}</td>
+                                <td className="gr-r">{r.agreements}</td>
+                                <td className="gr-r">
+                                  <strong>{eur(r.amount)}</strong>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td>
+                              <strong>{t("common.done") === "Klaar" ? "Totaal" : "Total"}</strong>
+                            </td>
+                            <td className="gr-r">
+                              <strong>{respRows.reduce((s, r) => s + r.sponsors, 0)}</strong>
+                            </td>
+                            <td className="gr-r">
+                              <strong>{respRows.reduce((s, r) => s + r.agreements, 0)}</strong>
+                            </td>
+                            <td className="gr-r">
+                              <strong>{eur(respRows.reduce((s, r) => s + r.amount, 0))}</strong>
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. New vs returning sponsors */}
+                <div className="gr-card">
+                  <h3 className="gr-h3">{t("an.newspon")}</h3>
+                  <p className="gr-muted" style={{ marginTop: 0 }}>
+                    {t("an.newsponhint")}
+                  </p>
+                  <div className="gr-tablewrap">
+                    <table className="gr-table">
+                      <thead>
+                        <tr>
+                          <th>{t("c.edition")}</th>
+                          <th className="gr-r">{t("an.newcol")}</th>
+                          <th className="gr-r">{t("an.returning")}</th>
+                          <th className="gr-r">{t("an.totalcol")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {newRows.map(({ edition: e, fresh, returning, total, hasPrev }) => (
+                          <tr key={e.id}>
+                            <td>
+                              {e.name}
+                              {!e.active && (
+                                <>
+                                  {" "}
+                                  <Tag>{t("th.archived")}</Tag>
+                                </>
+                              )}
+                            </td>
+                            <td className="gr-r">
+                              <strong style={{ color: "var(--green)" }}>{fresh}</strong>
+                            </td>
+                            <td className="gr-r">{hasPrev ? returning : <span className="gr-muted">—</span>}</td>
+                            <td className="gr-r">{total}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="gr-muted" style={{ fontSize: 12, marginBottom: 0 }}>
+                    {t("an.newnote")}
+                  </p>
+                </div>
+              </section>
+            );
+          })()}
+
+        {/* ---------- AUDIT LOG ---------- */}
+        {tab === "audit" &&
+          admin &&
+          (() => {
+            const log = data.audit || [];
+            const q = auQuery.trim().toLowerCase();
+            const rows = log
+              .filter((e) => (auEntity ? e.entity === auEntity : true))
+              .filter(
+                (e) =>
+                  !q ||
+                  [e.entityName, e.action, e.detail, auditActorLabel(e.actor)].some((f) =>
+                    (f || "").toLowerCase().includes(q),
+                  ),
+              );
+
+            const ENTITY_LABEL: Record<AuditEntity, string> = {
+              sponsor: "Sponsor",
+              contact: "Contact",
+              agreement: "Agreement",
+              edition: "Edition",
+              vouchers: "Vouchers",
+              account: "Account",
+            };
+
+            const exportLog = () => {
+              const out = rows.map((e) => ({
+                "Date & time": fmtDateTime(e.at),
+                By: auditActorLabel(e.actor),
+                Type: ENTITY_LABEL[e.entity] || e.entity,
+                Item: e.entityName,
+                Action: e.action,
+                Details: e.detail,
+              }));
+              if (out.length === 0) {
+                notify("Nothing to export.", "Empty log");
+                return;
+              }
+              const ws = XLSX.utils.json_to_sheet(out);
+              ws["!cols"] = [{ wch: 18 }, { wch: 26 }, { wch: 12 }, { wch: 34 }, { wch: 20 }, { wch: 40 }];
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Audit");
+              XLSX.writeFile(wb, "grensrock-audit-log.xlsx");
+            };
+
+            return (
+              <section>
+                <div className="gr-toolbar">
+                  <h2 className="gr-h2" style={{ margin: 0 }}>
+                    {t("au.title")}
+                  </h2>
+                  <button className="gr-btn" onClick={exportLog} disabled={rows.length === 0}>
+                    {t("common.export")}
+                  </button>
+                </div>
+                <div className="gr-toolbar">
+                  <input
+                    className="gr-search"
+                    placeholder={t("common.search")}
+                    value={auQuery}
+                    onChange={(e) => setAuQuery(e.target.value)}
+                  />
+                  <select
+                    className="gr-search"
+                    style={{ maxWidth: 200 }}
+                    value={auEntity}
+                    onChange={(e) => setAuEntity(e.target.value)}
+                  >
+                    <option value="">{t("c.alltypes")}</option>
+                    {Object.entries(ENTITY_LABEL).map(([k, l]) => (
+                      <option key={k} value={k}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  {(auQuery || auEntity) && (
+                    <button
+                      className="gr-mini"
+                      onClick={() => {
+                        setAuQuery("");
+                        setAuEntity("");
+                      }}
+                    >
+                      {t("common.clear")}
+                    </button>
+                  )}
+                  <span className="gr-muted">
+                    {rows.length} of {log.length} entries
+                  </span>
+                </div>
+
+                {rows.length === 0 ? (
+                  <p className="gr-empty">
+                    {log.length === 0 ? "No changes recorded yet." : "No entries match these filters."}
+                  </p>
+                ) : (
+                  <div className="gr-tablewrap">
+                    <table className="gr-table gr-compact">
+                      <thead>
+                        <tr>
+                          <th>{t("au.when")}</th>
+                          <th>{t("au.by")}</th>
+                          <th>{t("au.type")}</th>
+                          <th>{t("au.item")}</th>
+                          <th>{t("au.action")}</th>
+                          <th>{t("au.details")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((e) => (
+                          <tr key={e.id}>
+                            <td style={{ whiteSpace: "nowrap" }}>{fmtDateTime(e.at)}</td>
+                            <td>{auditActorLabel(e.actor)}</td>
+                            <td>
+                              <Tag tone={e.actor?.type === "sponsor" ? "blue" : "grey"}>
+                                {ENTITY_LABEL[e.entity] || e.entity}
+                              </Tag>
+                            </td>
+                            <td>{e.entityName}</td>
+                            <td>{e.action}</td>
+                            <td className="gr-muted">{e.detail}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <p className="gr-muted" style={{ marginTop: 10 }}>
+                  The most recent {AUDIT_MAX} changes are kept. Export regularly if you need a permanent record — a
+                  full history belongs on a server, which is also where per-user logins will live.
+                </p>
+              </section>
+            );
+          })()}
+
+        {/* ---------- FOLDER PRODUCTION ---------- */}
+        {tab === "folder" && admin && (
+          <section>
+            <div className="gr-toolbar">
+              <h2 className="gr-h2" style={{ margin: 0 }}>
+                {t("nav.folder")}
+              </h2>
+              <select
+                className="gr-search"
+                style={{ maxWidth: 260 }}
+                value={folEdition || overviewEdition?.id || ""}
+                onChange={(e) => setFolEdition(e.target.value)}
+              >
+                {sortedEditions.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <FolderOverview
+              edition={editions.find((e) => e.id === (folEdition || overviewEdition?.id))}
+              deals={deals}
+              sponsors={sponsors}
+              users={users}
+              notify={notify}
+              t={t}
+            />
+          </section>
+        )}
+
+        {/* ---------- TEAM ---------- */}
+        {tab === "team" && admin && (
+          <section>
+            <div className="gr-toolbar">
+              <h2 className="gr-h2" style={{ margin: 0 }}>
+                {t("tm.title")}
+              </h2>
+              <button className="gr-btn" onClick={() => setModal({ type: "user" })}>
+                {t("tm.new")}
+              </button>
+            </div>
+            {users.length === 0 ? (
+              <p className="gr-empty">
+                No accounts yet. Create the first admin account — after that, everyone logs in with their email
+                address.
+              </p>
+            ) : (
+              <div className="gr-tablewrap">
+                <table className="gr-table gr-clickable">
+                  <thead>
+                    <tr>
+                      <th>{t("c.name")}</th>
+                      <th>Email (login)</th>
+                      <th>{t("c.role")}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.id} title="Click to edit this account" onClick={() => setModal({ type: "user", payload: u })}>
+                        <td>
+                          <strong>{userName(u)}</strong>
+                          {u.id === userId && <span className="gr-muted"> · you</span>}
+                        </td>
+                        <td>
+                          {u.email ? u.email : <span style={{ color: "var(--red)" }}>⚠ no email — can&apos;t log in</span>}
+                        </td>
+                        <td>{isAdmin(u) ? <Tag tone="green">admin</Tag> : <Tag>user</Tag>}</td>
+                        <td className="gr-rowbtns" onClick={(e) => e.stopPropagation()}>
+                          <CopyUserInvite user={u} />
+                          <button className="gr-mini gr-danger" onClick={() => deleteUser(u.id)}>
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="gr-muted" style={{ marginTop: 12 }}>
+              <strong>Admin</strong> — everything: editions, formulas, invoicing and team accounts.
+              <br />
+              <strong>User</strong> — can view and update all sponsors and their agreements.
+            </p>
+            <div className="gr-portalbox" style={{ marginTop: 14 }}>
+              Everyone logs in with their email address and the shared password
+              <strong className="gr-code" style={{ marginLeft: 6 }}>
+                {SHARED_PASSWORD}
+              </strong>
+              <p className="gr-muted" style={{ margin: "6px 0 0" }}>
+                Temporary arrangement — personal passwords come with the move to a real backend.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* ---------- INVOICING ---------- */}
+        {tab === "invoicing" && admin && (
+          <section>
+            <div className="gr-toolbar">
+              <h2 className="gr-h2" style={{ margin: 0 }}>
+                {t("inv.titlefull")}
+              </h2>
+              <select
+                value={invEdition || overviewEdition?.id || ""}
+                onChange={(e) => setInvEdition(e.target.value)}
+                className="gr-search"
+                style={{ maxWidth: 260 }}
+              >
+                {sortedEditions.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {!invEd ? (
+              <p className="gr-empty">{t("fo.createfirst2")}</p>
+            ) : invDeals.length === 0 ? (
+              <p className="gr-empty">
+                {t("inv.noagr")} {invEd.name}.
+              </p>
+            ) : (
+              (() => {
+                const billable = invDeals.filter(needsInvoice);
+                const inKind = invDeals.filter((d) => !needsInvoice(d));
+                const blockedCount = billable.filter((d) =>
+                  refMissing(d, sponsors.find((x) => x.id === d.sponsorId)),
+                ).length;
+                return (
+                  <>
+                    {blockedCount > 0 && (
+                      <p className="gr-blockbanner">
+                        {blockedCount} {t("inv.blocked")}
+                      </p>
+                    )}
+                    {billable.length > 0 && (
+                      <div className="gr-tablewrap">
+                        <table className="gr-table">
+                          <thead>
+                            <tr>
+                              <th>{t("c.company")}</th>
+                              <th>{t("c.vat")}</th>
+                              <th className="gr-r">{t("inv.toinvoice")}</th>
+                              <th>{t("c.reference")}</th>
+                              <th>{t("inv.created")}</th>
+                              <th>{t("inv.number")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {billable.map((d) => {
+                              const s = sponsors.find((x) => x.id === d.sponsorId);
+                              const blocked = refMissing(d, s);
+                              return (
+                                <tr key={d.id} className={blocked ? "gr-blocked" : undefined}>
+                                  <td>
+                                    <strong>{s ? s.companyName : "?"}</strong>
+                                    {d.settlement === "mixed" && (
+                                      <>
+                                        {" "}
+                                        <Tag tone="amber">{t("inv.partlyinkind")}</Tag>
+                                      </>
+                                    )}
+                                  </td>
+                                  <td>{s?.vatNumber || "—"}</td>
+                                  <td className="gr-r">
+                                    {eur(invoiceAmount(d))}
+                                    {d.settlement === "mixed" && (
+                                      <div className="gr-muted" style={{ fontSize: 11 }}>
+                                        {t("inv.oftotal")} {eur(d.cost)}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {refRequiredFor(d, s) ? (
+                                      <>
+                                        <input
+                                          className="gr-inline-input"
+                                          placeholder={t("inv.reqref")}
+                                          value={d.invoiceReference || ""}
+                                          style={blocked ? { borderColor: "var(--red)" } : undefined}
+                                          onChange={(e) => setInvoice(d.id, { invoiceReference: e.target.value })}
+                                        />
+                                        {blocked && (
+                                          <div className="gr-muted" style={{ color: "var(--red)", fontSize: 11 }}>
+                                            {t("inv.reqbefore")}
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="gr-muted">—</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <input
+                                      type="checkbox"
+                                      checked={!!d.invoiceCreated}
+                                      disabled={blocked}
+                                      title={blocked ? t("inv.fillref") : undefined}
+                                      onChange={(e) => setInvoice(d.id, { invoiceCreated: e.target.checked })}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      className="gr-inline-input"
+                                      placeholder="e.g. 2026-014"
+                                      value={d.invoiceNumber || ""}
+                                      onChange={(e) => setInvoice(d.id, { invoiceNumber: e.target.value })}
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {inKind.length > 0 && (
+                      <>
+                        <h4 className="gr-subhead">{t("inv.notinvoiced")}</h4>
+                        <div className="gr-tablewrap">
+                          <table className="gr-table gr-compact">
+                            <thead>
+                              <tr>
+                                <th>{t("c.company")}</th>
+                                <th className="gr-r">{t("c.value")}</th>
+                                <th>{t("inv.provides")}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {inKind.map((d) => {
+                                const s = sponsors.find((x) => x.id === d.sponsorId);
+                                return (
+                                  <tr key={d.id}>
+                                    <td>
+                                      <strong>{s ? s.companyName : "?"}</strong>
+                                    </td>
+                                    <td className="gr-r">{eur(d.cost)}</td>
+                                    <td>{d.inKindDescription || <span className="gr-muted">—</span>}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )}
+                  </>
+                );
+              })()
+            )}
+          </section>
+        )}
+      </main>
+
+      {/* ---------- modals ---------- */}
+      {modal?.type === "sponsor" && (
+        <Modal title={modal.payload ? "Edit sponsor" : "New sponsor"} onClose={() => setModal(null)}>
+          <SponsorForm
+            initial={modal.payload}
+            teamMembers={users}
+            viesCfg={data.settings?.vies || defaultVies}
+            existingSponsors={sponsors}
+            t={t}
+            onSave={saveSponsor}
+            onCancel={() => setModal(null)}
+          />
+        </Modal>
+      )}
+      <ConfirmDialog dialog={dialog} onClose={() => setDialog(null)} />
+      {modal?.type === "contact" && (
+        <Modal
+          title={modal.payload.contact ? "Edit contact person" : "New contact person"}
+          onClose={() => setModal(null)}
+        >
+          <ContactForm
+            initial={modal.payload.contact}
+            onSave={(c) => saveContact(modal.payload.sponsorId, c)}
+            onDelete={(cid) => deleteContact(modal.payload.sponsorId, cid)}
+            onCancel={() => setModal(null)}
+          />
+        </Modal>
+      )}
+      {modal?.type === "newContact" && (
+        <NewContactModal
+          sponsors={sponsors}
+          t={t}
+          onClose={() => setModal(null)}
+          onSave={(sponsorId, contact) => saveContact(sponsorId, contact)}
+        />
+      )}
+      {modal?.type === "importContacts" && admin && (
+        <ContactImportModal sponsors={sponsors} onImport={importContacts} onClose={() => setModal(null)} t={t} />
+      )}
+      {modal?.type === "acceptance" &&
+        (() => {
+          const d = deals.find((x) => x.id === modal.payload.id) || modal.payload;
+          const a = d.acceptance;
+          if (!a) return null;
+          const snap = a.snapshot || {};
+          const changed = changedSinceAcceptance(d);
+          return (
+            <Modal title="Contract acceptance" onClose={() => setModal(null)} wide>
+              <dl className="gr-dl">
+                <dt>{t("ac.acceptedby")}</dt>
+                <dd>
+                  <strong>{a.name || "—"}</strong>
+                  {a.email ? ` · ${a.email}` : ""}
+                </dd>
+                <dt>Date &amp; time</dt>
+                <dd>{fmtDateTime(a.acceptedAt)}</dd>
+                <dt>Formula</dt>
+                <dd>{snap.formulaName || "—"}</dd>
+                <dt>Contribution</dt>
+                <dd>{eur(snap.cost)}</dd>
+              </dl>
+              <h4 className="gr-subhead">{t("ac.termsaccepted")}</h4>
+              <ul className="gr-benefitlist">
+                {[...ticketLines(snap, "en"), ...visibilityLines(snap, "en")].map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+              {(snap.notes || "").trim() && <p className="gr-muted">Notes: {snap.notes}</p>}
+              {changed && (
+                <>
+                  <p className="gr-blockbanner">
+                    The agreement has been modified since the sponsor accepted it. The snapshot above is what they
+                    agreed to; the current terms are below. Ask them to accept again if the change is material.
+                  </p>
+                  <h4 className="gr-subhead">{t("ac.currentterms")}</h4>
+                  <ul className="gr-benefitlist">
+                    {[...ticketLines(d, "en"), ...visibilityLines(d, "en")].map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                  <p className="gr-muted">Current contribution: {eur(d.cost)}</p>
+                  <div className="gr-actions">
+                    <button
+                      className="gr-btn-ghost gr-danger"
+                      onClick={() =>
+                        ask(
+                          "Ask the sponsor to accept again? The current acceptance is cleared.",
+                          () => {
+                            persist({
+                              ...data,
+                              deals: deals.map((x) => (x.id === d.id ? { ...x, acceptance: null } : x)),
+                            });
+                            setModal(null);
+                          },
+                          { title: "Reset acceptance", confirmLabel: "Reset" },
+                        )
+                      }
+                    >
+                      Request new acceptance
+                    </button>
+                  </div>
+                </>
+              )}
+            </Modal>
+          );
+        })()}
+      {modal?.type === "examples" && (
+        <Modal title="Example images of returns" onClose={() => setModal(null)} wide>
+          <ExampleImagesManager onClose={() => setModal(null)} />
+        </Modal>
+      )}
+      {modal?.type === "vies" && (
+        <Modal title="VAT lookup (VIES)" onClose={() => setModal(null)}>
+          <ViesSettings
+            value={data.settings?.vies || defaultVies}
+            onSave={(cfg) => {
+              persist({ ...data, settings: { ...(data.settings || {}), vies: cfg } });
+              setModal(null);
+            }}
+            onCancel={() => setModal(null)}
+          />
+        </Modal>
+      )}
+      {modal?.type === "tickoweb" && (
+        <Modal title="Tickoweb integration" onClose={() => setModal(null)} wide>
+          <TickowebSettings
+            t={t}
+            value={data.settings?.tickoweb || defaultTickoweb}
+            onSave={(cfg) => {
+              persist({ ...data, settings: { ...(data.settings || {}), tickoweb: cfg } });
+              setModal(null);
+            }}
+            onCancel={() => setModal(null)}
+          />
+        </Modal>
+      )}
+      {modal?.type === "user" && (
+        <Modal title={modal.payload ? "Edit account" : "New team account"} onClose={() => setModal(null)}>
+          <UserForm
+            t={t}
+            initial={modal.payload}
+            existing={users}
+            isOnlyAdmin={
+              !!modal.payload && isAdmin(modal.payload as User) && users.filter(isAdmin).length <= 1
+            }
+            onSave={saveUser}
+            onCancel={() => setModal(null)}
+          />
+        </Modal>
+      )}
+      {modal?.type === "import" && (
+        <ImportModal sponsors={sponsors} onImport={importSponsors} onClose={() => setModal(null)} t={t} />
+      )}
+      {modal?.type === "edition" && (
+        <Modal title={modal.payload ? "Edit edition" : "New edition"} onClose={() => setModal(null)}>
+          <EditionForm initial={modal.payload} onSave={saveEdition} onCancel={() => setModal(null)} t={t} />
+        </Modal>
+      )}
+      {modal?.type === "formula" && (
+        <Modal title={modal.payload.formula ? "Edit formula" : "New formula"} onClose={() => setModal(null)} wide>
+          <FormulaForm
+            t={t}
+            initial={modal.payload.formula}
+            onSave={(f) => saveFormula(modal.payload.editionId, f, modal.payload.formula?.name)}
+            onCancel={() => setModal(null)}
+          />
+        </Modal>
+      )}
+      {modal?.type === "deal" && (
+        <Modal title={modal.payload?.id ? t("df.edittitle") : t("df.newtitle")} onClose={() => setModal(null)} wide>
+          <DealForm
+            initial={modal.payload}
+            sponsors={sponsors}
+            editions={editions}
+            teamMembers={users}
+            onSave={saveDeal}
+            onCancel={() => setModal(null)}
+            onAddSponsor={addSponsorInline}
+            viesCfg={data.settings?.vies || defaultVies}
+            t={t}
+            onDelete={admin ? deleteDeal : undefined}
+          />
+        </Modal>
+      )}
+      {modal?.type === "email" &&
+        (() => {
+          const d = deals.find((x) => x.id === modal.payload.id) || modal.payload;
+          const s = sponsors.find((x) => x.id === d.sponsorId);
+          const e = editions.find((x) => x.id === d.editionId);
+          if (!s || !e) return null;
+          return (
+            <EmailModal
+              t={t}
+              deal={d}
+              sponsor={s}
+              edition={e}
+              onClose={() => setModal(null)}
+              onMarkSent={() => markEmailSent(d.id)}
+            />
+          );
+        })()}
+    </div>
+  );
+}

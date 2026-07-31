@@ -272,8 +272,6 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "on.first": ["Eerste editie aanmaken", "Create first edition"],
   // header
   "hd.subtitle": ["Sponsorbeheer", "Sponsor management"],
-  "hd.setupbar": ["Nog geen teamaccounts — iedereen met de link kan binnen.", "No team accounts yet — anyone with the link can get in."],
-  "hd.createadmin": ["Eerste beheerder aanmaken", "Create the first admin"],
   "uf.firstname": ["Voornaam *", "First name *"],
   "uf.lastname": ["Achternaam", "Last name"],
   "uf.emaillogin": ["E-mail (login)", "Email (login)"],

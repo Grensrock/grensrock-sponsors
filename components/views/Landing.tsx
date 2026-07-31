@@ -7,22 +7,20 @@ import { supabase } from "@/lib/supabase/client";
 
 /* ---------- Landing (choose team vs sponsor access) ----------
 
-   Real authentication (Stage 2):
-   - team members sign in with e-mail + password (Supabase Auth);
-   - the very first team member signs up and then completes the setup in
-     the app, where bootstrap_first_admin() only succeeds while there is
-     no team account at all — so this path can be offered unconditionally,
-     the database is what enforces "first person through the door is admin"
-     (a landing page has no session, so it cannot read `profiles` to find
-     out whether team accounts exist);
-   - sponsor contacts get a magic link (no password): the link itself
+   - Team members sign in with their Google Workspace account. Whether
+     that account actually gets team access is decided server-side by
+     ensure_team_profile() (it requires a verified @grensrock.be address);
+     the `hd` parameter below only pre-filters Google's account picker and
+     is not a security boundary.
+   - Sponsor contacts get a magic link (no password): the link itself
      drives the transition, via app/auth/callback/route.ts.
 */
 
+const TEAM_DOMAIN = "grensrock.be";
+
 export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promise<void> }) {
-  const [side, setSide] = useState<null | "team" | "sponsor">(null); // null | 'team' | 'sponsor'
+  const [side, setSide] = useState<null | "team" | "sponsor">(null);
   const [email, setEmail] = useState("");
-  const [pwd, setPwd] = useState("");
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,63 +30,33 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
   const reset = () => {
     setSide(null);
     setEmail("");
-    setPwd("");
     setErr("");
     setInfo("");
   };
 
-  /* Team: e-mail + password */
+  /* Team: Google Workspace */
   const teamLogin = async () => {
     if (busy) return;
     setErr("");
     setInfo("");
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pwd });
-    setBusy(false);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { hd: TEAM_DOMAIN, prompt: "select_account" },
+      },
+    });
     if (error) {
+      setBusy(false);
       setErr(
         L(
-          "Aanmelden lukte niet. Controleer uw e-mailadres en wachtwoord.",
-          "Could not sign in. Check your email address and password.",
+          "Aanmelden met Google lukte niet. Probeer het zo dadelijk opnieuw.",
+          "Could not sign in with Google. Please try again in a moment.",
         ),
       );
-      return;
     }
-    await onSignedIn();
-  };
-
-  /* Team: create the very first account (the database rejects this once one exists) */
-  const teamSignUp = async () => {
-    if (busy) return;
-    setErr("");
-    setInfo("");
-    if (pwd.length < 6) {
-      setErr(L("Kies een wachtwoord van minstens 6 tekens.", "Choose a password of at least 6 characters."));
-      return;
-    }
-    setBusy(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: pwd,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setBusy(false);
-    if (error) {
-      setErr(error.message);
-      return;
-    }
-    if (!data.session) {
-      /* E-mail confirmation is switched on for this project: the account
-         exists, but the session only starts once the link is clicked. */
-      setInfo(
-        L(
-          "Bevestig eerst uw e-mailadres via de link die we u net stuurden, en meld u daarna aan.",
-          "Confirm your email address via the link we just sent you, then sign in.",
-        ),
-      );
-      return;
-    }
-    await onSignedIn();
+    /* On success the browser navigates to Google, so `busy` stays true. */
   };
 
   /* Sponsor: magic link, no password */
@@ -119,48 +87,36 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     );
   };
 
-  const emailField = (onEnter: () => void) => (
-    <input
-      type="email"
-      placeholder="uw@email.com"
-      value={email}
-      onChange={(e) => {
-        setEmail(e.target.value);
-        setErr("");
-      }}
-      onKeyDown={(e) => e.key === "Enter" && onEnter()}
-      autoFocus
-    />
-  );
-
-  const teamForm = (
+  const teamCard = (
     <>
-      {emailField(teamLogin)}
-      <input
-        type="password"
-        placeholder={L("Wachtwoord", "Password")}
-        value={pwd}
-        onChange={(e) => {
-          setPwd(e.target.value);
-          setErr("");
-        }}
-        onKeyDown={(e) => e.key === "Enter" && teamLogin()}
-      />
+      <p className="gr-muted">
+        {L(
+          "Beheer sponsors, edities, overeenkomsten en facturatie.",
+          "Manage sponsors, editions, agreements and invoicing.",
+        )}
+      </p>
       <button className="gr-btn" disabled={busy} onClick={teamLogin}>
-        {L("Aanmelden", "Log in")}
+        {L("Aanmelden met Google", "Sign in with Google")}
       </button>
-      <button className="gr-linkbtn" disabled={busy} onClick={teamSignUp}>
-        {L("Eerste beheerder instellen", "Set up the first admin")}
-      </button>
-      <button className="gr-linkbtn" onClick={reset}>
-        {L("Terug", "Back")}
-      </button>
+      <p className="gr-muted" style={{ fontSize: 12 }}>
+        {L(`Met uw @${TEAM_DOMAIN}-account.`, `With your @${TEAM_DOMAIN} account.`)}
+      </p>
     </>
   );
 
   const sponsorForm = (
     <>
-      {emailField(sponsorLogin)}
+      <input
+        type="email"
+        placeholder="uw@email.com"
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          setErr("");
+        }}
+        onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
+        autoFocus
+      />
       <button className="gr-btn" disabled={busy} onClick={sponsorLogin}>
         {L("Aanmeldlink sturen", "Send login link")}
       </button>
@@ -185,30 +141,9 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
         {L("Sponsorbeheer", "Sponsor management")}
       </span>
       <div className="gr-landcards">
-        <div className={"gr-landcard" + (side === "team" ? " on" : "")}>
+        <div className="gr-landcard">
           <h3 className="gr-h3">{L("Organisatie", "Organisation")}</h3>
-          {side === "team" ? (
-            teamForm
-          ) : (
-            <>
-              <p className="gr-muted">
-                {L(
-                  "Beheer sponsors, edities, overeenkomsten en facturatie.",
-                  "Manage sponsors, editions, agreements and invoicing.",
-                )}
-              </p>
-              <button
-                className="gr-btn"
-                onClick={() => {
-                  setErr("");
-                  setInfo("");
-                  setSide("team");
-                }}
-              >
-                {L("Aanmelden als teamlid", "Log in as team member")}
-              </button>
-            </>
-          )}
+          {teamCard}
         </div>
         <div className={"gr-landcard" + (side === "sponsor" ? " on" : "")}>
           <h3 className="gr-h3">Sponsor</h3>

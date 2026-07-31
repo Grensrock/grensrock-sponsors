@@ -7,9 +7,11 @@ import type { Role, TeamLanguage, User } from "@/types";
    ============================================================
    profiles.id is a FK to auth.users(id), so rows can only be created by
    something that can create an auth user:
-     - bootstrap_first_admin() — the very first account, self-service,
-       and only while profiles is still empty;
-     - POST /api/team/invite — every account after that, admin-only,
+     - ensure_team_profile() — runs in app/auth/callback on every sign-in
+       and provisions a profile for any verified @grensrock.be Google
+       account (first one through the door becomes admin);
+     - POST /api/team/invite — for anyone who needs a role assigned up
+       front, or whose account isn't on the grensrock.be domain. Admin-only,
        server-side, using the Auth admin API + the secret key.
    Updates and deletes are ordinary table calls under the RLS policies.
    ============================================================ */
@@ -60,15 +62,6 @@ export async function updateUser(id: string, patch: Partial<User>): Promise<User
 /** Removes the team account. The auth user itself stays (that needs the Auth admin API). */
 export async function deleteUser(id: string): Promise<void> {
   const { error } = await supabase.from("profiles").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-}
-
-/** Only succeeds while profiles is empty — "first person through the door is admin". */
-export async function bootstrapFirstAdmin(firstName: string, lastName: string): Promise<void> {
-  const { error } = await supabase.rpc("bootstrap_first_admin", {
-    p_first_name: firstName || "",
-    p_last_name: lastName || "",
-  });
   if (error) throw new Error(error.message);
 }
 

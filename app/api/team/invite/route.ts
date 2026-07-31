@@ -16,7 +16,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
         client (Auth admin API needs the secret key).
      3. Insert the matching profiles row with the admin client —
         profiles has no INSERT policy by design (0003_rls.sql), the
-        only two writers are bootstrap_first_admin() and this route.
+        only two writers are ensure_team_profile() and this route.
    ============================================================ */
 
 interface InviteBody {

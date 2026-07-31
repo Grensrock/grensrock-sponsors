@@ -234,10 +234,10 @@ export default function GrensrockApp() {
         return;
       }
 
-      /* Signed in, but neither a team profile nor a claimed sponsor contact —
-         this is the first-admin setup state (sign-up done, profile still to be
-         created through the setup bar). Every write stays blocked by RLS until
-         bootstrap_first_admin() succeeds. */
+      /* Signed in, but neither a team profile nor a claimed sponsor contact:
+         a Google account outside grensrock.be, or a sponsor whose contact was
+         never given portal access. ensure_team_profile()/claim_portal_contact()
+         both declined, so there is nothing to show and RLS blocks every write. */
       setUserId(null);
       setMode({ view: "team" });
       setTab("overview");
@@ -426,20 +426,10 @@ export default function GrensrockApp() {
       if (u.id) {
         const saved = await usersApi.updateUser(u.id, u);
         setData((d) => ({ ...d, users: (d.users || []).map((x) => (x.id === saved.id ? saved : x)) }));
-      } else if (users.length === 0) {
-        /* First account ever: the caller signed up on the landing page and now
-           becomes the admin. The RPC refuses once any profile exists. */
-        await usersApi.bootstrapFirstAdmin(u.firstName, u.lastName);
-        const profile = await usersApi.getMyProfile();
-        if (!profile) throw new Error("The admin account could not be read back.");
-        const saved =
-          u.language && u.language !== profile.language
-            ? await usersApi.updateUser(profile.id, { language: u.language })
-            : profile;
-        setUserId(saved.id); // stay logged in as the new admin
-        setData((d) => ({ ...d, users: [saved] }));
       } else {
-        /* Everyone else needs an auth user, which only the server can create. */
+        /* A new account needs an auth user, which only the server can create.
+           Team members on the grensrock.be domain don't need this at all —
+           ensure_team_profile() provisions them on their first Google sign-in. */
         const created = await usersApi.inviteUser(u);
         setData((d) => ({ ...d, users: [...(d.users || []), created] }));
       }
@@ -1242,15 +1232,6 @@ export default function GrensrockApp() {
       </header>
       <div className="gr-borderline" aria-hidden="true" />
       {saveErr && <div className="gr-warn">{t("hd.saveerr")}</div>}
-      {users.length === 0 && (
-        <div className="gr-setupbar">
-          {t("hd.setupbar")}
-          <button className="gr-mini" onClick={() => setModal({ type: "user", payload: { role: "admin" } })}>
-            {t("hd.createadmin")}
-          </button>
-        </div>
-      )}
-
       <main className="gr-main">
         {/* Admin panel sub-navigation */}
         {admin && ADMIN_TABS.includes(tab) && (
@@ -2829,8 +2810,8 @@ export default function GrensrockApp() {
             </div>
             {users.length === 0 ? (
               <p className="gr-empty">
-                No accounts yet. Create the first admin account — after that, everyone logs in with their email
-                address.
+                No accounts yet. Anyone with a @grensrock.be Google account gets access by signing in — add someone
+                here only to set their role up front, or for an account outside that domain.
               </p>
             ) : (
               <div className="gr-tablewrap">

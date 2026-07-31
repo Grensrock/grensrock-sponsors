@@ -5,9 +5,9 @@ import * as XLSX from "xlsx";
 import Tag from "@/components/ui/Tag";
 import { FOLDER_FRACTION, FOLDER_OPTS } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
-import { LOGO_MIN_PX, logoKey, parseLogo, type LogoRecord } from "@/lib/logo";
+import { LOGO_MIN_PX, type LogoRecord } from "@/lib/logo";
 import { normFolder } from "@/lib/normalize";
-import { storage } from "@/lib/storage";
+import { loadImage, logoRef } from "@/lib/supabase/storage";
 import { responsibleName } from "@/lib/users";
 import type { Deal, Edition, FolderMention, Sponsor, Tone, TranslateFn, User } from "@/types";
 
@@ -60,8 +60,7 @@ export default function FolderOverview({
       for (const r of rows) {
         if (!r.sponsor) continue;
         try {
-          const v = await storage.get(logoKey(r.sponsor.id), true);
-          out[r.sponsor.id] = v?.value ? parseLogo(v.value) : null;
+          out[r.sponsor.id] = await loadImage(logoRef(r.sponsor.id));
         } catch {
           out[r.sponsor.id] = null;
         }

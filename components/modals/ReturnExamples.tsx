@@ -2,7 +2,8 @@
 
 import ImageStore from "@/components/ui/ImageStore";
 import type { ReturnExampleType } from "@/lib/constants";
-import { exampleKey, exampleLabel } from "@/lib/logo";
+import { exampleLabel } from "@/lib/logo";
+import { exampleRef } from "@/lib/supabase/storage";
 import { returnTypesOf } from "@/lib/vouchers";
 import type { FormulaFields, Language } from "@/types";
 
@@ -21,7 +22,7 @@ export default function ReturnExamples({
   return (
     <div className="gr-examplegrid">
       {list.map((t) => (
-        <ImageStore key={t} storageKey={exampleKey(t)} readOnly label={exampleLabel(t, lang)} />
+        <ImageStore key={t} image={exampleRef(t)} readOnly label={exampleLabel(t, lang)} />
       ))}
     </div>
   );

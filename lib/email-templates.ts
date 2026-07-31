@@ -1,4 +1,4 @@
-import { DRINK_TICKET_VALUE, LED_ZONES, SHARED_PASSWORD } from "@/lib/constants";
+import { DRINK_TICKET_VALUE, LED_ZONES } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
@@ -17,7 +17,7 @@ export function buildInvitation(sponsor: Sponsor, contact?: Contact | null, resp
 Via onze sponsortool kan u de gegevens van ${sponsor.companyName} voor Grensrock zelf nakijken en aanpassen, en uw logo opladen (voor de folder, ledboarding, website, ...).
 
 Link: [link naar de sponsortool]
-Meld u aan met uw e-mailadres (${c.email || "het adres dat wij van u hebben"}) en het wachtwoord: ${SHARED_PASSWORD}
+Meld u aan met uw e-mailadres (${c.email || "het adres dat wij van u hebben"}): u krijgt een aanmeldlink per e-mail, een wachtwoord is niet nodig.
 
 Alvast bedankt!
 ${responsible || "Het Grensrock-team"}`,
@@ -26,7 +26,7 @@ ${responsible || "Het Grensrock-team"}`,
 Via notre outil sponsors, vous pouvez vérifier et modifier vous-même les données de ${sponsor.companyName} pour Grensrock, et télécharger votre logo (pour le dépliant, le ledboarding, le site web, ...).
 
 Lien : [lien vers l'outil sponsors]
-Connectez-vous avec votre adresse e-mail (${c.email || "l'adresse que nous avons"}) et le mot de passe : ${SHARED_PASSWORD}
+Connectez-vous avec votre adresse e-mail (${c.email || "l'adresse que nous avons"}) : vous recevrez un lien de connexion par e-mail, aucun mot de passe n'est nécessaire.
 
 Merci d'avance !
 ${responsible || "L'équipe Grensrock"}`,
@@ -35,7 +35,7 @@ ${responsible || "L'équipe Grensrock"}`,
 Through our sponsor tool you can review and update ${sponsor.companyName}'s details for Grensrock yourself, and upload your logo (for the folder, LED boarding, website, ...).
 
 Link: [link to the sponsor tool]
-Log in with your email address (${c.email || "the address we have on file"}) and the password: ${SHARED_PASSWORD}
+Log in with your email address (${c.email || "the address we have on file"}): you'll get a login link by email, no password needed.
 
 Thank you!
 ${responsible || "The Grensrock team"}`,
@@ -303,7 +303,7 @@ export function buildUserInvite(user: User) {
 You have access to the Grensrock sponsor tool.
 
 Link: [link to the tool]
-Log in with your email address (${user.email}) and the password: ${SHARED_PASSWORD}
+Log in with your email address (${user.email}) and the password you set through the invitation email from Grensrock.
 Your role: ${user.role === "admin" ? "admin (full access)" : "user (sponsors & agreements)"}
 
 Grensrock`;

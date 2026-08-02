@@ -5,7 +5,7 @@ import { withAddress } from "@/lib/address";
 import { TEAM_LANGS } from "@/lib/constants";
 import { withContacts, withVoucherContact } from "@/lib/contacts";
 import { defaultTickoweb } from "@/lib/integrations/tickoweb";
-import { defaultVies } from "@/lib/integrations/vies";
+import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { normBenefits, normStr } from "@/lib/normalize";
 import { userName, withUserNames } from "@/lib/users";
 import type {
@@ -55,7 +55,7 @@ export const withPortalCodes = (data: StoredAppData): AppData => {
     settings: {
       ...(data.settings || {}),
       tickoweb: { ...defaultTickoweb, ...(data.settings?.tickoweb || {}) },
-      vies: { ...defaultVies, ...(data.settings?.vies || {}) },
+      vatLookup: { ...defaultVatLookup, ...(data.settings?.vatLookup || {}) },
     },
     users: users.map((u) => ({
       ...u,

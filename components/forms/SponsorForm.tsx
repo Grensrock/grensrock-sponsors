@@ -5,11 +5,11 @@ import Field from "@/components/ui/Field";
 import VatInput from "@/components/ui/VatInput";
 import { emptySponsor } from "@/lib/constants";
 import { contactName, sponsorContacts } from "@/lib/contacts";
-import { defaultVies, vies } from "@/lib/integrations/vies";
+import { defaultVatLookup, vatLookup } from "@/lib/integrations/vat-lookup";
 import { normNameKey, normVatKey } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { validateVat, vatToStore } from "@/lib/vat";
-import type { Sponsor, TranslateFn, User, ViesConfig } from "@/types";
+import type { Sponsor, TranslateFn, User, VatLookupConfig } from "@/types";
 
 /* ---------- Sponsor form ---------- */
 
@@ -18,7 +18,7 @@ export default function SponsorForm({
   onSave,
   onCancel,
   teamMembers = [],
-  viesCfg = defaultVies,
+  vatCfg = defaultVatLookup,
   existingSponsors = [],
   t = (k) => k,
 }: {
@@ -26,7 +26,7 @@ export default function SponsorForm({
   onSave: (s: Sponsor) => void;
   onCancel: () => void;
   teamMembers?: User[];
-  viesCfg?: ViesConfig;
+  vatCfg?: VatLookupConfig;
   existingSponsors?: Sponsor[];
   t?: TranslateFn;
 }) {
@@ -34,11 +34,6 @@ export default function SponsorForm({
   const set =
     (k: keyof Sponsor) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setS({ ...s, [k]: e.target.value } as Sponsor);
-  const [lookup, setLookup] = useState<{ busy: boolean; msg: string; tone: string }>({
-    busy: false,
-    msg: "",
-    tone: "",
-  });
   const vatRes = validateVat(s.vatNumber);
 
   /* Live duplicate check against other sponsors (skip self when editing) */
@@ -52,32 +47,6 @@ export default function SponsorForm({
       : null;
   const dup = dupVat || dupName;
 
-  const fetchFromVat = async () => {
-    setLookup({ busy: true, msg: "", tone: "" });
-    try {
-      const r = await vies.lookup(viesCfg, s.vatNumber);
-      if (!r.valid) {
-        setLookup({ busy: false, msg: "VIES says this VAT number is not valid.", tone: "amber" });
-        return;
-      }
-      setS((prev) => ({
-        ...prev,
-        companyName: r.name || prev.companyName,
-        street: r.street || prev.street,
-        houseNumber: r.houseNumber || prev.houseNumber,
-        postalCode: r.postalCode || prev.postalCode,
-        city: r.city || prev.city,
-        entityType: "legal",
-      }));
-      setLookup({
-        busy: false,
-        msg: `Filled in from VIES: ${r.name}${r.city ? " · " + r.city : ""}`,
-        tone: "green",
-      });
-    } catch (ex) {
-      setLookup({ busy: false, msg: (ex as Error).message || "Lookup failed.", tone: "amber" });
-    }
-  };
   const valid = s.companyName.trim().length > 0 && (!vatRes || vatRes.valid);
   return (
     <div>
@@ -85,23 +54,16 @@ export default function SponsorForm({
         <Field label={t("sf.companyname")}>
           <input value={s.companyName} onChange={set("companyName")} placeholder="Brouwerij Vanhonsebrouck" />
         </Field>
-        <Field label={t("c.vatnr")} hint={vies.enabled(viesCfg) ? t("sf.fetchhint") : null}>
-          <div className="gr-inline-field">
-            <VatInput value={s.vatNumber} onChange={set("vatNumber")} lang="en" />
-            {vies.enabled(viesCfg) && (
-              <button type="button" className="gr-mini" disabled={lookup.busy || !s.vatNumber} onClick={fetchFromVat}>
-                {lookup.busy ? t("sf.fetching") : t("sf.fetch")}
-              </button>
-            )}
-          </div>
-          {lookup.msg && (
-            <span
-              className="gr-muted"
-              style={{ fontSize: 12, color: lookup.tone === "green" ? "var(--green)" : "var(--orange-deep)" }}
-            >
-              {lookup.msg}
-            </span>
-          )}
+        <Field label={t("c.vatnr")} hint={vatLookup.enabled(vatCfg) ? t("sf.fetchhint") : null}>
+          <VatInput
+            value={s.vatNumber}
+            onChange={set("vatNumber")}
+            lang="en"
+            cfg={vatCfg}
+            current={s}
+            /* The registry also tells us whether it's a company or a sole trader. */
+            onApply={(patch, company) => setS((prev) => ({ ...prev, ...patch, entityType: company.entityType }))}
+          />
         </Field>
       </div>
       <div className="gr-gridaddr">

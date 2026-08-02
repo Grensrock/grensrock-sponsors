@@ -15,6 +15,7 @@ import { fmtDateTime, isAccepted } from "@/lib/acceptance";
 import { COMMS, COMM_LABELS, DRINK_TICKET_VALUE, VOUCHER_STATUS, VOUCHER_TYPES, uid, type CommKey } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
+import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
 import { validateVat, vatToStore } from "@/lib/vat";
 import {
@@ -31,6 +32,7 @@ import type {
   Language,
   NumLike,
   Sponsor,
+  VatLookupConfig,
   Voucher,
   VoucherRow,
 } from "@/types";
@@ -46,6 +48,7 @@ export default function SponsorPortal({
   deals,
   editions,
   vouchers = [],
+  vatCfg = defaultVatLookup,
   onSaveSponsor,
   onAssignVoucher,
   onRequestFormula,
@@ -59,6 +62,7 @@ export default function SponsorPortal({
   deals: Deal[];
   editions: Edition[];
   vouchers?: Voucher[];
+  vatCfg?: VatLookupConfig;
   onSaveSponsor: (id: string, patch: Partial<Sponsor>) => void;
   onAssignVoucher: (id: string, patch: Partial<Voucher>) => void;
   onRequestFormula: (editionId: string, formulaName: string, byName: string) => void;
@@ -277,7 +281,19 @@ export default function SponsorPortal({
                 <input value={s.companyName} onChange={set("companyName")} />
               </Field>
               <Field label={T("BTW-nummer", "Numéro de TVA", "VAT number")}>
-                <VatInput value={s.vatNumber} onChange={set("vatNumber")} lang={lang} />
+                <VatInput
+                  value={s.vatNumber}
+                  onChange={set("vatNumber")}
+                  lang={lang}
+                  cfg={vatCfg}
+                  current={s}
+                  /* entityType is deliberately left alone: the portal RPC can't
+                     write it (see update_sponsor_info in 0004_rpc.sql). */
+                  onApply={(patch) => {
+                    setS((prev) => ({ ...prev, ...patch }));
+                    setSaved(false);
+                  }}
+                />
               </Field>
             </div>
             <div className="gr-gridaddr">

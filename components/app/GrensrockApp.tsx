@@ -9,7 +9,7 @@ import FormulaForm from "@/components/forms/FormulaForm";
 import SponsorForm from "@/components/forms/SponsorForm";
 import TickowebSettings from "@/components/forms/TickowebSettings";
 import UserForm, { type UserFormState } from "@/components/forms/UserForm";
-import ViesSettings from "@/components/forms/ViesSettings";
+import VatLookupSettings from "@/components/forms/VatLookupSettings";
 import ContactImportModal, { type ContactImportRow } from "@/components/modals/ContactImportModal";
 import EmailModal from "@/components/modals/EmailModal";
 import ExampleImagesManager from "@/components/modals/ExampleImagesManager";
@@ -54,7 +54,7 @@ import {
 import { contactName, primaryContact, sponsorContacts, voucherContact } from "@/lib/contacts";
 import { sameEmail } from "@/lib/email-validate";
 import { defaultTickoweb, tickoweb } from "@/lib/integrations/tickoweb";
-import { defaultVies } from "@/lib/integrations/vies";
+import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import {
   dealTotalCost,
   eur,
@@ -97,7 +97,7 @@ type ModalState =
   | { type: "importContacts" }
   | { type: "acceptance"; payload: Deal }
   | { type: "examples" }
-  | { type: "vies" }
+  | { type: "vatlookup" }
   | { type: "tickoweb" }
   | { type: "user"; payload?: Partial<User> }
   | { type: "import" }
@@ -1154,6 +1154,7 @@ export default function GrensrockApp() {
         deals={deals}
         editions={editions}
         vouchers={vouchers}
+        vatCfg={data.settings?.vatLookup || defaultVatLookup}
         onSaveSponsor={portalSaveSponsor}
         onAssignVoucher={assignVoucherRecipient}
         onRequestFormula={requestFormula}
@@ -1541,7 +1542,7 @@ export default function GrensrockApp() {
                   <button className="gr-mini" onClick={() => setModal({ type: "examples" })}>
                     {t("ed.examples")}
                   </button>
-                  <button className="gr-mini" onClick={() => setModal({ type: "vies" })}>
+                  <button className="gr-mini" onClick={() => setModal({ type: "vatlookup" })}>
                     {t("ed.vatlookup")}
                   </button>
                   <button className="gr-btn" onClick={() => setModal({ type: "edition" })}>
@@ -3026,7 +3027,7 @@ export default function GrensrockApp() {
           <SponsorForm
             initial={modal.payload}
             teamMembers={users}
-            viesCfg={data.settings?.vies || defaultVies}
+            vatCfg={data.settings?.vatLookup || defaultVatLookup}
             existingSponsors={sponsors}
             t={t}
             onSave={saveSponsor}
@@ -3137,11 +3138,11 @@ export default function GrensrockApp() {
           <ExampleImagesManager onClose={() => setModal(null)} />
         </Modal>
       )}
-      {modal?.type === "vies" && (
-        <Modal title="VAT lookup (VIES)" onClose={() => setModal(null)}>
-          <ViesSettings
-            value={data.settings?.vies || defaultVies}
-            onSave={(cfg) => saveSettings({ vies: cfg })}
+      {modal?.type === "vatlookup" && (
+        <Modal title="VAT lookup (CBE/KBO)" onClose={() => setModal(null)}>
+          <VatLookupSettings
+            value={data.settings?.vatLookup || defaultVatLookup}
+            onSave={(cfg) => saveSettings({ vatLookup: cfg })}
             onCancel={() => setModal(null)}
           />
         </Modal>
@@ -3198,7 +3199,7 @@ export default function GrensrockApp() {
             onSave={saveDeal}
             onCancel={() => setModal(null)}
             onAddSponsor={addSponsorInline}
-            viesCfg={data.settings?.vies || defaultVies}
+            vatCfg={data.settings?.vatLookup || defaultVatLookup}
             t={t}
             onDelete={admin ? deleteDeal : undefined}
           />

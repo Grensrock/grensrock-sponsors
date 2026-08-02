@@ -1,11 +1,10 @@
 import type { VoucherType } from "./voucher";
 
-export type ViesMode = "manual" | "test" | "proxy";
+/** "manual" = off, enter company details by hand. "cbe" = look them up in the Belgian registry. */
+export type VatLookupMode = "manual" | "cbe";
 
-export interface ViesConfig {
-  mode: ViesMode;
-  /** Your own server, e.g. https://api.grensrock.be/vies (it appends /{vat}). */
-  proxyUrl: string;
+export interface VatLookupConfig {
+  mode: VatLookupMode;
 }
 
 export type TickowebMode = "manual" | "live";
@@ -22,7 +21,7 @@ export interface TickowebConfig {
 }
 
 export interface Settings {
-  vies?: ViesConfig;
+  vatLookup?: VatLookupConfig;
   tickoweb?: TickowebConfig;
   /** Legacy field from the shared-code era. */
   teamCode?: string;

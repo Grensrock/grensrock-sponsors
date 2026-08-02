@@ -18,10 +18,11 @@ export type { VoucherType, VoucherStatus, Voucher, StoredVoucher } from "./vouch
 export type { Role, User } from "./user";
 export type { AuditActorType, AuditActor, AuditEntity, AuditEntry } from "./audit";
 export type {
-  ViesMode,
-  ViesConfig,
+  VatLookupMode,
+  VatLookupConfig,
   TickowebMode,
   TickowebConfig,
   Settings,
 } from "./settings";
+export type { VatCompany, VatLookupStatus, VatLookupResult } from "./vat";
 export type { AppData, TranslateFn, Tone } from "./data";

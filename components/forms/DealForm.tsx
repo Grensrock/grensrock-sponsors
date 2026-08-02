@@ -7,9 +7,9 @@ import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
 import { OP_MAAT, SETTLEMENTS, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
-import { defaultVies } from "@/lib/integrations/vies";
+import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { eur, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
-import type { Deal, DealDraft, Edition, Settlement, Sponsor, TranslateFn, User, ViesConfig } from "@/types";
+import type { Deal, DealDraft, Edition, Settlement, Sponsor, TranslateFn, User, VatLookupConfig } from "@/types";
 
 /* ---------- Deal (agreement) form ---------- */
 
@@ -20,7 +20,7 @@ export default function DealForm({
   sponsors,
   editions,
   teamMembers = [],
-  viesCfg = defaultVies,
+  vatCfg = defaultVatLookup,
   onSave,
   onCancel,
   onDelete,
@@ -31,7 +31,7 @@ export default function DealForm({
   sponsors: Sponsor[];
   editions: Edition[];
   teamMembers?: User[];
-  viesCfg?: ViesConfig;
+  vatCfg?: VatLookupConfig;
   onSave: (d: DealFormState) => void;
   onCancel: () => void;
   onDelete?: (id: string) => void;
@@ -89,7 +89,7 @@ export default function DealForm({
         <SponsorForm
           initial={newSponsorDraft}
           teamMembers={teamMembers}
-          viesCfg={viesCfg}
+          vatCfg={vatCfg}
           existingSponsors={sponsors}
           t={t}
           onSave={async (s) => {

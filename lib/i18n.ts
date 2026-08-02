@@ -165,9 +165,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "sf.number": ["Nummer", "Number"],
   "sf.postal": ["Postcode", "Postal code"],
   "sf.city": ["Gemeente", "City"],
-  "sf.fetch": ["Ophalen", "Fetch"],
-  "sf.fetching": ["Ophalen…", "Looking up…"],
-  "sf.fetchhint": ["Bedrijfsgegevens ophalen op basis van het BTW-nummer", "Fetch company details from the VAT number"],
+  "sf.fetchhint": [
+    "Naam en adres worden opgezocht in de KBO zodra het BTW-nummer klopt",
+    "Name and address are looked up in the Belgian company registry once the VAT number checks out",
+  ],
   "sf.type": ["Type", "Type"],
   "sf.responsible": ["Verantwoordelijke", "Responsible"],
   "sf.noresp": ["— niet toegewezen —", "— not assigned —"],

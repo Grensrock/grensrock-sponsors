@@ -1,8 +1,8 @@
 import { supabase } from "@/lib/supabase/client";
 import { orEmpty, unwrap, type Row } from "@/lib/api/util";
 import { defaultTickoweb } from "@/lib/integrations/tickoweb";
-import { defaultVies } from "@/lib/integrations/vies";
-import type { Settings, TickowebMode, ViesMode, VoucherType } from "@/types";
+import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
+import type { Settings, TickowebMode, VatLookupMode, VoucherType } from "@/types";
 
 /* ============================================================
    app_settings (singleton row, id = true)
@@ -16,13 +16,12 @@ import type { Settings, TickowebMode, ViesMode, VoucherType } from "@/types";
    ============================================================ */
 
 const COLUMNS =
-  "id, vies_mode, vies_proxy_url, tickoweb_mode, tickoweb_base_url, tickoweb_proxy_url, tickoweb_event_id, tickoweb_product_ids";
+  "id, vat_lookup_mode, tickoweb_mode, tickoweb_base_url, tickoweb_proxy_url, tickoweb_event_id, tickoweb_product_ids";
 
 export function rowToSettings(row: Row): Settings {
   return {
-    vies: {
-      mode: (row.vies_mode || "manual") as ViesMode,
-      proxyUrl: orEmpty(row.vies_proxy_url),
+    vatLookup: {
+      mode: (row.vat_lookup_mode || defaultVatLookup.mode) as VatLookupMode,
     },
     tickoweb: {
       mode: (row.tickoweb_mode || "manual") as TickowebMode,
@@ -37,9 +36,8 @@ export function rowToSettings(row: Row): Settings {
 
 export function settingsToRow(s: Settings): Row {
   const r: Row = {};
-  if (s.vies !== undefined) {
-    r.vies_mode = s.vies?.mode || "manual";
-    r.vies_proxy_url = s.vies?.proxyUrl || "";
+  if (s.vatLookup !== undefined) {
+    r.vat_lookup_mode = s.vatLookup?.mode || defaultVatLookup.mode;
   }
   if (s.tickoweb !== undefined) {
     r.tickoweb_mode = s.tickoweb?.mode || "manual";
@@ -54,7 +52,7 @@ export function settingsToRow(s: Settings): Row {
 /** Falls back to the in-code defaults when the row isn't readable (e.g. a portal session). */
 export async function getSettings(): Promise<Settings> {
   const row = unwrap<Row | null>(await supabase.from("app_settings").select(COLUMNS).maybeSingle());
-  return row ? rowToSettings(row as Row) : { vies: defaultVies, tickoweb: defaultTickoweb };
+  return row ? rowToSettings(row as Row) : { vatLookup: defaultVatLookup, tickoweb: defaultTickoweb };
 }
 
 export async function updateSettings(patch: Settings): Promise<Settings> {

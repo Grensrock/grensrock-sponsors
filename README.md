@@ -16,6 +16,19 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Environment variables
+
+Set these in `.env.local` for development and in the hosting provider for
+deployments. The three without `NEXT_PUBLIC_` are server secrets and must never
+be exposed to the browser.
+
+| Variable | What it is |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key — safe in the browser, RLS still applies. |
+| `SUPABASE_SECRET_KEY` | Supabase secret key, bypasses RLS. Used only by `app/api/team/invite`. |
+| `CBE_API_KEY` | [cbeapi.be](https://cbeapi.be/docs/api) key for the VAT check. Without it, `/api/vat/[vat]` reports the lookup as unavailable and VAT numbers are only validated offline. |
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

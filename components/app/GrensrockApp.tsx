@@ -476,6 +476,20 @@ export default function GrensrockApp() {
         pendingUsers: (d.pendingUsers || []).filter((x) => x.id !== id),
       }));
       setSaveErr(false);
+      /* The grant is already done and stands on its own. A mail that didn't
+         go out is worth saying out loud — the person is waiting on it — but
+         it is not a reason to pretend the access wasn't given. */
+      try {
+        await usersApi.notifyAccessGranted(id);
+      } catch (mailErr) {
+        console.error(mailErr);
+        notify(
+          `${userName(saved)} now has access, but the notification email couldn't be sent: ${
+            (mailErr as Error).message
+          }\n\nLet them know another way — they can sign in straight away.`,
+          "Access granted, email not sent",
+        );
+      }
     } catch (e) {
       failWith(e);
     }

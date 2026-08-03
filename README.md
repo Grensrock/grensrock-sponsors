@@ -47,6 +47,17 @@ exposed to the browser.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key — safe in the browser, RLS still applies. |
 | `SUPABASE_SECRET_KEY` | Supabase secret key, bypasses RLS. Used only by `app/api/team/invite`. |
 | `CBE_API_KEY` | [cbeapi.be](https://cbeapi.be/docs/api) key for the VAT check. Without it, `/api/vat/[vat]` reports the lookup as unavailable and VAT numbers are only validated offline. |
+| `GOOGLE_SMTP_USER` | Workspace account the app sends mail as, e.g. `wout@grensrock.be`. |
+| `GOOGLE_SMTP_PASSWORD` | A Google **App Password** for that account (not the login password) — [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), requires 2-Step Verification. |
+| `GOOGLE_SMTP_FROM` | Optional. Overrides the From header, e.g. `Grensrock <wout@grensrock.be>`. Must be the sending account or an alias it owns, or Gmail rejects the send. Defaults to `GOOGLE_SMTP_USER`. |
+
+Mail goes out through Google Workspace rather than a transactional provider
+because `grensrock.be` already sends via Google (MX `smtp.google.com`, SPF
+`include:_spf.google.com`), so it inherits the domain's existing SPF and DKIM.
+The SPF record ends in `-all`, so adding a third-party sender would mean editing
+it — and getting that wrong fails silently into spam folders. Without the two
+required variables, granting access still works; only the notification email is
+skipped, and the admin is told it didn't go.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

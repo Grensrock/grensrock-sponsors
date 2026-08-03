@@ -105,3 +105,23 @@ export async function inviteUser(u: Partial<User>): Promise<User> {
   if (!res.ok) throw new Error(body?.error || "Could not invite this team member.");
   return body.user as User;
 }
+
+/**
+ * Tells a just-approved team member they're in. Server route, because the
+ * mail credentials are server-side; it re-reads the profile itself, so the
+ * only thing passed here is the id.
+ *
+ * Throws on failure. Callers should surface that as a warning rather than
+ * undoing the grant — the access is real whether or not the email arrived.
+ */
+export async function notifyAccessGranted(id: string): Promise<void> {
+  const res = await fetch("/api/team/access-granted", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: id }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error || "Could not send the notification email.");
+  }
+}

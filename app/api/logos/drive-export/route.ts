@@ -38,9 +38,9 @@ const MIME: Record<string, string> = {
 };
 
 export async function POST(request: NextRequest) {
-  let body: { sponsorId?: string; name?: string };
+  let body: { sponsorId?: string; name?: string; path?: string };
   try {
-    body = (await request.json()) as { sponsorId?: string; name?: string };
+    body = (await request.json()) as { sponsorId?: string; name?: string; path?: string };
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -58,21 +58,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "The Drive export is not configured on the server." }, { status: 503 });
   }
 
-  /* RLS-scoped: a sponsor-portal session can't reach another company's folder,
-     and an unapproved account can't reach anything at all. */
-  const { data: listed, error: listError } = await supabase.storage.from("sponsor-logos").list(sponsorId, { limit: 10 });
-  if (listError) return NextResponse.json({ error: listError.message }, { status: 403 });
-
-  const object = (listed || []).find((o) => o.name.startsWith("logo."));
-  if (!object) return NextResponse.json({ error: "This sponsor has no logo." }, { status: 404 });
-
-  const path = `${sponsorId}/${object.name}`;
+  /* Since 0014 a sponsor has several logos and the caller says which one, by
+     object path. It is still checked against the sponsor id rather than
+     trusted: a path is a client-supplied string, and without this the caller
+     could name any object in the bucket, including another company's. */
+  const path = String(body.path || "");
+  if (!path || !path.startsWith(`${sponsorId}/`) || path.includes("..")) {
+    return NextResponse.json({ error: "No logo selected for this sponsor." }, { status: 400 });
+  }
   const { data: file, error: downloadError } = await supabase.storage.from("sponsor-logos").download(path);
   if (downloadError || !file) {
     return NextResponse.json({ error: downloadError?.message || "Could not read the logo." }, { status: 502 });
   }
 
-  const ext = (object.name.split(".").pop() || "").toLowerCase();
+  const ext = (path.split(".").pop() || "").toLowerCase();
   /* Falls back to the sponsor id so a file can never be written without a
      name, but the client supplies the readable one the design team wants. */
   const base = String(body.name || sponsorId)

@@ -104,6 +104,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "sp.back": ["← Alle sponsors", "← All sponsors"],
   // sponsor detail tabs
   "sd.info": ["Gegevens", "Information"],
+  "sd.logos": ["Logo's", "Logos"],
   "sd.contacts": ["Contactpersonen", "Contact persons"],
   "sd.sponsoring": ["Sponsoring", "Sponsoring"],
   "sd.vouchers": ["Bonnen", "Vouchers"],

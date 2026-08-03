@@ -6,7 +6,7 @@ import VoucherEditor from "@/components/forms/VoucherEditor";
 import ReturnExamples from "@/components/modals/ReturnExamples";
 import EmailInput from "@/components/ui/EmailInput";
 import Field from "@/components/ui/Field";
-import LogoUploader from "@/components/ui/LogoUploader";
+import LogoManager from "@/components/ui/LogoManager";
 import Modal from "@/components/ui/Modal";
 import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
@@ -32,6 +32,7 @@ import type {
   Language,
   NumLike,
   Sponsor,
+  SponsorLogo,
   VatLookupConfig,
   Voucher,
   VoucherRow,
@@ -49,6 +50,8 @@ export default function SponsorPortal({
   editions,
   vouchers = [],
   vatCfg = defaultVatLookup,
+  logos = [],
+  onLogosChange,
   onSaveSponsor,
   onAssignVoucher,
   onRequestFormula,
@@ -63,6 +66,8 @@ export default function SponsorPortal({
   editions: Edition[];
   vouchers?: Voucher[];
   vatCfg?: VatLookupConfig;
+  logos?: SponsorLogo[];
+  onLogosChange?: (logos: SponsorLogo[]) => void;
   onSaveSponsor: (id: string, patch: Partial<Sponsor>) => void;
   onAssignVoucher: (id: string, patch: Partial<Voucher>) => void;
   onRequestFormula: (editionId: string, formulaName: string, byName: string) => void;
@@ -183,6 +188,7 @@ export default function SponsorPortal({
 
   const TABS: Array<[string, string]> = [
     ["info", T("Gegevens", "Données", "Information")],
+    ["logos", `${T("Logo's", "Logos", "Logos")} (${logos.length})`],
     ["contacts", `${T("Contactpersonen", "Contacts", "Contact persons")} (${contacts.length})`],
     ["sponsoring", `${T("Sponsoring", "Sponsoring", "Sponsorship")} (${history.length})`],
     [
@@ -270,18 +276,8 @@ export default function SponsorPortal({
         {sub === "info" && (
           <>
             <h4 className="gr-subhead" style={{ borderTop: "none", paddingTop: 0 }}>
-              Logo
+              {T("Bedrijfsgegevens", "Données de l'entreprise", "Company details")}
             </h4>
-            <p className="gr-muted" style={{ marginBottom: 8 }}>
-              {T(
-                "Uw logo gebruiken we voor de folder, ledboarding, website, ... Laad bij voorkeur een versie met transparante achtergrond op (PNG of SVG).",
-                "Votre logo sera utilisé pour le dépliant, le ledboarding, le site web, ... Téléchargez de préférence une version à fond transparent (PNG ou SVG).",
-                "Your logo is used for the folder, LED boarding, website, ... Preferably upload a version with a transparent background (PNG or SVG).",
-              )}
-            </p>
-            <LogoUploader sponsorId={sponsor.id} />
-
-            <h4 className="gr-subhead">{T("Bedrijfsgegevens", "Données de l'entreprise", "Company details")}</h4>
             <div className="gr-grid2">
               <Field label={T("Bedrijf / naam", "Société / nom", "Company / name")}>
                 <input value={s.companyName} onChange={set("companyName")} />
@@ -369,6 +365,16 @@ export default function SponsorPortal({
         )}
 
         {/* ---- Contact persons ---- */}
+        {/* ---- Logos ---- */}
+        {sub === "logos" && (
+          <LogoManager
+            sponsorId={sponsor.id}
+            logos={logos}
+            onChange={(next) => onLogosChange?.(next)}
+            T={T}
+          />
+        )}
+
         {sub === "contacts" && (
           <>
             <p className="gr-muted" style={{ marginBottom: 8 }}>

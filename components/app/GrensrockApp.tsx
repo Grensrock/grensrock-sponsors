@@ -30,6 +30,7 @@ import { formatAddress } from "@/lib/address";
 import { auditActorLabel } from "@/lib/audit-engine";
 import * as auditApi from "@/lib/api/audit";
 import * as contactsApi from "@/lib/api/contacts";
+import * as logosApi from "@/lib/api/logos";
 import * as dealsApi from "@/lib/api/deals";
 import * as editionsApi from "@/lib/api/editions";
 import * as formulasApi from "@/lib/api/formulas";
@@ -38,7 +39,7 @@ import * as sponsorsApi from "@/lib/api/sponsors";
 import * as usersApi from "@/lib/api/users";
 import * as vouchersApi from "@/lib/api/vouchers";
 import { supabase } from "@/lib/supabase/client";
-import { logoRef, removeImage } from "@/lib/supabase/storage";
+import { removeAllLogoFiles } from "@/lib/supabase/storage";
 import {
   ADMIN_TABS,
   COMMS,
@@ -81,6 +82,7 @@ import type {
   Role,
   Settings,
   Sponsor,
+  SponsorLogo,
   TeamLanguage,
   TickowebConfig,
   User,
@@ -193,6 +195,7 @@ export default function GrensrockApp() {
       formulaRows,
       dealRows,
       voucherRows,
+      logoRows,
       userRows,
       pendingRows,
       settings,
@@ -205,6 +208,7 @@ export default function GrensrockApp() {
         formulasApi.listFormulas(),
         dealsApi.listDeals(),
         vouchersApi.listVouchers(),
+        logosApi.listLogos(),
         scope === "team" ? usersApi.listUsers() : Promise.resolve([] as User[]),
         scope === "team" ? usersApi.listPendingUsers() : Promise.resolve([] as User[]),
         scope === "team" ? settingsApi.getSettings() : Promise.resolve({} as Settings),
@@ -215,6 +219,7 @@ export default function GrensrockApp() {
       editions: groupFormulas(editionRows, formulaRows),
       deals: dealRows,
       vouchers: voucherRows,
+      logos: logoRows,
       users: userRows,
       pendingUsers: pendingRows,
       audit: auditRows,
@@ -986,6 +991,14 @@ export default function GrensrockApp() {
       { title: "Remove contact", confirmLabel: "Remove" },
     );
 
+  /* Logos are written by LogoManager itself; this only keeps the app's copy
+     in step so the folder overview and the other tabs see the change. */
+  const applyLogos = (sponsorId: string, next: SponsorLogo[]) =>
+    setData((d) => ({
+      ...d,
+      logos: [...(d.logos || []).filter((l) => l.sponsorId !== sponsorId), ...next],
+    }));
+
   /* ----- bulk actions on the contact overview ----- */
   type ContactRow = { contact: Contact; sponsor: Sponsor };
 
@@ -1141,8 +1154,8 @@ export default function GrensrockApp() {
         try {
           /* contacts, deals and vouchers cascade with the sponsor row. */
           await sponsorsApi.deleteSponsor(id);
-          removeImage(logoRef(id)).catch(() => {
-            /* no logo stored */
+          removeAllLogoFiles(id).catch(() => {
+            /* nothing stored */
           });
           setData((d) => ({
             ...d,
@@ -1200,8 +1213,8 @@ export default function GrensrockApp() {
           try {
             await sponsorsApi.deleteSponsor(s.id);
             gone.push(s.id);
-            removeImage(logoRef(s.id)).catch(() => {
-              /* no logo stored */
+            removeAllLogoFiles(s.id).catch(() => {
+              /* nothing stored */
             });
           } catch (e) {
             failed.push(`${s.companyName} — ${(e as Error).message}`);
@@ -1442,6 +1455,8 @@ export default function GrensrockApp() {
         editions={editions}
         vouchers={vouchers}
         vatCfg={data.settings?.vatLookup || defaultVatLookup}
+        logos={(data.logos || []).filter((l) => l.sponsorId === ps.id)}
+        onLogosChange={(next) => applyLogos(ps.id, next)}
         onSaveSponsor={portalSaveSponsor}
         onAssignVoucher={assignVoucherRecipient}
         onRequestFormula={requestFormula}
@@ -1858,6 +1873,8 @@ export default function GrensrockApp() {
             onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
             onShowAcceptance={(d) => setModal({ type: "acceptance", payload: d })}
             onActivateContact={(c) => saveContact(openSponsor.id, { ...c, portalAccess: true })}
+            logos={(data.logos || []).filter((l) => l.sponsorId === openSponsor.id)}
+            onLogosChange={(next) => applyLogos(openSponsor.id, next)}
             onEmail={(d) => setModal({ type: "email", payload: d })}
           />
         )}
@@ -3187,6 +3204,7 @@ export default function GrensrockApp() {
               </select>
             </div>
             <FolderOverview
+              logos={data.logos || []}
               edition={editions.find((e) => e.id === (folEdition || overviewEdition?.id))}
               deals={deals}
               sponsors={sponsors}

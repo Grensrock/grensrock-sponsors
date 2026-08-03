@@ -31,6 +31,7 @@ export default function FolderOverview({
   const [logos, setLogos] = useState<Record<string, LogoRecord | null>>({}); // sponsorId -> record | null
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   const rows = useMemo(
     () =>
@@ -137,6 +138,14 @@ export default function FolderOverview({
     XLSX.writeFile(wb, `grensrock-folder-${(edition?.name || "edition").replace(/\s+/g, "-").toLowerCase()}.xlsx`);
   };
 
+  /* Folder format first, so a directory listing sorts by how much space the
+     mention takes — which is the order the folder is laid out in. */
+  const safeName = (company: string) =>
+    company
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+
   /* Browsers can't write a zip without an extra library, so the logos are
      downloaded one by one, named after the sponsor and their folder format. */
   const downloadLogos = async () => {
@@ -148,10 +157,7 @@ export default function FolderOverview({
     setBusy("logos");
     for (const r of withLogo) {
       const rec = logos[r.sponsor!.id]!;
-      const safe = r.company
-        .replace(/[^a-z0-9]+/gi, "-")
-        .replace(/^-|-$/g, "")
-        .toLowerCase();
+      const safe = safeName(r.company);
       const ext = rec.ext || (rec.type === "image/png" ? "png" : "img");
       const a = document.createElement("a");
       a.href = rec.dataUrl;
@@ -165,6 +171,50 @@ export default function FolderOverview({
     notify(
       `${withLogo.length} logo file(s) downloaded. Your browser may ask permission for multiple downloads.`,
       "Logos exported",
+    );
+  };
+
+
+  /* One-way copy into the Shared Drive the design team works from. Supabase
+     stays the system of record; this never reads back. Sponsors go one at a
+     time so progress is visible and one unreadable file doesn't sink the rest. */
+  const exportToDrive = async () => {
+    const withLogo = rows.filter((r) => r.sponsor && logos[r.sponsor.id]);
+    if (withLogo.length === 0) {
+      notify("No logos to export yet.", "Nothing to export");
+      return;
+    }
+    setBusy("drive");
+    setProgress({ done: 0, total: withLogo.length });
+    let created = 0;
+    let updated = 0;
+    const failed: string[] = [];
+
+    for (const [i, r] of withLogo.entries()) {
+      try {
+        const res = await fetch("/api/logos/drive-export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sponsorId: r.sponsor!.id, name: `${r.size}_${safeName(r.company)}` }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body?.error || `Failed (${res.status})`);
+        if (body.outcome === "created") created++;
+        else updated++;
+      } catch (e) {
+        failed.push(`${r.company} — ${(e as Error).message}`);
+      }
+      setProgress({ done: i + 1, total: withLogo.length });
+    }
+
+    setBusy("");
+    setProgress(null);
+    const summary = [created && `${created} new`, updated && `${updated} replaced`].filter(Boolean).join(", ");
+    notify(
+      failed.length === 0
+        ? `${summary || "Nothing"} in the Drive folder.`
+        : `${summary || "Nothing"} in the Drive folder.\n\nCouldn't export ${failed.length}:\n${failed.join("\n")}`,
+      failed.length === 0 ? "Exported to Drive" : "Exported with problems",
     );
   };
 
@@ -205,6 +255,11 @@ export default function FolderOverview({
           </button>
           <button className="gr-btn-ghost" onClick={downloadLogos} disabled={loading || rows.length === 0}>
             {busy === "logos" ? t("fo.downloading") : t("fo.downloadlogos")}
+          </button>
+          <button className="gr-btn-ghost" onClick={exportToDrive} disabled={!!busy || loading || rows.length === 0}>
+            {busy === "drive" && progress
+              ? `${t("fo.drivebusy")} ${progress.done}/${progress.total}`
+              : t("fo.drive")}
           </button>
         </div>
         {loading && <span className="gr-muted">{t("fo.checking")}</span>}

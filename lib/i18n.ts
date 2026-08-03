@@ -270,6 +270,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "fo.pageshare": ["Pagina-aandeel", "Page share"],
   "fo.file": ["Bestand", "File"],
   "fo.downloadlogos": ["Alle logo's downloaden", "Download all logos"],
+  "fo.drive": ["Logo's naar Drive", "Send logos to Drive"],
+  "fo.drivebusy": ["Naar Drive…", "To Drive…"],
   "fo.downloading": ["Downloaden…", "Downloading…"],
   "fo.checking": ["Logo's controleren…", "Checking logos…"],
   // onboarding

@@ -13,7 +13,7 @@ import Tag from "@/components/ui/Tag";
 import VatInput from "@/components/ui/VatInput";
 import { fmtDateTime, isAccepted } from "@/lib/acceptance";
 import { COMMS, COMM_LABELS, DRINK_TICKET_VALUE, VOUCHER_STATUS, VOUCHER_TYPES, uid, type CommKey } from "@/lib/constants";
-import { contactName, primaryContact } from "@/lib/contacts";
+import { contactName, primaryContact, sponsorContacts } from "@/lib/contacts";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
@@ -101,6 +101,12 @@ export default function SponsorPortal({
   }, [assigning]);
 
   const [s, setS] = useState<Sponsor>({ ...sponsor });
+  /* Contacts come from the prop, not from `s`. They are saved the moment they
+     change, so a local copy only goes stale — and a stale copy still carries
+     the client-generated id of anything added this session, which the upsert
+     RPC reads as "no id" and inserts a second time. `s` keeps only the fields
+     behind the Save button. */
+  const contacts = sponsorContacts(sponsor);
   const [saved, setSaved] = useState(false);
   const set = (k: keyof Sponsor) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setS({ ...s, [k]: e.target.value } as Sponsor);
@@ -146,7 +152,7 @@ export default function SponsorPortal({
   );
 
   const vatRes = validateVat(s.vatNumber);
-  const contactsOk = (s.contacts || []).every((c) => {
+  const contactsOk = contacts.every((c) => {
     const r = validateEmail(c.email);
     return !r || r.valid;
   });
@@ -157,27 +163,27 @@ export default function SponsorPortal({
     onSaveSponsor(sponsor.id, {
       ...rest,
       vatNumber: vatToStore(s.vatNumber),
-      contacts: (s.contacts || []).map((c) => ({ ...c, id: c.id || uid(), email: emailToStore(c.email) })),
+      /* Deliberately no contacts: they have their own save path, and sending
+         them here re-upserted the whole list on every company-details save. */
     });
     setSaved(true);
   };
 
   /* Contacts are saved straight away, not via the Save button */
+  /* The whole list goes back every time — portalSaveSponsor treats anything
+     missing from it as deleted — and it is rebuilt from the prop, so nothing
+     carries a client-generated id that the database has already replaced. */
   const saveContact = (c: Contact) => {
-    const list = s.contacts || [];
-    const next = list.some((x) => x.id === c.id) ? list.map((x) => (x.id === c.id ? c : x)) : [...list, c];
-    setS({ ...s, contacts: next });
+    const next = contacts.some((x) => x.id === c.id) ? contacts.map((x) => (x.id === c.id ? c : x)) : [...contacts, c];
     onSaveSponsor(sponsor.id, { contacts: next });
   };
   const removeContact = (cid: string) => {
-    const next = (s.contacts || []).filter((x) => x.id !== cid);
-    setS({ ...s, contacts: next });
-    onSaveSponsor(sponsor.id, { contacts: next });
+    onSaveSponsor(sponsor.id, { contacts: contacts.filter((x) => x.id !== cid) });
   };
 
   const TABS: Array<[string, string]> = [
     ["info", T("Gegevens", "Données", "Information")],
-    ["contacts", `${T("Contactpersonen", "Contacts", "Contact persons")} (${(s.contacts || []).length})`],
+    ["contacts", `${T("Contactpersonen", "Contacts", "Contact persons")} (${contacts.length})`],
     ["sponsoring", `${T("Sponsoring", "Sponsoring", "Sponsorship")} (${history.length})`],
     [
       "vouchers",
@@ -334,7 +340,7 @@ export default function SponsorPortal({
                 <option value="">
                   {T("Automatisch (eerste contactpersoon)", "Automatique (premier contact)", "Automatic (first contact)")}
                 </option>
-                {(s.contacts || [])
+                {contacts
                   .filter((c) => c.email)
                   .map((c) => (
                     <option key={c.id} value={c.id}>
@@ -374,13 +380,13 @@ export default function SponsorPortal({
             </p>
             <div className="gr-toolbar">
               <span className="gr-muted">
-                {(s.contacts || []).length} {T("contactpersonen", "personnes de contact", "contact persons")}
+                {contacts.length} {T("contactpersonen", "personnes de contact", "contact persons")}
               </span>
               <button className="gr-btn" onClick={() => setEditingContact({})}>
                 + {T("Contactpersoon toevoegen", "Ajouter un contact", "Add contact")}
               </button>
             </div>
-            {(s.contacts || []).length === 0 ? (
+            {contacts.length === 0 ? (
               <p className="gr-empty">
                 {T("Nog geen contactpersonen.", "Aucune personne de contact.", "No contact persons yet.")}
               </p>
@@ -397,7 +403,7 @@ export default function SponsorPortal({
                     </tr>
                   </thead>
                   <tbody>
-                    {(s.contacts || []).map((c, i) => (
+                    {contacts.map((c, i) => (
                       <tr
                         key={c.id || i}
                         onClick={() => setEditingContact(c)}

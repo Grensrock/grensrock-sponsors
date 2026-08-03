@@ -1077,18 +1077,19 @@ export default function GrensrockApp() {
         const before = sponsorContacts(sponsors.find((s) => s.id === id));
         /* Collected while saving, sent after: a sponsor giving a colleague
            portal access is the same act as the team doing it, so it has to
-           send the same link. Only the transition counts, so editing an
-           already-activated colleague doesn't re-mail them. */
+           send the same link.
+           Whether access was granted is the RPC's answer, not ours (0013).
+           Comparing against `before` was wrong: it is client state, and the
+           portal's copy is stale by the time a second save happens, so the
+           comparison concluded "nothing changed" and sent nothing. */
         const toInvite: Contact[] = [];
         for (const c of contacts) {
           const was = before.find((x) => x.id === c.id);
           if (!was || JSON.stringify(was) !== JSON.stringify(c)) {
-            const savedId = await contactsApi.portalUpsertContact(c);
-            if (c.portalAccess && !was?.portalAccess && c.email) {
-              /* The RPC hands back the real uuid — a contact added here still
-                 carries a form-generated id, which the link must not use. */
-              toInvite.push({ ...c, id: savedId });
-            }
+            const { id: savedId, granted } = await contactsApi.portalUpsertContact(c);
+            /* savedId is the database's uuid — a contact added in the portal
+               still carries a form-generated id the link must not be built on. */
+            if (granted && c.email) toInvite.push({ ...c, id: savedId });
           }
         }
         for (const gone of before.filter((x) => !contacts.some((c) => c.id === x.id))) {

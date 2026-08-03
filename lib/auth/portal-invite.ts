@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { buildPortalPasswordLink } from "@/lib/email-templates";
-import { sendMail } from "@/lib/email/send";
+import { mailConfigured, sendMail } from "@/lib/email/send";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Language } from "@/types";
 
@@ -68,6 +68,17 @@ export async function issuePortalInvite(contact: InviteContact, origin: string):
   const email = (contact.email || "").trim().toLowerCase();
   if (!email) return { sent: false, reason: "This contact has no email address." };
 
+  /* Checked before anything is written. Without this a missing SMTP key
+     surfaced as an unhandled throw out of the route — a 500 with no body,
+     which reads like the app is broken rather than like a setting is
+     missing, and left an invite row behind for a mail that never went. */
+  if (!mailConfigured()) {
+    return {
+      sent: false,
+      reason: "Sending email isn't configured on the server (GOOGLE_SMTP_USER / GOOGLE_SMTP_PASSWORD).",
+    };
+  }
+
   const admin = createSupabaseAdminClient();
 
   /* 1. The auth user. It may already exist — anyone who used a magic link
@@ -120,7 +131,13 @@ export async function issuePortalInvite(contact: InviteContact, origin: string):
 
   const url = `${origin.replace(/\/$/, "")}/set-password?token=${encodeURIComponent(token)}`;
   const { subject, body } = buildPortalPasswordLink(contact, url, expiresAt);
-  await sendMail({ to: email, subject, text: body });
+  try {
+    await sendMail({ to: email, subject, text: body });
+  } catch (ex) {
+    /* Reported rather than thrown: the caller can then say which contact and
+       why, instead of the route collapsing into a bodyless 500. */
+    return { sent: false, reason: ex instanceof Error ? ex.message : "The mail server refused the message." };
+  }
 
   return { sent: true };
 }

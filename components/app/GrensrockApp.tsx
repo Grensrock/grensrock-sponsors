@@ -858,6 +858,25 @@ export default function GrensrockApp() {
     }
     commit();
   };
+  /* Switching portal access on is what sends a contact their set-password
+     link, so the two are one action from the team's point of view. Resending
+     uses the same route — a new link, the previous one dead. */
+  const sendPortalLink = async (contact: Contact, { quiet = false } = {}) => {
+    try {
+      const to = await contactsApi.sendPortalLink(contact.id);
+      if (!quiet) notify(`A link to set a password was sent to ${to}. It stays valid for 14 days.`, "Link sent");
+    } catch (e) {
+      /* The access itself is already saved; only the email failed. Saying so
+         beats rolling back a permission the team meant to grant. */
+      notify(
+        `${contactName(contact) || contact.email} has portal access, but the email couldn't be sent: ${
+          (e as Error).message
+        }\n\nUse "Resend portal link" once that's fixed.`,
+        "Access granted, email not sent",
+      );
+    }
+  };
+
   const saveContact = async (
     sponsorId: string,
     contact: Contact,
@@ -892,6 +911,10 @@ export default function GrensrockApp() {
     try {
       const sponsor = sponsors.find((s) => s.id === sponsorId);
       const known = sponsorContacts(sponsor).some((c) => c.id === contact.id);
+      /* Was portal access off before this save? Only the transition sends a
+         link — re-saving a contact who already has access shouldn't mail them
+         a fresh one every time their phone number is corrected. */
+      const hadAccess = !!sponsorContacts(sponsor).find((c) => c.id === contact.id)?.portalAccess;
       /* A contact that isn't in the sponsor's list yet only has a form-generated
          id, so it is an insert — the database assigns the real uuid. */
       const saved = known
@@ -912,6 +935,10 @@ export default function GrensrockApp() {
         }),
       }));
       setSaveErr(false);
+      /* After the row exists, so the id in the email's link is the real one. */
+      if (saved.portalAccess && !hadAccess && saved.email) {
+        await sendPortalLink(clean as Contact);
+      }
     } catch (e) {
       failWith(e);
     }
@@ -2271,7 +2298,16 @@ export default function GrensrockApp() {
                             <td>{(c.language || "nl").toUpperCase()}</td>
                             <td onClick={(e) => e.stopPropagation()}>
                               {c.portalAccess ? (
-                                <Tag tone="green">active</Tag>
+                                <>
+                                  <Tag tone="green">active</Tag>{" "}
+                                  <button
+                                    className="gr-mini"
+                                    title="Sends a fresh link to set a password. Any earlier link stops working."
+                                    onClick={() => sendPortalLink(c)}
+                                  >
+                                    {t("ct.resendlink")}
+                                  </button>
+                                </>
                               ) : c.email ? (
                                 <button
                                   className="gr-mini"

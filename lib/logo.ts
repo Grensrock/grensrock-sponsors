@@ -1,15 +1,20 @@
 import { RETURN_EXAMPLES, type ReturnExampleType } from "@/lib/constants";
 import type { Language } from "@/types";
 
-/* ---------- logo storage (separate shared keys, so the main blob stays small) ---------- */
-export const logoKey = (sponsorId: string) => "grensrock:logo:" + sponsorId;
-
 /* ---------- Logo requirements ----------
    Vector is preferred (.ai .eps .pdf .svg); PNG is accepted from 400x400 up.
-   The 3.5 MB ceiling comes from the 5 MB-per-key storage limit: files are kept
-   base64-encoded, which adds about a third to their size. */
+
+   The ceiling used to be 3.5 MB, which was a localStorage artefact: values were
+   kept base64-encoded against a 5 MB-per-key budget, and base64 costs about a
+   third. Logos live in Supabase Storage now (lib/supabase/storage.ts), where
+   neither constraint exists — so the old limit was turning away exactly the
+   print-quality vector files we most want.
+
+   10 MB is a browser limit rather than a storage one: ImageStore downloads the
+   object and turns it into a data URL to preview it, so something has to bound
+   it. Supabase's own per-file default is 50 MB, well clear of this. */
 export const LOGO_MIN_PX = 400;
-export const LOGO_MAX_BYTES = 3.5 * 1024 * 1024;
+export const LOGO_MAX_BYTES = 10 * 1024 * 1024;
 export const VECTOR_EXT = ["ai", "eps", "pdf", "svg"];
 export const RASTER_TYPES = ["image/png", "image/jpeg", "image/webp"];
 export const LOGO_ACCEPT =
@@ -17,9 +22,13 @@ export const LOGO_ACCEPT =
   "image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,application/postscript,application/illustrator";
 
 export const fileExt = (name?: string) => (name || "").split(".").pop()!.toLowerCase();
-export const isVectorFile = (file: File) => VECTOR_EXT.includes(fileExt(file.name)) || file.type === "image/svg+xml";
-export const prettyBytes = (n: number) =>
-  n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} kB`;
+const isVectorFile = (file: File) => VECTOR_EXT.includes(fileExt(file.name)) || file.type === "image/svg+xml";
+/* Trailing ".0" is dropped: a stated maximum of "10.0 MB" reads like a
+   measurement rather than a round limit. Sizes like 3.5 MB keep the decimal. */
+export const prettyBytes = (n: number) => {
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} kB`;
+  return `${(n / 1024 / 1024).toFixed(1).replace(/\.0$/, "")} MB`;
+};
 
 export interface LogoRecord {
   name: string;
@@ -77,22 +86,7 @@ export async function readLogoFile(file: File): Promise<LogoRecord> {
   return { ...meta, dataUrl, width: img.width, height: img.height, previewable: true };
 }
 
-/* Stored value can be a plain data URL (older logos) or a JSON record */
-export const parseLogo = (raw?: string | null): LogoRecord | null => {
-  if (!raw) return null;
-  if (raw.startsWith("{")) {
-    try {
-      return JSON.parse(raw) as LogoRecord;
-    } catch {
-      return null;
-    }
-  }
-  return { dataUrl: raw, name: "", ext: "", vector: false, previewable: true };
-};
-
-/* Sponsor logo = ImageStore on the sponsor's own key */
 export const LOGO_REQUIREMENTS = `Preferably a vector file (.ai, .eps, .pdf, .svg). A PNG is fine from ${LOGO_MIN_PX}×${LOGO_MIN_PX} px. Max ${prettyBytes(LOGO_MAX_BYTES)}.`;
 
-export const exampleKey = (type: string) => "grensrock:example:" + type;
 export const exampleLabel = (type: ReturnExampleType | string, lang: Language = "nl") =>
   RETURN_EXAMPLES[type as ReturnExampleType]?.[lang] || RETURN_EXAMPLES[type as ReturnExampleType]?.en || type;

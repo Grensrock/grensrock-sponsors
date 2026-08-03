@@ -83,6 +83,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "ov.tosign": ["nog te bevestigen", "still to confirm"],
   // sponsors
   "sp.title": ["Sponsors", "Sponsors"],
+  "sp.selected": ["geselecteerd", "selected"],
+  "sp.select": ["Selecteer", "Select"],
+  "sp.selectall": ["Alles selecteren", "Select all"],
+  "sp.delsel": ["Geselecteerde sponsors verwijderen", "Delete selected sponsors"],
   "sp.new": ["+ Nieuwe sponsor", "+ New sponsor"],
   "sp.company": ["Bedrijf", "Company"],
   "sp.contact": ["Contact", "Contact"],

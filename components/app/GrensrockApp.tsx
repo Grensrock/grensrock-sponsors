@@ -151,6 +151,8 @@ export default function GrensrockApp() {
   const [voSponsor, setVoSponsor] = useState("");
   const [voStatus, setVoStatus] = useState("");
   const [voSel, setVoSel] = useState<string[]>([]);
+  const [spSel, setSpSel] = useState<string[]>([]);
+  const [spBusy, setSpBusy] = useState(false);
   const [voBusy, setVoBusy] = useState(false);
   const [folEdition, setFolEdition] = useState("");
   const [coQuery, setCoQuery] = useState("");
@@ -375,6 +377,16 @@ export default function GrensrockApp() {
       return cmp * sort.dir;
     });
   }, [sponsors, query, deals, users, sort, fEdition, fResponsible, userId]);
+
+  /* The selection intersected with what the filters actually show. Derived
+     rather than pruned on change, so nothing has to watch the filters — and a
+     sponsor that scrolls out of view by filter simply stops being actionable
+     instead of being deleted unseen. */
+  const spSelected = useMemo(
+    () => filteredSponsors.filter((s) => spSel.includes(s.id)).map((s) => s.id),
+    [filteredSponsors, spSel],
+  );
+  const allVisibleSelected = filteredSponsors.length > 0 && spSelected.length === filteredSponsors.length;
 
   /* Export the currently filtered & sorted sponsor list to .xlsx */
   const exportSponsors = () => {
@@ -1023,6 +1035,77 @@ export default function GrensrockApp() {
       { title: "Delete sponsor", confirmLabel: "Delete" },
     );
   };
+  /* Bulk delete. Acts only on rows the filters currently show — see where
+     spSelected is derived — so a selection made before a filter change can
+     never take something off-screen with it. */
+  const deleteSponsors = (ids: string[]) => {
+    if (ids.length === 0) return;
+    const chosen = sponsors.filter((s) => ids.includes(s.id));
+    const dealCount = deals.filter((d) => ids.includes(d.sponsorId)).length;
+    const voucherCount = vouchers.filter((v) => ids.includes(v.sponsorId)).length;
+    const contactCount = chosen.reduce((n, s) => n + sponsorContacts(s).length, 0);
+
+    /* Named rather than counted up to a point: "delete 3 sponsors" is easy to
+       agree to when you have lost track of which 3 are selected. */
+    const names =
+      chosen.length <= 8
+        ? chosen.map((s) => `  • ${s.companyName}`).join("\n")
+        : chosen
+            .slice(0, 8)
+            .map((s) => `  • ${s.companyName}`)
+            .join("\n") + `\n  • … and ${chosen.length - 8} more`;
+
+    const alsoGoes = [
+      contactCount && `${contactCount} contact${contactCount === 1 ? "" : "s"}`,
+      dealCount && `${dealCount} agreement${dealCount === 1 ? "" : "s"}`,
+      voucherCount && `${voucherCount} voucher${voucherCount === 1 ? "" : "s"}`,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    ask(
+      `Delete ${chosen.length} sponsor${chosen.length === 1 ? "" : "s"}?\n\n${names}\n\n` +
+        (alsoGoes
+          ? `This also deletes ${alsoGoes}. It cannot be undone.`
+          : "It cannot be undone."),
+      async () => {
+        setSpBusy(true);
+        const failed: string[] = [];
+        const gone: string[] = [];
+        for (const s of chosen) {
+          try {
+            await sponsorsApi.deleteSponsor(s.id);
+            gone.push(s.id);
+            removeImage(logoRef(s.id)).catch(() => {
+              /* no logo stored */
+            });
+          } catch (e) {
+            failed.push(`${s.companyName} — ${(e as Error).message}`);
+          }
+        }
+        /* Whatever succeeded is dropped from view even when some failed, so the
+           screen matches the database rather than the intent. */
+        setData((d) => ({
+          ...d,
+          sponsors: d.sponsors.filter((s) => !gone.includes(s.id)),
+          deals: d.deals.filter((x) => !gone.includes(x.sponsorId)),
+          vouchers: (d.vouchers || []).filter((v) => !gone.includes(v.sponsorId)),
+        }));
+        setSpSel((prev) => prev.filter((id) => !gone.includes(id)));
+        setSpBusy(false);
+        if (failed.length) {
+          failWith(
+            new Error(`Deleted ${gone.length}. Couldn't delete ${failed.length}:\n${failed.join("\n")}`),
+            "Some sponsors were not deleted",
+          );
+        } else {
+          setSaveErr(false);
+        }
+      },
+      { title: `Delete ${chosen.length} sponsor${chosen.length === 1 ? "" : "s"}`, confirmLabel: "Delete" },
+    );
+  };
+
   const saveEdition = async (ed: Edition) => {
     try {
       if (ed.id) {
@@ -1509,6 +1592,27 @@ export default function GrensrockApp() {
                 {filteredSponsors.length} {t("common.of")} {sponsors.length} {t("sp.count")}
               </span>
             </div>
+            {spSelected.length > 0 && (
+              <div className="gr-toolbar">
+                <div className="gr-detail-btns">
+                  <span className="gr-muted">
+                    {spSelected.length} {t("sp.selected")}
+                  </span>
+                  <button className="gr-mini" onClick={() => setSpSel([])}>
+                    {t("common.clear")}
+                  </button>
+                </div>
+                {admin && (
+                  <button
+                    className="gr-btn gr-danger"
+                    disabled={spBusy}
+                    onClick={() => deleteSponsors(spSelected)}
+                  >
+                    {spBusy ? "…" : `${t("sp.delsel")} (${spSelected.length})`}
+                  </button>
+                )}
+              </div>
+            )}
             {filteredSponsors.length === 0 ? (
               <p className="gr-empty">
                 {sponsors.length === 0 ? "No sponsors yet — add your first one." : "No sponsors match your search."}
@@ -1518,6 +1622,19 @@ export default function GrensrockApp() {
                 <table className="gr-table gr-clickable">
                   <thead>
                     <tr>
+                      <th style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={t("sp.selectall")}
+                          checked={allVisibleSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = spSelected.length > 0 && !allVisibleSelected;
+                          }}
+                          onChange={(e) =>
+                            setSpSel(e.target.checked ? filteredSponsors.map((x) => x.id) : [])
+                          }
+                        />
+                      </th>
                       {(
                         [
                           ["companyName", t("sp.company"), ""],
@@ -1542,6 +1659,17 @@ export default function GrensrockApp() {
                       const tot = hs.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
                       return (
                         <tr key={s.id} onClick={() => setOpenSponsorId(s.id)}>
+                          {/* Stops the row's own click, or ticking a box would open the sponsor. */}
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              aria-label={`${t("sp.select")} ${s.companyName}`}
+                              checked={spSel.includes(s.id)}
+                              onChange={(e) =>
+                                setSpSel(e.target.checked ? [...spSel, s.id] : spSel.filter((x) => x !== s.id))
+                              }
+                            />
+                          </td>
                           <td>
                             <strong>{s.companyName}</strong>
                             {s.vatNumber && <span className="gr-muted"> · {s.vatNumber}</span>}

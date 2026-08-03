@@ -992,13 +992,26 @@ export default function GrensrockApp() {
 
       if (contacts) {
         const before = sponsorContacts(sponsors.find((s) => s.id === id));
+        /* Collected while saving, sent after: a sponsor giving a colleague
+           portal access is the same act as the team doing it, so it has to
+           send the same link. Only the transition counts, so editing an
+           already-activated colleague doesn't re-mail them. */
+        const toInvite: Contact[] = [];
         for (const c of contacts) {
           const was = before.find((x) => x.id === c.id);
-          if (!was || JSON.stringify(was) !== JSON.stringify(c)) await contactsApi.portalUpsertContact(c);
+          if (!was || JSON.stringify(was) !== JSON.stringify(c)) {
+            const savedId = await contactsApi.portalUpsertContact(c);
+            if (c.portalAccess && !was?.portalAccess && c.email) {
+              /* The RPC hands back the real uuid — a contact added here still
+                 carries a form-generated id, which the link must not use. */
+              toInvite.push({ ...c, id: savedId });
+            }
+          }
         }
         for (const gone of before.filter((x) => !contacts.some((c) => c.id === x.id))) {
           await contactsApi.portalDeleteContact(gone.id);
         }
+        for (const c of toInvite) await sendPortalLink(c);
       }
 
       const [fresh, freshContacts] = await Promise.all([sponsorsApi.getSponsor(id), contactsApi.listContacts()]);

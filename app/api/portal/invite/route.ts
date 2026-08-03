@@ -9,11 +9,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
    Fired when portal access is switched on, and again from the resend
    button whenever someone needs a fresh one.
 
-   The contact is re-read through the CALLER's session, so RLS decides
-   who may be invited. Only the id crosses the wire — address, name and
-   language all come from the row, so this cannot be used to mail an
-   arbitrary person, and the email always describes the contact that
-   actually exists.
+   Used by the team when they switch access on or press resend, and by a
+   sponsor in their own portal adding a colleague — both are the same
+   act, so both go through here.
+
+   The contact is re-read through the CALLER's session, and that read IS
+   the permission check: contacts_select_team lets a team member see
+   every contact, contacts_select_own_portal limits a portal session to
+   its own company's (0003_rls.sql). A caller who cannot see the row
+   gets a 404 and no mail is sent. Writing that rule out again here
+   would only be a second copy to keep in step with the first.
+
+   Only the id crosses the wire — address, name and language all come
+   from the row, so this cannot be pointed at an arbitrary address, and
+   the email always describes the contact that actually exists.
    ============================================================ */
 
 export const runtime = "nodejs";
@@ -33,13 +42,6 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-
-  /* Team only. A sponsor-portal session can read its own company's contacts,
-     which would otherwise let one contact trigger mail to a colleague. */
-  const { data: profile } = await supabase.from("profiles").select("id, approved").eq("id", user.id).maybeSingle();
-  if (!profile || !profile.approved) {
-    return NextResponse.json({ error: "Only the Grensrock team can do this." }, { status: 403 });
-  }
 
   const { data: row } = await supabase
     .from("contacts")

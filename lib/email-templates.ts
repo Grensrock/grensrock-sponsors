@@ -308,3 +308,54 @@ Your role: ${user.role === "admin" ? "admin (full access)" : "user (sponsors & a
 
 Grensrock`;
 }
+
+/* ---------- team access granted ----------
+   Sent to a @grensrock.be account after an admin turns their registration
+   into access (see 0011_team_access_approval.sql). Plain text and free of
+   any transport detail, so the same builder serves whichever way it ends
+   up being sent. Team accounts are NL/EN only — unlike sponsor contacts,
+   there is no French here. */
+export function buildAccessGranted(user: User, grantedBy?: User | null, appUrl?: string) {
+  const nl = user.language !== "en";
+  const link = appUrl || "[link naar de sponsortool]";
+  const by = grantedBy ? userName(grantedBy) : null;
+
+  const subject = nl
+    ? "U hebt toegang tot de Grensrock-sponsortool"
+    : "You now have access to the Grensrock sponsor tool";
+
+  /* The whole sentence branches, not just its opening: Dutch moves the verb
+     when the approver is named, and English needs one at all when they aren't. */
+  const openedNl = by
+    ? `${by} heeft uw toegang tot de Grensrock-sponsortool goedgekeurd.`
+    : "Uw toegang tot de Grensrock-sponsortool is goedgekeurd.";
+  const openedEn = by
+    ? `${by} has approved your access to the Grensrock sponsor tool.`
+    : "Your access to the Grensrock sponsor tool has been approved.";
+
+  const body = nl
+    ? `Dag ${userName(user)},
+
+${openedNl}
+
+Link: ${link}
+Meld u aan met uw Grensrock-account (${user.email}) via "Aanmelden met Google".
+Uw rol: ${user.role === "admin" ? "admin — alles, inclusief edities, facturatie en teamaccounts" : "user — sponsors en overeenkomsten bekijken en bijwerken"}
+
+Als u nog aangemeld was, meldt u zich best even af en opnieuw aan.
+
+Grensrock`
+    : `Hi ${userName(user)},
+
+${openedEn}
+
+Link: ${link}
+Sign in with your Grensrock account (${user.email}) using "Sign in with Google".
+Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
+
+If you were still signed in, sign out and back in once.
+
+Grensrock`;
+
+  return { subject, body };
+}

@@ -34,12 +34,21 @@ export async function listLogos(): Promise<SponsorLogo[]> {
   return (rows as Row[]).map(rowToLogo);
 }
 
+/**
+ * Both uses default to on. A logo that is uploaded but marked for nothing is
+ * invisible to the folder overview and the Drive export, which is a silent
+ * failure — the sponsor did the work and nothing came of it. Starting from
+ * "usable for both" and letting them narrow it is the safer direction to be
+ * wrong in.
+ */
 export async function createLogo(
   sponsorId: string,
   path: string,
   fileName: string,
   use: { useFolder?: boolean; useLedboarding?: boolean } = {},
 ): Promise<SponsorLogo> {
+  const useFolder = use.useFolder ?? true;
+  const useLedboarding = use.useLedboarding ?? true;
   const row = unwrap<Row | null>(
     await supabase
       .from("sponsor_logos")
@@ -47,8 +56,8 @@ export async function createLogo(
         sponsor_id: sponsorId,
         path,
         file_name: fileName,
-        use_folder: !!use.useFolder,
-        use_ledboarding: !!use.useLedboarding,
+        use_folder: useFolder,
+        use_ledboarding: useLedboarding,
       })
       .select(COLUMNS)
       .single(),

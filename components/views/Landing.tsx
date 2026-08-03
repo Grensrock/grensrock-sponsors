@@ -21,6 +21,7 @@ const TEAM_DOMAIN = "grensrock.be";
 export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promise<void> }) {
   const [side, setSide] = useState<null | "team" | "sponsor">(null);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,6 +31,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
   const reset = () => {
     setSide(null);
     setEmail("");
+    setPassword("");
     setErr("");
     setInfo("");
   };
@@ -59,30 +61,62 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     /* On success the browser navigates to Google, so `busy` stays true. */
   };
 
-  /* Sponsor: magic link, no password */
+  /* Sponsor: email + password. Magic links are gone — a contact is given a
+     link to set a password when the team switches their access on, and can
+     ask for a new one below (see app/api/portal/request-link). */
   const sponsorLogin = async () => {
     if (busy) return;
     setErr("");
     setInfo("");
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
     });
-    setBusy(false);
     if (error) {
+      setBusy(false);
+      /* Supabase does not distinguish a wrong password from an unknown
+         address, and neither do we — saying which would let anyone check
+         whether a company is a Grensrock sponsor. */
       setErr(
         L(
-          "We konden geen aanmeldlink versturen. Probeer het zo dadelijk opnieuw.",
-          "We couldn't send a login link. Please try again in a moment.",
+          "Dat e-mailadres en wachtwoord passen niet bij elkaar.",
+          "That email address and password don't match.",
         ),
       );
       return;
     }
+    /* No /auth/callback in a password sign-in, so the binding that the
+       callback used to do has to happen here. It is a no-op if already bound. */
+    await supabase.rpc("claim_portal_contact");
+    setBusy(false);
+    await onSignedIn();
+  };
+
+  /* "I can't get in": issues a fresh set-password link. Always reports the
+     same thing, whether or not the address matched anything. */
+  const requestLink = async () => {
+    if (busy) return;
+    if (!email.trim()) {
+      setErr(L("Vul eerst uw e-mailadres in.", "Enter your email address first."));
+      return;
+    }
+    setErr("");
+    setBusy(true);
+    try {
+      await fetch("/api/portal/request-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+    } catch {
+      /* The message below is deliberately the same either way. */
+    }
+    setBusy(false);
     setInfo(
       L(
-        "We stuurden u een aanmeldlink. Open die link in deze browser om uw pagina te openen.",
-        "We've sent you a login link. Open it in this browser to reach your page.",
+        "Als dat adres bij een sponsorcontact met portaaltoegang hoort, is er een link onderweg. Die blijft 14 dagen geldig.",
+        "If that address belongs to a sponsor contact with portal access, a link is on its way. It stays valid for 14 days.",
       ),
     );
   };
@@ -117,8 +151,22 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
         onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
         autoFocus
       />
+      <input
+        type="password"
+        autoComplete="current-password"
+        placeholder={L("Wachtwoord", "Password")}
+        value={password}
+        onChange={(e) => {
+          setPassword(e.target.value);
+          setErr("");
+        }}
+        onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
+      />
       <button className="gr-btn" disabled={busy} onClick={sponsorLogin}>
-        {L("Aanmeldlink sturen", "Send login link")}
+        {L("Aanmelden", "Sign in")}
+      </button>
+      <button className="gr-linkbtn" onClick={requestLink} disabled={busy}>
+        {L("Wachtwoord vergeten of nog geen wachtwoord?", "Forgot your password, or don't have one yet?")}
       </button>
       <button className="gr-linkbtn" onClick={reset}>
         {L("Terug", "Back")}

@@ -115,6 +115,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "vo.allspon": ["Alle sponsors", "All sponsors"],
   "vo.allstatus": ["Alle statussen", "All statuses"],
   // audit
+  "ct.resendlink": ["Nieuwe link sturen", "Resend link"],
   "au.title": ["Audit log", "Audit log"],
   "au.when": ["Wanneer", "When"],
   "au.by": ["Door", "By"],

@@ -124,3 +124,19 @@ export async function portalDeleteContact(id: string): Promise<void> {
   const { error } = await supabase.rpc("delete_sponsor_contact", { p_contact_id: id });
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Emails a portal contact the link to set their password (14 days).
+ * Used when access is switched on, and by the resend button.
+ * Throws on failure — the caller decides how loudly to say so.
+ */
+export async function sendPortalLink(contactId: string): Promise<string> {
+  const res = await fetch("/api/portal/invite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contactId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error || "Could not send the portal link.");
+  return String(body.to || "");
+}

@@ -115,6 +115,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "vo.allspon": ["Alle sponsors", "All sponsors"],
   "vo.allstatus": ["Alle statussen", "All statuses"],
   // audit
+  "ct.grantsel": ["Portaaltoegang geven", "Grant portal access"],
+  "ct.delsel": ["Contactpersonen verwijderen", "Delete contacts"],
   "ct.resendlink": ["Nieuwe link sturen", "Resend link"],
   "au.title": ["Audit log", "Audit log"],
   "au.when": ["Wanneer", "When"],

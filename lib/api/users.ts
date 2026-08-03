@@ -8,15 +8,17 @@ import type { Role, TeamLanguage, User } from "@/types";
    profiles.id is a FK to auth.users(id), so rows can only be created by
    something that can create an auth user:
      - ensure_team_profile() — runs in app/auth/callback on every sign-in
-       and provisions a profile for any verified @grensrock.be Google
-       account (first one through the door becomes admin);
+       and registers a profile for any verified @grensrock.be Google
+       account. Since 0011 that row starts out unapproved: it is a request
+       for access, not access. The first account ever created is the
+       exception — an approved admin, or nobody could approve anyone.
      - POST /api/team/invite — for anyone who needs a role assigned up
        front, or whose account isn't on the grensrock.be domain. Admin-only,
        server-side, using the Auth admin API + the secret key.
    Updates and deletes are ordinary table calls under the RLS policies.
    ============================================================ */
 
-const COLUMNS = "id, first_name, last_name, email, role, language";
+const COLUMNS = "id, first_name, last_name, email, role, approved, language";
 
 export function rowToUser(row: Row): User {
   return {
@@ -25,6 +27,7 @@ export function rowToUser(row: Row): User {
     lastName: orEmpty(row.last_name),
     email: orEmpty(row.email),
     role: (row.role || "user") as Role,
+    approved: row.approved !== false,
     language: (row.language || "nl") as TeamLanguage,
   };
 }
@@ -35,13 +38,33 @@ export function userToRow(u: Partial<User>): Row {
   if (u.lastName !== undefined) r.last_name = u.lastName || "";
   if (u.email !== undefined) r.email = u.email || "";
   if (u.role !== undefined) r.role = u.role || "user";
+  if (u.approved !== undefined) r.approved = !!u.approved;
   if (u.language !== undefined) r.language = u.language || "nl";
   return r;
 }
 
+/** Team accounts that actually have access. Pending ones are listed separately. */
 export async function listUsers(): Promise<User[]> {
-  const rows = unwrap<Row[]>(await supabase.from("profiles").select(COLUMNS).order("first_name"));
+  const rows = unwrap<Row[]>(
+    await supabase.from("profiles").select(COLUMNS).eq("approved", true).order("first_name"),
+  );
   return (rows as Row[]).map(rowToUser);
+}
+
+/** Registered accounts still waiting for an admin. Readable by the team, actionable by admins. */
+export async function listPendingUsers(): Promise<User[]> {
+  const rows = unwrap<Row[]>(
+    await supabase.from("profiles").select(COLUMNS).eq("approved", false).order("first_name"),
+  );
+  return (rows as Row[]).map(rowToUser);
+}
+
+/** Admin-only: turns a registration into access, setting the role in the same step. */
+export async function approveUser(id: string, role: Role = "user"): Promise<User> {
+  const row = unwrap<Row | null>(
+    await supabase.from("profiles").update({ approved: true, role }).eq("id", id).select(COLUMNS).single(),
+  );
+  return rowToUser(row as Row);
 }
 
 /** The profiles row of the current session, or null if this isn't a team member. */

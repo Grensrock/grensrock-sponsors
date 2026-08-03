@@ -66,10 +66,12 @@ export async function POST(request: NextRequest) {
   }
 
   /* ----- 3. matching profiles row ----- */
+  /* approved: an admin inviting someone by hand *is* the granting of access
+     (0011). Only self-registration through ensure_team_profile() has to wait. */
   const { data: created, error: profileError } = await admin
     .from("profiles")
-    .insert({ id: invited.user.id, first_name: firstName, last_name: lastName, email, role, language })
-    .select("id, first_name, last_name, email, role, language")
+    .insert({ id: invited.user.id, first_name: firstName, last_name: lastName, email, role, language, approved: true })
+    .select("id, first_name, last_name, email, role, approved, language")
     .single();
 
   if (profileError) {
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
       lastName: created.last_name,
       email: created.email,
       role: created.role,
+      approved: created.approved,
       language: created.language,
     },
   });

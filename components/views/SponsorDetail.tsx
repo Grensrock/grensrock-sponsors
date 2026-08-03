@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CopyInviteButton from "@/components/views/CopyInviteButton";
-import LogoUploader from "@/components/ui/LogoUploader";
+import LogoManager from "@/components/ui/LogoManager";
 import Tag from "@/components/ui/Tag";
 import { changedSinceAcceptance, isAccepted } from "@/lib/acceptance";
 import { formatAddress } from "@/lib/address";
@@ -20,7 +20,7 @@ import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, needsInvoice, refMis
 import { ledLabel, normFolder, normLed } from "@/lib/normalize";
 import { responsibleName } from "@/lib/users";
 import { voucherText } from "@/lib/vouchers";
-import type { Contact, Deal, Edition, Sponsor, TranslateFn, User, Voucher } from "@/types";
+import type { Contact, Deal, Edition, Sponsor, TranslateFn, User, Voucher, SponsorLogo } from "@/types";
 
 /* ---------- Sponsor detail (history) ---------- */
 
@@ -43,6 +43,8 @@ export default function SponsorDetail({
   onEditContact,
   onShowAcceptance,
   onActivateContact,
+  logos = [],
+  onLogosChange,
   onEmail,
 }: {
   sponsor: Sponsor;
@@ -62,6 +64,8 @@ export default function SponsorDetail({
   onShowAcceptance: (d: Deal) => void;
   onActivateContact: (c: Contact) => void;
   onEmail: (d: Deal) => void;
+  logos?: SponsorLogo[];
+  onLogosChange?: (logos: SponsorLogo[]) => void;
 }) {
   const [sub, setSub] = useState("info");
   const history: DealWithEdition[] = deals
@@ -74,6 +78,7 @@ export default function SponsorDetail({
 
   const TABS: Array<[string, string]> = [
     ["info", t("sd.info")],
+    ["logos", `${t("sd.logos")} (${logos.length})`],
     ["contacts", `${t("sd.contacts")} (${contacts.length})`],
     ["sponsoring", `${t("sd.sponsoring")} (${history.length})`],
     ["vouchers", `${t("sd.vouchers")} (${myVouchers.filter((v) => v.status !== "cancelled").length})`],
@@ -148,13 +153,12 @@ export default function SponsorDetail({
               </dl>
             </div>
           </div>
-          <div>
-            <h4 className="gr-subhead" style={{ borderTop: "none", paddingTop: 0 }}>
-              Logo (artwork: folder, LED, …)
-            </h4>
-            <LogoUploader sponsorId={sponsor.id} />
-          </div>
         </div>
+      )}
+
+      {/* ---- Logos ---- */}
+      {sub === "logos" && (
+        <LogoManager sponsorId={sponsor.id} logos={logos} onChange={(next) => onLogosChange?.(next)} />
       )}
 
       {/* ---- Contact persons ---- */}

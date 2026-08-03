@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import EnvBanner from "@/components/ui/EnvBanner";
 import "./globals.css";
 import "@/styles/grensrock.css";
 
@@ -14,7 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="nl" className="h-full">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <EnvBanner />
+        {children}
+      </body>
     </html>
   );
 }

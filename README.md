@@ -16,11 +16,30 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Environments
+
+| | Branch | Vercel | Supabase project |
+| --- | --- | --- | --- |
+| Production | `main` | Production deployment | `nxzhrqbbqntdwkjciuzw` |
+| Staging | `staging` | Preview, on the branch's stable alias | `uwfbiqnzfdelikqiqpir` |
+
+Work flows `feature/*` → PR into `staging` → validate on the staging URL → PR
+`staging` into `main`. Database migrations follow the same path and are applied
+with the Supabase CLI — see [supabase/migrations/README.md](supabase/migrations/README.md).
+
+Anything that isn't the production deployment shows a band across the top of the
+page naming the environment and the Supabase project it writes to
+([EnvBanner.tsx](components/ui/EnvBanner.tsx)). It needs **Automatically expose
+System Environment Variables** switched on in the Vercel project so that
+`NEXT_PUBLIC_VERCEL_ENV` reaches the build.
+
 ## Environment variables
 
-Set these in `.env.local` for development and in the hosting provider for
-deployments. The three without `NEXT_PUBLIC_` are server secrets and must never
-be exposed to the browser.
+Set these in `.env.local` for development, and in Vercel scoped to **Production**
+(production Supabase project) and **Preview** (staging project) separately —
+`NEXT_PUBLIC_*` values are baked in at build time, so each environment builds its
+own bundle. The two without `NEXT_PUBLIC_` are server secrets and must never be
+exposed to the browser.
 
 | Variable | What it is |
 | --- | --- |

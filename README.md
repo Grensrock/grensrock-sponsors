@@ -47,6 +47,30 @@ exposed to the browser.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key — safe in the browser, RLS still applies. |
 | `SUPABASE_SECRET_KEY` | Supabase secret key, bypasses RLS. Used only by `app/api/team/invite`. |
 | `CBE_API_KEY` | [cbeapi.be](https://cbeapi.be/docs/api) key for the VAT check. Without it, `/api/vat/[vat]` reports the lookup as unavailable and VAT numbers are only validated offline. |
+| `GOOGLE_SMTP_USER` | Workspace account the app sends mail as, e.g. `wout@grensrock.be`. |
+| `GOOGLE_SMTP_PASSWORD` | A Google **App Password** for that account (not the login password) — [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), requires 2-Step Verification. |
+| `GOOGLE_SMTP_FROM` | Optional. Overrides the From header, e.g. `Grensrock <wout@grensrock.be>`. Must be the sending account or an alias it owns, or Gmail rejects the send. Defaults to `GOOGLE_SMTP_USER`. |
+| `GOOGLE_DRIVE_CLIENT_EMAIL` | Service account address, e.g. `logos@grensrock-xxxx.iam.gserviceaccount.com`. Add it as a **Content Manager** on the Shared Drive. |
+| `GOOGLE_DRIVE_PRIVATE_KEY` | That service account's private key, the whole PEM. Vercel stores it on one line, so `\n` arrives escaped — the code un-escapes it. |
+| `GOOGLE_DRIVE_FOLDER_ID` | The folder the logos are written into: the last path segment of its Drive URL. |
+
+### Setting up the Drive export
+
+1. Google Cloud console → new project (or an existing one) → enable the **Google Drive API**.
+2. Create a **service account**, then a **JSON key** for it. `client_email` and `private_key` from that file are the two variables above.
+3. Open the Shared Drive folder in Drive → share it with the service account's address as **Content Manager**.
+
+It must be a **Shared Drive**, not a folder in someone's My Drive. A Shared Drive accepts a service account as a member directly; My Drive does not, and would need domain-wide delegation configured in the Admin console.
+
+Without these three variables the app is unaffected — the button reports that the export isn't configured, and nothing else changes.
+
+Mail goes out through Google Workspace rather than a transactional provider
+because `grensrock.be` already sends via Google (MX `smtp.google.com`, SPF
+`include:_spf.google.com`), so it inherits the domain's existing SPF and DKIM.
+The SPF record ends in `-all`, so adding a third-party sender would mean editing
+it — and getting that wrong fails silently into spam folders. Without the two
+required variables, granting access still works; only the notification email is
+skipped, and the admin is told it didn't go.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

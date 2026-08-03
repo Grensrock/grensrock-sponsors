@@ -101,7 +101,14 @@ export async function deleteContact(id: string): Promise<void> {
 /* ----- sponsor portal (RPC only) ----- */
 
 /** upsert_sponsor_contact() takes a camelCase jsonb contact and returns its id. */
-export async function portalUpsertContact(c: Partial<Contact>): Promise<string> {
+export interface PortalUpsertResult {
+  id: string;
+  /** True only on the false->true edge, so re-saving an active contact doesn't re-send. */
+  granted: boolean;
+}
+
+/** The RPC reports whether it granted portal access — the client can't tell reliably. */
+export async function portalUpsertContact(c: Partial<Contact>): Promise<PortalUpsertResult> {
   const payload: Row = {
     firstName: c.firstName || "",
     lastName: c.lastName || "",
@@ -116,11 +123,28 @@ export async function portalUpsertContact(c: Partial<Contact>): Promise<string> 
 
   const { data, error } = await supabase.rpc("upsert_sponsor_contact", { contact: payload });
   if (error) throw new Error(error.message);
-  return String(data);
+  const r = (data || {}) as { id?: string; granted?: boolean };
+  return { id: String(r.id || ""), granted: !!r.granted };
 }
 
 /** delete_sponsor_contact() — matches SponsorPortal's removeContact, unguarded. */
 export async function portalDeleteContact(id: string): Promise<void> {
   const { error } = await supabase.rpc("delete_sponsor_contact", { p_contact_id: id });
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Emails a portal contact the link to set their password (14 days).
+ * Used when access is switched on, and by the resend button.
+ * Throws on failure — the caller decides how loudly to say so.
+ */
+export async function sendPortalLink(contactId: string): Promise<string> {
+  const res = await fetch("/api/portal/invite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contactId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error || "Could not send the portal link.");
+  return String(body.to || "");
 }

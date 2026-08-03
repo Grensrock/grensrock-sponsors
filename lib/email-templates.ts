@@ -308,3 +308,121 @@ Your role: ${user.role === "admin" ? "admin (full access)" : "user (sponsors & a
 
 Grensrock`;
 }
+
+/* ---------- team access granted ----------
+   Sent to a @grensrock.be account after an admin turns their registration
+   into access (see 0011_team_access_approval.sql). Plain text and free of
+   any transport detail, so the same builder serves whichever way it ends
+   up being sent. Team accounts are NL/EN only — unlike sponsor contacts,
+   there is no French here. */
+export function buildAccessGranted(user: User, grantedBy?: User | null, appUrl?: string) {
+  const nl = user.language !== "en";
+  const link = appUrl || "[link naar de sponsortool]";
+  const by = grantedBy ? userName(grantedBy) : null;
+
+  const subject = nl
+    ? "U hebt toegang tot de Grensrock-sponsortool"
+    : "You now have access to the Grensrock sponsor tool";
+
+  /* The whole sentence branches, not just its opening: Dutch moves the verb
+     when the approver is named, and English needs one at all when they aren't. */
+  const openedNl = by
+    ? `${by} heeft uw toegang tot de Grensrock-sponsortool goedgekeurd.`
+    : "Uw toegang tot de Grensrock-sponsortool is goedgekeurd.";
+  const openedEn = by
+    ? `${by} has approved your access to the Grensrock sponsor tool.`
+    : "Your access to the Grensrock sponsor tool has been approved.";
+
+  const body = nl
+    ? `Dag ${userName(user)},
+
+${openedNl}
+
+Link: ${link}
+Meld u aan met uw Grensrock-account (${user.email}) via "Aanmelden met Google".
+Uw rol: ${user.role === "admin" ? "admin — alles, inclusief edities, facturatie en teamaccounts" : "user — sponsors en overeenkomsten bekijken en bijwerken"}
+
+Als u nog aangemeld was, meldt u zich best even af en opnieuw aan.
+
+Grensrock`
+    : `Hi ${userName(user)},
+
+${openedEn}
+
+Link: ${link}
+Sign in with your Grensrock account (${user.email}) using "Sign in with Google".
+Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
+
+If you were still signed in, sign out and back in once.
+
+Grensrock`;
+
+  return { subject, body };
+}
+
+/* ---------- sponsor portal: set a password ----------
+   Sent when a contact is given portal access, and again whenever they ask
+   for a new link from the login form. The same message serves both: to the
+   person reading it, "here is your access" and "I couldn't get in" have the
+   same answer, and one wording is one thing to keep right. Sponsor-facing,
+   so NL/FR/EN and the formal register the other sponsor templates use. */
+export function buildPortalPasswordLink(
+  contact: Pick<Contact, "firstName" | "lastName" | "email" | "language">,
+  url: string,
+  expiresAt: Date,
+) {
+  const lang: Language = contact.language || "nl";
+  const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+  const until = expiresAt.toLocaleDateString(
+    { nl: "nl-BE", fr: "fr-BE", en: "en-GB" }[lang],
+    { day: "numeric", month: "long", year: "numeric" },
+  );
+  const name = contactName(contact);
+
+  const subject = B(
+    "Stel uw wachtwoord in voor het Grensrock-sponsorportaal",
+    "Définissez votre mot de passe pour le portail sponsors de Grensrock",
+    "Set your password for the Grensrock sponsor portal",
+  );
+
+  const body = B(
+    `Beste ${name || "sponsor"},
+
+U hebt toegang tot het Grensrock-sponsorportaal. Daar kan u uw bedrijfsgegevens nakijken, uw logo opladen en uw tickets en bonnen verdelen.
+
+Kies eerst een wachtwoord via deze link:
+${url}
+
+De link werkt tot ${until}. Daarna vraagt u op de aanmeldpagina gewoon een nieuwe aan.
+
+Nadien meldt u zich aan met uw e-mailadres (${contact.email}) en het wachtwoord dat u koos.
+
+Grensrock`,
+    `Cher/Chère ${name || "sponsor"},
+
+Vous avez accès au portail sponsors de Grensrock. Vous pouvez y vérifier les données de votre entreprise, télécharger votre logo et répartir vos tickets et bons.
+
+Choisissez d'abord un mot de passe via ce lien :
+${url}
+
+Le lien est valable jusqu'au ${until}. Passé ce délai, demandez-en simplement un nouveau sur la page de connexion.
+
+Ensuite, connectez-vous avec votre adresse e-mail (${contact.email}) et le mot de passe choisi.
+
+Grensrock`,
+    `Dear ${name || "sponsor"},
+
+You have access to the Grensrock sponsor portal, where you can check your company details, upload your logo, and divide your tickets and vouchers.
+
+First choose a password using this link:
+${url}
+
+The link works until ${until}. After that, just request a new one from the sign-in page.
+
+Then sign in with your email address (${contact.email}) and the password you chose.
+
+Grensrock`,
+  );
+
+  return { subject, body };
+}

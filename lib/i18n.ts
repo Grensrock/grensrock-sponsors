@@ -83,6 +83,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "ov.tosign": ["nog te bevestigen", "still to confirm"],
   // sponsors
   "sp.title": ["Sponsors", "Sponsors"],
+  "sp.selected": ["geselecteerd", "selected"],
+  "sp.select": ["Selecteer", "Select"],
+  "sp.selectall": ["Alles selecteren", "Select all"],
+  "sp.delsel": ["Geselecteerde sponsors verwijderen", "Delete selected sponsors"],
   "sp.new": ["+ Nieuwe sponsor", "+ New sponsor"],
   "sp.company": ["Bedrijf", "Company"],
   "sp.contact": ["Contact", "Contact"],
@@ -111,6 +115,9 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "vo.allspon": ["Alle sponsors", "All sponsors"],
   "vo.allstatus": ["Alle statussen", "All statuses"],
   // audit
+  "ct.grantsel": ["Portaaltoegang geven", "Grant portal access"],
+  "ct.delsel": ["Contactpersonen verwijderen", "Delete contacts"],
+  "ct.resendlink": ["Nieuwe link sturen", "Resend link"],
   "au.title": ["Audit log", "Audit log"],
   "au.when": ["Wanneer", "When"],
   "au.by": ["Door", "By"],
@@ -270,6 +277,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "fo.pageshare": ["Pagina-aandeel", "Page share"],
   "fo.file": ["Bestand", "File"],
   "fo.downloadlogos": ["Alle logo's downloaden", "Download all logos"],
+  "fo.drive": ["Logo's naar Drive", "Send logos to Drive"],
+  "fo.drivebusy": ["Naar Drive…", "To Drive…"],
   "fo.downloading": ["Downloaden…", "Downloading…"],
   "fo.checking": ["Logo's controleren…", "Checking logos…"],
   // onboarding

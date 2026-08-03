@@ -152,6 +152,8 @@ export default function GrensrockApp() {
   const [voStatus, setVoStatus] = useState("");
   const [voSel, setVoSel] = useState<string[]>([]);
   const [spSel, setSpSel] = useState<string[]>([]);
+  const [coSel, setCoSel] = useState<string[]>([]);
+  const [coBusy, setCoBusy] = useState("");
   const [spBusy, setSpBusy] = useState(false);
   const [voBusy, setVoBusy] = useState(false);
   const [folEdition, setFolEdition] = useState("");
@@ -861,10 +863,13 @@ export default function GrensrockApp() {
   /* Switching portal access on is what sends a contact their set-password
      link, so the two are one action from the team's point of view. Resending
      uses the same route — a new link, the previous one dead. */
-  const sendPortalLink = async (contact: Contact, { quiet = false } = {}) => {
+  const sendPortalLink = async (contact: Contact) => {
     try {
-      const to = await contactsApi.sendPortalLink(contact.id);
-      if (!quiet) notify(`A link to set a password was sent to ${to}. It stays valid for 14 days.`, "Link sent");
+      /* Deliberately silent on success. Sending the link is a consequence of
+         granting access, not a separate thing the team asked for, and a dialog
+         per contact turns activating a handful of people into a clicking
+         exercise. Failure still speaks up — that one needs acting on. */
+      await contactsApi.sendPortalLink(contact.id);
     } catch (e) {
       /* The access itself is already saved; only the email failed. Saying so
          beats rolling back a permission the team meant to grant. */
@@ -980,6 +985,84 @@ export default function GrensrockApp() {
       },
       { title: "Remove contact", confirmLabel: "Remove" },
     );
+
+  /* ----- bulk actions on the contact overview ----- */
+  type ContactRow = { contact: Contact; sponsor: Sponsor };
+
+  const grantPortalAccess = async (items: ContactRow[]) => {
+    /* Already-active contacts are skipped rather than re-sent: this is "give
+       these people access", not "mail everyone again". Use Resend link for that. */
+    const todo = items.filter((x) => !x.contact.portalAccess && x.contact.email);
+    const noEmail = items.filter((x) => !x.contact.email).length;
+    if (todo.length === 0) {
+      notify(
+        noEmail > 0
+          ? `Nothing to do — ${noEmail} of these have no email address, and the rest already have access.`
+          : "Those contacts already have portal access.",
+        "Nothing to activate",
+      );
+      return;
+    }
+    setCoBusy("grant");
+    for (const x of todo) await commitContact(x.sponsor.id, { ...x.contact, portalAccess: true });
+    setCoBusy("");
+    setCoSel([]);
+    notify(
+      `${todo.length} contact${todo.length === 1 ? "" : "s"} activated and sent a link to set a password.` +
+        (noEmail > 0 ? `\n\n${noEmail} skipped: no email address.` : ""),
+      "Portal access granted",
+    );
+  };
+
+  const deleteContacts = (items: ContactRow[]) => {
+    if (items.length === 0) return;
+    const withAccess = items.filter((x) => x.contact.portalAccess).length;
+    const names =
+      items.length <= 8
+        ? items.map((x) => `  • ${contactName(x.contact) || x.contact.email || "?"} (${x.sponsor.companyName})`).join("\n")
+        : items
+            .slice(0, 8)
+            .map((x) => `  • ${contactName(x.contact) || x.contact.email || "?"} (${x.sponsor.companyName})`)
+            .join("\n") + `\n  • … and ${items.length - 8} more`;
+
+    ask(
+      `Remove ${items.length} contact person${items.length === 1 ? "" : "s"}?\n\n${names}\n\n` +
+        (withAccess > 0
+          ? `${withAccess} of them can currently log in to the sponsor portal and will lose that access.`
+          : "None of them can log in to the portal."),
+      async () => {
+        setCoBusy("delete");
+        const gone: string[] = [];
+        const failed: string[] = [];
+        for (const x of items) {
+          try {
+            await contactsApi.deleteContact(x.contact.id);
+            gone.push(x.contact.id);
+          } catch (e) {
+            failed.push(`${contactName(x.contact) || x.contact.email} — ${(e as Error).message}`);
+          }
+        }
+        setData((d) => ({
+          ...d,
+          sponsors: d.sponsors.map((s) => ({
+            ...s,
+            contacts: sponsorContacts(s).filter((c) => !gone.includes(c.id)),
+          })),
+        }));
+        setCoSel((prev) => prev.filter((id) => !gone.includes(id)));
+        setCoBusy("");
+        if (failed.length) {
+          failWith(
+            new Error(`Removed ${gone.length}. Couldn't remove ${failed.length}:\n${failed.join("\n")}`),
+            "Some contacts were not removed",
+          );
+        } else {
+          setSaveErr(false);
+        }
+      },
+      { title: `Remove ${items.length} contact${items.length === 1 ? "" : "s"}`, confirmLabel: "Remove" },
+    );
+  };
 
   /* The sponsor portal's own save button. Never a table write: the company
      details go through update_sponsor_info(), each contact through
@@ -2168,6 +2251,12 @@ export default function GrensrockApp() {
                   contactName(a.contact).localeCompare(contactName(b.contact)),
               );
 
+            /* Same rule as the sponsors table: intersected with the filters, so a
+               selection made before narrowing the list can never act on rows that
+               are no longer on screen. */
+            const selectedRows = rows.filter((r) => r.contact.id && coSel.includes(r.contact.id));
+            const allShown = rows.length > 0 && selectedRows.length === rows.length;
+
             const exportContacts = () => {
               const rowData = rows.map(({ contact: c, sponsor: sp }) => ({
                 Sponsor: sp.companyName,
@@ -2278,6 +2367,34 @@ export default function GrensrockApp() {
                   </span>
                 </div>
 
+                {selectedRows.length > 0 && (
+                  <div className="gr-toolbar">
+                    <div className="gr-detail-btns">
+                      <span className="gr-muted">
+                        {selectedRows.length} {t("sp.selected")}
+                      </span>
+                      <button className="gr-mini" onClick={() => setCoSel([])}>
+                        {t("common.clear")}
+                      </button>
+                    </div>
+                    <div className="gr-detail-btns">
+                      <button
+                        className="gr-btn"
+                        disabled={!!coBusy}
+                        onClick={() => grantPortalAccess(selectedRows)}
+                      >
+                        {coBusy === "grant" ? "…" : `${t("ct.grantsel")} (${selectedRows.length})`}
+                      </button>
+                      <button
+                        className="gr-btn-ghost gr-danger"
+                        disabled={!!coBusy}
+                        onClick={() => deleteContacts(selectedRows)}
+                      >
+                        {coBusy === "delete" ? "…" : `${t("ct.delsel")} (${selectedRows.length})`}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {rows.length === 0 ? (
                   <p className="gr-empty">
                     {all.length === 0 ? "No contact persons yet." : "No contacts match these filters."}
@@ -2287,6 +2404,19 @@ export default function GrensrockApp() {
                     <table className="gr-table gr-clickable">
                       <thead>
                         <tr>
+                          <th style={{ width: 28 }}>
+                            <input
+                              type="checkbox"
+                              aria-label={t("sp.selectall")}
+                              checked={allShown}
+                              ref={(el) => {
+                                if (el) el.indeterminate = selectedRows.length > 0 && !allShown;
+                              }}
+                              onChange={(e) =>
+                                setCoSel(e.target.checked ? rows.map((r) => r.contact.id).filter(Boolean) : [])
+                              }
+                            />
+                          </th>
                           <th>{t("c.name")}</th>
                           <th>{t("c.company")}</th>
                           <th>{t("c.email")}</th>
@@ -2303,6 +2433,17 @@ export default function GrensrockApp() {
                             title="Click to edit this contact"
                             onClick={() => setModal({ type: "contact", payload: { sponsorId: sp.id, contact: c } })}
                           >
+                            {/* Stops the row's own click, or ticking a box opens the editor. */}
+                            <td onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                aria-label={`${t("sp.select")} ${contactName(c) || c.email}`}
+                                checked={coSel.includes(c.id)}
+                                onChange={(e) =>
+                                  setCoSel(e.target.checked ? [...coSel, c.id] : coSel.filter((x) => x !== c.id))
+                                }
+                              />
+                            </td>
                             <td>
                               <strong>{contactName(c) || <span className="gr-muted">no name</span>}</strong>
                             </td>

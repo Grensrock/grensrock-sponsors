@@ -3,7 +3,27 @@
     "allow": [
       "Bash(gh auth *)",
       "Bash(npm -v)",
-      "Bash(npx --yes create-next-app@latest . --typescript --eslint --tailwind --app --no-src-dir --import-alias \"@/*\" --use-npm)"
+      "Bash(npx --yes create-next-app@latest . --typescript --eslint --tailwind --app --no-src-dir --import-alias \"@/*\" --use-npm)",
+      "Bash(npm run *)",
+      "Bash(gh repo *)",
+      "Bash(npm view *)",
+      "Bash(gh api *)",
+      "Bash(npx plugins *)",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "WebFetch(domain:cbeapi.be)",
+      "Bash(curl -sS -o /private/tmp/claude-501/-Users-woutflorin-Documents-grensrock-sponsors/89bf0c2b-858d-475a-a383-0a73836280f0/scratchpad/docs.html -w \"%{http_code} %{content_type} %{size_download}\\\\n\" \"https://cbeapi.be/docs/api\" -H \"User-Agent: Mozilla/5.0\")",
+      "Bash(grep -oiE '\\(swagger|scalar|redoc|rapidoc|openapi|spec-url|data-url\\)[^>]{0,120}' docs.html)",
+      "Bash(python3 -c ' *)",
+      "Bash(ls node_modules/next/dist/docs/01-app/03-api-reference/04-functions/ | head -60; echo ===; sed -n '1,80p' node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/../../../04-functions/fetch.md 2>/dev/null || find node_modules/next/dist/docs -name \"fetch.md\" )",
+      "Bash(git rm *)",
+      "Bash(python3 -)",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(echo \"TSC-EXIT:$?\")"
     ]
   }
 }

@@ -19,7 +19,7 @@ import { supabase } from "@/lib/supabase/client";
 const TEAM_DOMAIN = "grensrock.be";
 
 export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promise<void> }) {
-  const [side, setSide] = useState<null | "team" | "sponsor">(null);
+  const [side, setSide] = useState<null | "team" | "sponsor" | "forgot">(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
@@ -98,7 +98,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
   const requestLink = async () => {
     if (busy) return;
     if (!email.trim()) {
-      setErr(L("Vul eerst uw e-mailadres in.", "Enter your email address first."));
+      setErr(L("Vul uw e-mailadres in.", "Enter your email address."));
       return;
     }
     setErr("");
@@ -120,6 +120,45 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       ),
     );
   };
+
+  /* Its own screen rather than a second action on the sign-in card: the two
+     ask for different things, and a password box sitting under an email box
+     invites people to fill both in and wonder why nothing happened. The typed
+     address carries over, so arriving here after a failed sign-in costs nothing. */
+  const forgotForm = (
+    <>
+      <p className="gr-muted">
+        {L(
+          "Vul uw e-mailadres in. Als dat adres bij een sponsorcontact met portaaltoegang hoort, sturen we u een link om een wachtwoord te kiezen. Die link blijft 14 dagen geldig.",
+          "Enter your email address. If it belongs to a sponsor contact with portal access, we'll send you a link to choose a password. The link stays valid for 14 days.",
+        )}
+      </p>
+      <input
+        type="email"
+        placeholder="uw@email.com"
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          setErr("");
+        }}
+        onKeyDown={(e) => e.key === "Enter" && requestLink()}
+        autoFocus
+      />
+      <button className="gr-btn" disabled={busy} onClick={requestLink}>
+        {busy ? L("Bezig…", "Working…") : L("Stuur me een link", "Send me a link")}
+      </button>
+      <button
+        className="gr-linkbtn"
+        onClick={() => {
+          setErr("");
+          setInfo("");
+          setSide("sponsor");
+        }}
+      >
+        {L("← Terug naar aanmelden", "← Back to sign in")}
+      </button>
+    </>
+  );
 
   const teamCard = (
     <>
@@ -165,7 +204,15 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       <button className="gr-btn" disabled={busy} onClick={sponsorLogin}>
         {L("Aanmelden", "Sign in")}
       </button>
-      <button className="gr-linkbtn" onClick={requestLink} disabled={busy}>
+      <button
+        className="gr-linkbtn"
+        onClick={() => {
+          setErr("");
+          setInfo("");
+          setPassword("");
+          setSide("forgot");
+        }}
+      >
         {L("Wachtwoord vergeten of nog geen wachtwoord?", "Forgot your password, or don't have one yet?")}
       </button>
       <button className="gr-linkbtn" onClick={reset}>
@@ -193,9 +240,13 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
           <h3 className="gr-h3">{L("Organisatie", "Organisation")}</h3>
           {teamCard}
         </div>
-        <div className={"gr-landcard" + (side === "sponsor" ? " on" : "")}>
-          <h3 className="gr-h3">Sponsor</h3>
-          {side === "sponsor" ? (
+        <div className={"gr-landcard" + (side === "sponsor" || side === "forgot" ? " on" : "")}>
+          <h3 className="gr-h3">
+            {side === "forgot" ? L("Wachtwoord vergeten", "Forgot your password") : "Sponsor"}
+          </h3>
+          {side === "forgot" ? (
+            forgotForm
+          ) : side === "sponsor" ? (
             sponsorForm
           ) : (
             <>

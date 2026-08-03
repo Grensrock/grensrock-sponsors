@@ -7,9 +7,9 @@ import { FOLDER_FRACTION, FOLDER_OPTS } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { LOGO_MIN_PX, type LogoRecord } from "@/lib/logo";
 import { normFolder } from "@/lib/normalize";
-import { loadImage, logoRef } from "@/lib/supabase/storage";
+import { loadLogoFile } from "@/lib/supabase/storage";
 import { responsibleName } from "@/lib/users";
-import type { Deal, Edition, FolderMention, Sponsor, Tone, TranslateFn, User } from "@/types";
+import type { Deal, Edition, FolderMention, Sponsor, SponsorLogo, Tone, TranslateFn, User } from "@/types";
 
 /* ---------- Folder production overview (admin) ---------- */
 
@@ -18,6 +18,7 @@ export default function FolderOverview({
   deals,
   sponsors,
   users,
+  logos = [],
   notify,
   t = (k) => k,
 }: {
@@ -25,10 +26,12 @@ export default function FolderOverview({
   deals: Deal[];
   sponsors: Sponsor[];
   users: User[];
+  /** Only the logos marked for the folder are of any use on this screen. */
+  logos?: SponsorLogo[];
   notify: (message: string, title?: string) => void;
   t?: TranslateFn;
 }) {
-  const [logos, setLogos] = useState<Record<string, LogoRecord | null>>({}); // sponsorId -> record | null
+  const [files, setFiles] = useState<Record<string, LogoRecord | null>>({}); // sponsorId -> loaded file | null
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -52,7 +55,11 @@ export default function FolderOverview({
     [deals, sponsors, edition],
   );
 
-  /* Load each sponsor's logo record so we can show what's missing */
+  /* A sponsor may have several logos now, but only the ones marked for the
+     folder belong on this screen — the first of those is what gets printed. */
+  const folderLogo = (sponsorId: string) => logos.find((l) => l.sponsorId === sponsorId && l.useFolder) || null;
+
+  /* Load each sponsor's folder logo so we can show what's missing */
   useEffect(() => {
     let live = true;
     (async () => {
@@ -60,21 +67,22 @@ export default function FolderOverview({
       const out: Record<string, LogoRecord | null> = {};
       for (const r of rows) {
         if (!r.sponsor) continue;
+        const pick = folderLogo(r.sponsor.id);
         try {
-          out[r.sponsor.id] = await loadImage(logoRef(r.sponsor.id));
+          out[r.sponsor.id] = pick ? await loadLogoFile(pick.path) : null;
         } catch {
           out[r.sponsor.id] = null;
         }
       }
       if (live) {
-        setLogos(out);
+        setFiles(out);
         setLoading(false);
       }
     })();
     return () => {
       live = false;
     };
-  }, [edition?.id, rows.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [edition?.id, rows.length, logos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalFraction = rows.reduce((s, r) => s + r.fraction, 0);
   const pages = Math.ceil(totalFraction);
@@ -82,7 +90,7 @@ export default function FolderOverview({
     .filter((k) => k !== "none")
     .map((k) => [k, rows.filter((r) => r.size === k).length] as [FolderMention, number])
     .filter(([, n]) => n > 0);
-  const missing = rows.filter((r) => r.sponsor && !logos[r.sponsor.id]);
+  const missing = rows.filter((r) => r.sponsor && !files[r.sponsor.id]);
 
   const logoQuality = (rec: LogoRecord | null): { tone: Tone; text: string } => {
     if (!rec) return { tone: "amber", text: "missing" };
@@ -97,7 +105,7 @@ export default function FolderOverview({
 
   const exportXlsx = () => {
     const data: Record<string, string | number>[] = rows.map((r) => {
-      const rec = r.sponsor ? logos[r.sponsor.id] : null;
+      const rec = r.sponsor ? files[r.sponsor.id] : null;
       return {
         Sponsor: r.company,
         VAT: r.sponsor?.vatNumber || "",
@@ -149,14 +157,14 @@ export default function FolderOverview({
   /* Browsers can't write a zip without an extra library, so the logos are
      downloaded one by one, named after the sponsor and their folder format. */
   const downloadLogos = async () => {
-    const withLogo = rows.filter((r) => r.sponsor && logos[r.sponsor.id]);
+    const withLogo = rows.filter((r) => r.sponsor && files[r.sponsor.id]);
     if (withLogo.length === 0) {
       notify("No logos to download yet.", "Nothing to export");
       return;
     }
     setBusy("logos");
     for (const r of withLogo) {
-      const rec = logos[r.sponsor!.id]!;
+      const rec = files[r.sponsor!.id]!;
       const safe = safeName(r.company);
       const ext = rec.ext || (rec.type === "image/png" ? "png" : "img");
       const a = document.createElement("a");
@@ -179,7 +187,7 @@ export default function FolderOverview({
      stays the system of record; this never reads back. Sponsors go one at a
      time so progress is visible and one unreadable file doesn't sink the rest. */
   const exportToDrive = async () => {
-    const withLogo = rows.filter((r) => r.sponsor && logos[r.sponsor.id]);
+    const withLogo = rows.filter((r) => r.sponsor && files[r.sponsor.id]);
     if (withLogo.length === 0) {
       notify("No logos to export yet.", "Nothing to export");
       return;
@@ -195,7 +203,11 @@ export default function FolderOverview({
         const res = await fetch("/api/logos/drive-export", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sponsorId: r.sponsor!.id, name: `${r.size}_${safeName(r.company)}` }),
+          body: JSON.stringify({
+            sponsorId: r.sponsor!.id,
+            path: folderLogo(r.sponsor!.id)?.path,
+            name: `${r.size}_${safeName(r.company)}`,
+          }),
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body?.error || `Failed (${res.status})`);
@@ -284,7 +296,7 @@ export default function FolderOverview({
             </thead>
             <tbody>
               {rows.map((r) => {
-                const rec = r.sponsor ? logos[r.sponsor.id] : null;
+                const rec = r.sponsor ? files[r.sponsor.id] : null;
                 const q = logoQuality(rec ?? null);
                 return (
                   <tr key={r.deal.id} className={!rec && !loading ? "gr-blocked" : undefined}>

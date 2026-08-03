@@ -3,6 +3,7 @@ import type { Edition } from "./edition";
 import type { Deal } from "./deal";
 import type { Voucher } from "./voucher";
 import type { User } from "./user";
+import type { SponsorLogo } from "./sponsorLogo";
 import type { AuditEntry } from "./audit";
 import type { Settings } from "./settings";
 
@@ -12,6 +13,8 @@ export interface AppData {
   editions: Edition[];
   deals: Deal[];
   users: User[];
+  /** Every logo the caller may see (all of them for the team, their own in the portal). */
+  logos?: SponsorLogo[];
   /** Registered @grensrock.be accounts still waiting for an admin to grant access. */
   pendingUsers?: User[];
   vouchers?: Voucher[];

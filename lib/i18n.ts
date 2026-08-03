@@ -249,6 +249,15 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   // team
   "tm.title": ["Teamaccounts", "Team accounts"],
   "tm.new": ["+ Nieuw account", "+ New account"],
+  "tm.requests": ["Toegangsaanvragen", "Access requests"],
+  "tm.requestshint": [
+    "Deze mensen meldden zich aan met hun @grensrock.be-account. Ze zien nog niets tot u toegang geeft.",
+    "These people signed in with their @grensrock.be account. They see nothing until you grant access.",
+  ],
+  "tm.grantuser": ["Toegang als user", "Grant as user"],
+  "tm.grantadmin": ["Toegang als admin", "Grant as admin"],
+  "tm.decline": ["Weigeren", "Decline"],
+  "tm.pending": ["wacht op goedkeuring", "waiting for approval"],
   "tm.save": ["Account opslaan", "Save account"],
   "tm.admin": ["Beheerder", "Admin"],
   "tm.user": ["Gebruiker", "User"],

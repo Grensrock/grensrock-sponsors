@@ -12,6 +12,8 @@ export interface AppData {
   editions: Edition[];
   deals: Deal[];
   users: User[];
+  /** Registered @grensrock.be accounts still waiting for an admin to grant access. */
+  pendingUsers?: User[];
   vouchers?: Voucher[];
   audit?: AuditEntry[];
   settings?: Settings;

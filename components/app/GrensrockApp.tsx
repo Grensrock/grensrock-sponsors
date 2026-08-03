@@ -23,6 +23,7 @@ import CopyUserInvite from "@/components/views/CopyUserInvite";
 import FolderOverview from "@/components/views/FolderOverview";
 import Landing from "@/components/views/Landing";
 import SponsorDetail from "@/components/views/SponsorDetail";
+import PendingAccess from "@/components/views/PendingAccess";
 import SponsorPortal from "@/components/views/SponsorPortal";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
 import { formatAddress } from "@/lib/address";
@@ -77,6 +78,7 @@ import type {
   DealDraft,
   Edition,
   Formula,
+  Role,
   Settings,
   Sponsor,
   TeamLanguage,
@@ -109,7 +111,8 @@ type ModalState =
 type ViewMode =
   | { view: "landing" }
   | { view: "team" }
-  | { view: "portal"; sponsorId: string; contactId: string };
+  | { view: "portal"; sponsorId: string; contactId: string }
+  | { view: "pending"; profile: User };
 
 const EMPTY_DATA: AppData = { sponsors: [], editions: [], deals: [], users: [], vouchers: [], audit: [] };
 
@@ -179,7 +182,18 @@ export default function GrensrockApp() {
 
   /* ----- load: one parallel read per table, assembled into the shape the UI expects ----- */
   const loadAll = useCallback(async (scope: "team" | "portal", asAdmin: boolean) => {
-    const [sponsorRows, contactRows, editionRows, formulaRows, dealRows, voucherRows, userRows, settings, auditRows] =
+    const [
+      sponsorRows,
+      contactRows,
+      editionRows,
+      formulaRows,
+      dealRows,
+      voucherRows,
+      userRows,
+      pendingRows,
+      settings,
+      auditRows,
+    ] =
       await Promise.all([
         sponsorsApi.listSponsors(),
         contactsApi.listContacts(),
@@ -188,6 +202,7 @@ export default function GrensrockApp() {
         dealsApi.listDeals(),
         vouchersApi.listVouchers(),
         scope === "team" ? usersApi.listUsers() : Promise.resolve([] as User[]),
+        scope === "team" ? usersApi.listPendingUsers() : Promise.resolve([] as User[]),
         scope === "team" ? settingsApi.getSettings() : Promise.resolve({} as Settings),
         scope === "team" && asAdmin ? auditApi.listAudit() : Promise.resolve([] as AuditEntry[]),
       ]);
@@ -197,6 +212,7 @@ export default function GrensrockApp() {
       deals: dealRows,
       vouchers: voucherRows,
       users: userRows,
+      pendingUsers: pendingRows,
       audit: auditRows,
       settings,
     });
@@ -218,6 +234,15 @@ export default function GrensrockApp() {
       }
 
       const profile = await usersApi.getMyProfile();
+      /* Registered but not yet granted access (0011): the session is real, RLS
+         just returns nothing for it, so loading the app would show an empty
+         shell that reads as broken. */
+      if (profile && !profile.approved) {
+        setUserId(null);
+        setData(EMPTY_DATA);
+        setMode({ view: "pending", profile });
+        return;
+      }
       if (profile) {
         setUserId(profile.id);
         setMode({ view: "team" });
@@ -439,6 +464,40 @@ export default function GrensrockApp() {
       failWith(e);
     }
   };
+  /* ----- access requests (0011) ----- */
+  /* An admin granting access also picks the role, so the two decisions that
+     arrive together are made together rather than in two round trips. */
+  const approveUser = async (id: string, role: Role) => {
+    try {
+      const saved = await usersApi.approveUser(id, role);
+      setData((d) => ({
+        ...d,
+        users: [...(d.users || []), saved].sort((a, b) => userName(a).localeCompare(userName(b))),
+        pendingUsers: (d.pendingUsers || []).filter((x) => x.id !== id),
+      }));
+      setSaveErr(false);
+    } catch (e) {
+      failWith(e);
+    }
+  };
+
+  const declineUser = (id: string) => {
+    const u = (data.pendingUsers || []).find((x) => x.id === id);
+    ask(
+      `Decline the access request from ${userName(u)}? They can sign in again, which puts them back on this list.`,
+      async () => {
+        try {
+          await usersApi.deleteUser(id);
+          setData((d) => ({ ...d, pendingUsers: (d.pendingUsers || []).filter((x) => x.id !== id) }));
+          setSaveErr(false);
+        } catch (e) {
+          failWith(e);
+        }
+      },
+      { title: "Decline request", confirmLabel: "Decline" },
+    );
+  };
+
   const deleteUser = (id: string) => {
     const u = users.find((x) => x.id === id);
     const admins = users.filter(isAdmin);
@@ -1130,6 +1189,13 @@ export default function GrensrockApp() {
     return (
       <div className="gr-root">
         <Landing onSignedIn={enterSession} />
+      </div>
+    );
+  }
+  if (mode.view === "pending") {
+    return (
+      <div className="gr-root">
+        <PendingAccess me={mode.profile} onExit={signOut} />
       </div>
     );
   }
@@ -2809,10 +2875,46 @@ export default function GrensrockApp() {
                 {t("tm.new")}
               </button>
             </div>
+            {(data.pendingUsers || []).length > 0 && (
+              <div className="gr-card" style={{ borderLeft: "4px solid var(--orange)", marginBottom: 16 }}>
+                <h3 className="gr-h3" style={{ marginTop: 0 }}>
+                  {t("tm.requests")} ({(data.pendingUsers || []).length})
+                </h3>
+                <p className="gr-muted" style={{ marginTop: 0 }}>
+                  {t("tm.requestshint")}
+                </p>
+                <div className="gr-tablewrap">
+                  <table className="gr-table">
+                    <tbody>
+                      {(data.pendingUsers || []).map((u) => (
+                        <tr key={u.id}>
+                          <td>
+                            <strong>{userName(u)}</strong>
+                          </td>
+                          <td>{u.email}</td>
+                          <td className="gr-rowbtns">
+                            <button className="gr-mini" onClick={() => approveUser(u.id, "user")}>
+                              {t("tm.grantuser")}
+                            </button>
+                            <button className="gr-mini" onClick={() => approveUser(u.id, "admin")}>
+                              {t("tm.grantadmin")}
+                            </button>
+                            <button className="gr-mini gr-danger" onClick={() => declineUser(u.id)}>
+                              {t("tm.decline")}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {users.length === 0 ? (
               <p className="gr-empty">
-                No accounts yet. Anyone with a @grensrock.be Google account gets access by signing in — add someone
-                here only to set their role up front, or for an account outside that domain.
+                No accounts yet. Someone with a @grensrock.be Google account can sign in to register — their request
+                shows up here for an admin to grant. Adding someone here instead skips that step, and is the only way
+                in for an account outside that domain.
               </p>
             ) : (
               <div className="gr-tablewrap">

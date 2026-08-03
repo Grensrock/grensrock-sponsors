@@ -177,6 +177,9 @@ export const emptyUser: Omit<User, "id"> = {
   lastName: "",
   email: "",
   role: "user",
+  /* The form only ever creates accounts via the admin invite route, and an
+     admin inviting someone is itself the grant of access (see 0011). */
+  approved: true,
   language: "nl",
 };
 

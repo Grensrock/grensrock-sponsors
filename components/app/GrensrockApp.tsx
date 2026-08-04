@@ -1541,7 +1541,7 @@ export default function GrensrockApp() {
     <div className="gr-root">
       <header className="gr-header">
         <div className="gr-brand">
-          <PickLogo size={54} />
+          <PickLogo size={34} />
           <span className="gr-brandsub">{t("hd.subtitle")}</span>
         </div>
         {(() => {

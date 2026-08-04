@@ -27,6 +27,11 @@
 .gr-root input:focus-visible, .gr-root select:focus-visible, .gr-root textarea:focus-visible
   { outline:2px solid var(--blue-deep); outline-offset:1px; }
 
+/* The wordmark draws in currentColor. Both places it appears are black, and
+   .gr-root's inherited colour is --ink, so it has to be told white here or it
+   would be a black logo on a black background. */
+.gr-header .gr-logo, .gr-landing .gr-logo { color:#fff; }
+
 .gr-borderline { height:4px; background:var(--rainbow); }
 
 .gr-main { max-width:1080px; margin:0 auto; padding:26px 28px 60px; }

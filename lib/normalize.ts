@@ -1,4 +1,4 @@
-import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, SETTLEMENTS } from "@/lib/constants";
+import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, SETTLEMENTS, label } from "@/lib/constants";
 import type { Deal, FolderMention, LedZone, Language, NumLike, VoucherRow } from "@/types";
 
 export const normStr = (v: unknown) => String(v ?? "").trim();
@@ -62,7 +62,7 @@ export function normBenefits<T extends BenefitInput>(o: T): T {
   } as T;
 }
 
-export const ledLabel = (arr: unknown) =>
+export const ledLabel = (arr: unknown, lang: Language = "nl") =>
   normLed(arr)
-    .map((z) => LED_ZONES[z])
+    .map((z) => label(LED_ZONES, z, lang))
     .join(" + ");

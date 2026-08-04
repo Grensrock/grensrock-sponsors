@@ -9,7 +9,17 @@ import { OP_MAAT, SETTLEMENTS, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { eur, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
-import type { Deal, DealDraft, Edition, Settlement, Sponsor, TranslateFn, User, VatLookupConfig } from "@/types";
+import type {
+  Deal,
+  DealDraft,
+  Edition,
+  Language,
+  Settlement,
+  Sponsor,
+  TranslateFn,
+  User,
+  VatLookupConfig,
+} from "@/types";
 
 /* ---------- Deal (agreement) form ---------- */
 
@@ -26,6 +36,7 @@ export default function DealForm({
   onDelete,
   onAddSponsor,
   t = (k) => k,
+  lang = "nl",
 }: {
   initial?: DealDraft | null;
   sponsors: Sponsor[];
@@ -38,6 +49,7 @@ export default function DealForm({
   /* Creating a sponsor is a round-trip to the database now, so this may be async. */
   onAddSponsor: (s: Sponsor) => Sponsor | Promise<Sponsor>;
   t?: TranslateFn;
+  lang?: Language;
 }) {
   const [d, setD] = useState<DealFormState>({ ...emptyDeal, ...initial });
   const [newSponsorDraft, setNewSponsorDraft] = useState<Partial<Sponsor> | null>(null); // null | prefill object
@@ -159,14 +171,14 @@ export default function DealForm({
           </Field>
         </div>
       )}
-      {d.editionId && <BenefitFields v={d} set={set} showVouchers t={t} />}
+      {d.editionId && <BenefitFields v={d} set={set} showVouchers t={t} lang={lang} />}
       {d.editionId && (
         <div className="gr-settle">
           <Field label={t("df.settled")}>
             <select value={d.settlement || "invoice"} onChange={(e) => set("settlement", e.target.value)}>
               {Object.keys(SETTLEMENTS).map((k) => (
                 <option key={k} value={k}>
-                  {settleLabel(t, k as Settlement)}
+                  {settleLabel(k as Settlement, lang)}
                 </option>
               ))}
             </select>

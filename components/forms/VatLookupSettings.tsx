@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Field from "@/components/ui/Field";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
-import type { VatLookupConfig, VatLookupMode } from "@/types";
+import type { TranslateFn, VatLookupConfig, VatLookupMode } from "@/types";
 
 /* ---------- VAT lookup settings ---------- */
 
@@ -11,18 +11,20 @@ export default function VatLookupSettings({
   value,
   onSave,
   onCancel,
+  t = (k) => k,
 }: {
   value?: VatLookupConfig | null;
   onSave: (cfg: VatLookupConfig) => void;
   onCancel: () => void;
+  t?: TranslateFn;
 }) {
   const [c, setC] = useState<VatLookupConfig>({ ...defaultVatLookup, ...value });
   return (
     <div>
-      <Field label="Mode">
+      <Field label={t("vl.mode")}>
         <select value={c.mode} onChange={(e) => setC({ ...c, mode: e.target.value as VatLookupMode })}>
-          <option value="cbe">On — check against the Belgian company registry (CBE/KBO)</option>
-          <option value="manual">Off — enter company details by hand</option>
+          <option value="cbe">{t("vl.on")}</option>
+          <option value="manual">{t("vl.off")}</option>
         </select>
       </Field>
       {c.mode === "cbe" && (
@@ -39,10 +41,10 @@ export default function VatLookupSettings({
       </p>
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button className="gr-btn" onClick={() => onSave(c)}>
-          Save
+          {t("common.save")}
         </button>
       </div>
     </div>

@@ -42,23 +42,73 @@ export interface LogoRecord {
   height?: number;
 }
 
+/* ---------- messages ----------
+   Same shape as MAIL_MSG and VAT_MSG: the check reports a code, the caller
+   turns it into a sentence in the reader's language. A sponsor uploading a
+   logo is the main audience here, and they read NL, FR or EN. */
+export const LOGO_MSG: Record<string, (lang: Language, p: Record<string, string | number>) => string> = {
+  toobig: (lang, p) =>
+    ({
+      nl: `Dit bestand is ${p.size}. Het maximum is ${p.max} — verklein het of stuur het ons per e-mail.`,
+      fr: `Ce fichier fait ${p.size}. Le maximum est de ${p.max} — compressez-le ou envoyez-le-nous par e-mail.`,
+      en: `This file is ${p.size}. The maximum is ${p.max} — please compress it or send it to us by email.`,
+    })[lang],
+  wrongtype: (lang) =>
+    ({
+      nl: "Gebruik een vectorbestand (.ai, .eps, .pdf, .svg) of een PNG.",
+      fr: "Utilisez un fichier vectoriel (.ai, .eps, .pdf, .svg) ou un PNG.",
+      en: "Use a vector file (.ai, .eps, .pdf, .svg) or a PNG.",
+    })[lang],
+  unreadable: (lang) =>
+    ({
+      nl: "Dit bestand kon niet gelezen worden.",
+      fr: "Ce fichier n'a pas pu être lu.",
+      en: "Couldn't read this file.",
+    })[lang],
+  notimage: (lang) =>
+    ({
+      nl: "Dit lijkt geen geldige afbeelding.",
+      fr: "Ceci ne semble pas être une image valide.",
+      en: "This doesn't look like a valid image.",
+    })[lang],
+  toosmall: (lang, p) =>
+    ({
+      nl: `Deze afbeelding is ${p.got} px. Voor druk hebben we minstens ${p.min} px nodig — bezorg ons een grotere versie, bij voorkeur een vectorbestand.`,
+      fr: `Cette image fait ${p.got} px. Pour l'impression il nous faut au moins ${p.min} px — fournissez une version plus grande, de préférence un fichier vectoriel.`,
+      en: `This image is ${p.got} px. We need at least ${p.min} px for print — please supply a larger version, ideally a vector file.`,
+    })[lang],
+};
+
+/* Carries the code so the message can be built in the reader's language at the
+   point it is shown, rather than baked in English where it is thrown. */
+export class LogoError extends Error {
+  constructor(
+    readonly code: string,
+    readonly params: Record<string, string | number> = {},
+  ) {
+    super(code);
+    this.name = "LogoError";
+  }
+}
+
+export const logoMessage = (e: unknown, lang: Language = "nl"): string =>
+  e instanceof LogoError ? LOGO_MSG[e.code]?.(lang, e.params) || e.code : (e as Error)?.message || String(e);
+
 /* Reads a logo file, checks the requirements and returns what we store */
 export async function readLogoFile(file: File): Promise<LogoRecord> {
   if (file.size > LOGO_MAX_BYTES) {
-    throw new Error(
-      `This file is ${prettyBytes(file.size)}. The maximum is ${prettyBytes(LOGO_MAX_BYTES)} — please compress it or send it to us by email.`,
-    );
+    throw new LogoError("toobig", { size: prettyBytes(file.size), max: prettyBytes(LOGO_MAX_BYTES) });
   }
   const ext = fileExt(file.name);
   const vector = isVectorFile(file);
   if (!vector && !RASTER_TYPES.includes(file.type)) {
-    throw new Error("Use a vector file (.ai, .eps, .pdf, .svg) or a PNG.");
+    throw new LogoError("wrongtype");
   }
 
   const dataUrl = await new Promise<string>((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(String(r.result));
-    r.onerror = () => rej(new Error("Couldn't read this file."));
+    r.onerror = () => rej(new LogoError("unreadable"));
     r.readAsDataURL(file);
   });
 
@@ -71,13 +121,14 @@ export async function readLogoFile(file: File): Promise<LogoRecord> {
   const img = await new Promise<HTMLImageElement>((res, rej) => {
     const i = new Image();
     i.onload = () => res(i);
-    i.onerror = () => rej(new Error("This doesn't look like a valid image."));
+    i.onerror = () => rej(new LogoError("notimage"));
     i.src = dataUrl;
   });
   if (img.width < LOGO_MIN_PX || img.height < LOGO_MIN_PX) {
-    throw new Error(
-      `This image is ${img.width}×${img.height} px. We need at least ${LOGO_MIN_PX}×${LOGO_MIN_PX} px for print — please supply a larger version, ideally a vector file.`,
-    );
+    throw new LogoError("toosmall", {
+      got: `${img.width}×${img.height}`,
+      min: `${LOGO_MIN_PX}×${LOGO_MIN_PX}`,
+    });
   }
   if (file.type === "image/jpeg") {
     // JPEG has no transparency: keep it, but the UI warns about it
@@ -86,7 +137,12 @@ export async function readLogoFile(file: File): Promise<LogoRecord> {
   return { ...meta, dataUrl, width: img.width, height: img.height, previewable: true };
 }
 
-export const LOGO_REQUIREMENTS = `Preferably a vector file (.ai, .eps, .pdf, .svg). A PNG is fine from ${LOGO_MIN_PX}×${LOGO_MIN_PX} px. Max ${prettyBytes(LOGO_MAX_BYTES)}.`;
+export const logoRequirements = (lang: Language = "nl") =>
+  ({
+    nl: `Bij voorkeur een vectorbestand (.ai, .eps, .pdf, .svg). Een PNG mag vanaf ${LOGO_MIN_PX}×${LOGO_MIN_PX} px. Max ${prettyBytes(LOGO_MAX_BYTES)}.`,
+    fr: `De préférence un fichier vectoriel (.ai, .eps, .pdf, .svg). Un PNG convient à partir de ${LOGO_MIN_PX}×${LOGO_MIN_PX} px. Max ${prettyBytes(LOGO_MAX_BYTES)}.`,
+    en: `Preferably a vector file (.ai, .eps, .pdf, .svg). A PNG is fine from ${LOGO_MIN_PX}×${LOGO_MIN_PX} px. Max ${prettyBytes(LOGO_MAX_BYTES)}.`,
+  })[lang];
 
 export const exampleLabel = (type: ReturnExampleType | string, lang: Language = "nl") =>
   RETURN_EXAMPLES[type as ReturnExampleType]?.[lang] || RETURN_EXAMPLES[type as ReturnExampleType]?.en || type;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import EmailInput from "@/components/ui/EmailInput";
 import Field from "@/components/ui/Field";
-import { COMMS, COMM_LABELS, LANGS, emptyContact, uid, type CommKey } from "@/lib/constants";
+import { COMM_LABELS, LANGS, emptyContact, label, uid, type CommKey } from "@/lib/constants";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import type { Contact, Language } from "@/types";
 
@@ -46,7 +46,7 @@ export default function ContactForm({
       </div>
       <div className="gr-grid2">
         <Field
-          label="Email"
+          label={T("E-mail", "E-mail", "Email")}
           hint={T(
             "Hiermee logt deze persoon in",
             "Sert d'identifiant pour le portail",
@@ -70,7 +70,7 @@ export default function ContactForm({
       </Field>
       <Field label={T("Wil communicatie ontvangen over", "Souhaite recevoir", "Wants to receive")}>
         <div className="gr-checkrow">
-          {(Object.entries(COMMS) as Array<[CommKey, string]>).map(([k, label]) => {
+          {(Object.keys(COMM_LABELS) as CommKey[]).map((k) => {
             const on = !!c.prefs?.[k];
             return (
               <label key={k} className={"gr-check gr-check-sm" + (on ? " on" : "")}>
@@ -79,7 +79,7 @@ export default function ContactForm({
                   checked={on}
                   onChange={(e) => setC({ ...c, prefs: { ...(c.prefs || {}), [k]: e.target.checked } })}
                 />
-                {COMM_LABELS[k][lang] || label}
+                {label(COMM_LABELS, k, lang)}
               </label>
             );
           })}

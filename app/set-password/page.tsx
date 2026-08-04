@@ -17,6 +17,32 @@ import { supabase } from "@/lib/supabase/client";
 
 const MIN = 10;
 
+type Say = (nl: string, fr: string, en: string) => string;
+
+/* The route answers with a `code`; the sentence is written here, where the
+   reader's language is known. `error` is its English fallback. */
+const apiMessage = (body: { code?: string; error?: string; min?: number }, L: Say): string => {
+  switch (body?.code) {
+    case "invalidlink":
+      return L(
+        "Deze link werkt niet meer. Vraag een nieuwe aan op de aanmeldpagina.",
+        "Ce lien ne fonctionne plus. Demandez-en un nouveau sur la page de connexion.",
+        "This link is no longer valid. Ask for a new one from the sign-in page.",
+      );
+    case "tooshort":
+      return L(
+        `Kies een wachtwoord van minstens ${body.min ?? MIN} tekens.`,
+        `Choisissez un mot de passe d'au moins ${body.min ?? MIN} caractères.`,
+        `Choose a password of at least ${body.min ?? MIN} characters.`,
+      );
+    default:
+      return (
+        body?.error ||
+        L("Er ging iets mis.", "Une erreur s'est produite.", "Something went wrong.")
+      );
+  }
+};
+
 function SetPassword() {
   const params = useSearchParams();
   const token = params.get("token") || "";
@@ -45,7 +71,7 @@ function SetPassword() {
         body: JSON.stringify({ token, password: pw }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error || L("Er ging iets mis.", "Une erreur s'est produite.", "Something went wrong."));
+      if (!res.ok) throw new Error(apiMessage(body, L));
 
       /* Straight in, rather than bouncing them to a form to retype it. */
       const { error } = await supabase.auth.signInWithPassword({ email: body.email, password: pw });

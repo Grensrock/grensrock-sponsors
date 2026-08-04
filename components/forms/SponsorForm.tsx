@@ -90,8 +90,8 @@ export default function SponsorForm({
           </select>
         </Field>
         <Field
-          label="Responsible (our team)"
-          hint={teamMembers.length === 0 ? "No team accounts yet — add them in the Team tab" : undefined}
+          label={t("sf.responsibleteam")}
+          hint={teamMembers.length === 0 ? t("sf.noteam") : undefined}
         >
           <select value={s.responsibleId || ""} onChange={(e) => setS({ ...s, responsibleId: e.target.value })}>
             <option value="">— not assigned —</option>
@@ -133,7 +133,7 @@ export default function SponsorForm({
       )}
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button className="gr-btn" disabled={!valid} onClick={() => onSave({ ...s, vatNumber: vatToStore(s.vatNumber) })}>
           {t("sf.save")}

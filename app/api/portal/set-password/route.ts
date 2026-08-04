@@ -20,28 +20,30 @@ export const runtime = "nodejs";
 /** Long enough to matter, short enough that people don't paste it into a note. */
 const MIN_PASSWORD = 10;
 
+/* `code` is what the page renders: this responds to sponsors, who read NL, FR
+   or EN, and only the page knows which. `error` stays as an English fallback
+   for anything reading the response without a translation table. */
+const fail = (code: string, error: string, extra: Record<string, unknown> = {}) =>
+  NextResponse.json({ code, error, ...extra }, { status: 400 });
+
 /* Built per call, not shared: a Response body can only be consumed once, so a
    module-level instance would answer every request after the first with an
    empty body — which reads as a server fault rather than an expired link. */
-const dead = () =>
-  NextResponse.json(
-    { error: "This link is no longer valid. Ask for a new one from the sign-in page." },
-    { status: 400 },
-  );
+const dead = () => fail("invalidlink", "This link is no longer valid. Ask for a new one from the sign-in page.");
 
 export async function POST(request: NextRequest) {
   let body: { token?: string; password?: string };
   try {
     body = (await request.json()) as { token?: string; password?: string };
   } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return fail("badrequest", "Invalid request body.");
   }
 
   const token = String(body.token || "").trim();
   const password = String(body.password || "");
   if (!token) return dead();
   if (password.length < MIN_PASSWORD) {
-    return NextResponse.json({ error: `Choose a password of at least ${MIN_PASSWORD} characters.` }, { status: 400 });
+    return fail("tooshort", `Choose a password of at least ${MIN_PASSWORD} characters.`, { min: MIN_PASSWORD });
   }
 
   const admin = createSupabaseAdminClient();
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     password,
     email_confirm: true,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) return fail("failed", error.message);
 
   /* Burned only after the password actually changed, so a failure here leaves a
      link that still works rather than one that spent itself for nothing. */

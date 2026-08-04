@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import Tag from "@/components/ui/Tag";
-import { FOLDER_FRACTION, FOLDER_OPTS } from "@/lib/constants";
+import { FOLDER_FRACTION, FOLDER_OPTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { LOGO_MIN_PX, type LogoRecord } from "@/lib/logo";
 import { normFolder } from "@/lib/normalize";
 import { loadLogoFile } from "@/lib/supabase/storage";
 import { responsibleName } from "@/lib/users";
-import type { Deal, Edition, FolderMention, Sponsor, SponsorLogo, Tone, TranslateFn, User } from "@/types";
+import type { Deal, Edition, FolderMention, Language, Sponsor, SponsorLogo, Tone, TranslateFn, User } from "@/types";
 
 /* ---------- Folder production overview (admin) ---------- */
 
@@ -21,6 +21,7 @@ export default function FolderOverview({
   logos = [],
   notify,
   t = (k) => k,
+  lang = "nl",
 }: {
   edition?: Edition | null;
   deals: Deal[];
@@ -30,6 +31,7 @@ export default function FolderOverview({
   logos?: SponsorLogo[];
   notify: (message: string, title?: string) => void;
   t?: TranslateFn;
+  lang?: Language;
 }) {
   const [files, setFiles] = useState<Record<string, LogoRecord | null>>({}); // sponsorId -> loaded file | null
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,7 @@ export default function FolderOverview({
         tone: rec.width >= LOGO_MIN_PX && (rec.height ?? 0) >= LOGO_MIN_PX ? "green" : "amber",
         text: `${rec.width}×${rec.height}`,
       };
-    return { tone: "grey", text: "uploaded" };
+    return { tone: "grey", text: t("fo.uploaded") };
   };
 
   const exportXlsx = () => {
@@ -108,24 +110,28 @@ export default function FolderOverview({
       const rec = r.sponsor ? files[r.sponsor.id] : null;
       return {
         Sponsor: r.company,
-        VAT: r.sponsor?.vatNumber || "",
-        "Folder format": FOLDER_OPTS[r.size],
-        "Page share": r.fraction,
-        Logo: rec ? (rec.vector ? `vector .${rec.ext}` : `${rec.width || "?"}x${rec.height || "?"}`) : "MISSING",
-        "Logo file": rec?.name || "",
-        Contact: contactName(primaryContact(r.sponsor)) || "",
-        Email: primaryContact(r.sponsor)?.email || "",
-        Responsible: responsibleName(r.sponsor, users),
-        Contribution: Number(r.deal.cost) || 0,
-        Notes: r.deal.notes || "",
+        [t("c.vat")]: r.sponsor?.vatNumber || "",
+        [t("fo.folderformat")]: label(FOLDER_OPTS, r.size, lang),
+        [t("fo.pageshare")]: r.fraction,
+        Logo: rec
+          ? rec.vector
+            ? `vector .${rec.ext}`
+            : `${rec.width || "?"}x${rec.height || "?"}`
+          : t("fo.missing"),
+        [t("fo.logofile")]: rec?.name || "",
+        [t("sp.contact")]: contactName(primaryContact(r.sponsor)) || "",
+        [t("c.email")]: primaryContact(r.sponsor)?.email || "",
+        [t("sp.responsible")]: responsibleName(r.sponsor, users),
+        [t("c.contribution")]: Number(r.deal.cost) || 0,
+        [t("c.notes")]: r.deal.notes || "",
       };
     });
     data.push({});
     data.push({
-      Sponsor: "TOTAL",
-      "Folder format": `${rows.length} mentions`,
-      "Page share": totalFraction,
-      Logo: `${pages} page(s) needed`,
+      Sponsor: t("fo.total"),
+      [t("fo.folderformat")]: t("fo.mentions", { n: rows.length }),
+      [t("fo.pageshare")]: totalFraction,
+      Logo: t("fo.pagesneededn", { n: pages }),
     });
     const ws = XLSX.utils.json_to_sheet(data);
     ws["!cols"] = [
@@ -159,7 +165,7 @@ export default function FolderOverview({
   const downloadLogos = async () => {
     const withLogo = rows.filter((r) => r.sponsor && files[r.sponsor.id]);
     if (withLogo.length === 0) {
-      notify("No logos to download yet.", "Nothing to export");
+      notify(t("fo.nologosdl"), t("fo.nothingexport"));
       return;
     }
     setBusy("logos");
@@ -176,10 +182,7 @@ export default function FolderOverview({
       await new Promise((res) => setTimeout(res, 350)); // let the browser keep up
     }
     setBusy("");
-    notify(
-      `${withLogo.length} logo file(s) downloaded. Your browser may ask permission for multiple downloads.`,
-      "Logos exported",
-    );
+    notify(t("fo.downloaded", { n: withLogo.length }), t("fo.exported"));
   };
 
 
@@ -189,7 +192,7 @@ export default function FolderOverview({
   const exportToDrive = async () => {
     const withLogo = rows.filter((r) => r.sponsor && files[r.sponsor.id]);
     if (withLogo.length === 0) {
-      notify("No logos to export yet.", "Nothing to export");
+      notify(t("fo.nologosexp"), t("fo.nothingexport"));
       return;
     }
     setBusy("drive");
@@ -221,12 +224,15 @@ export default function FolderOverview({
 
     setBusy("");
     setProgress(null);
-    const summary = [created && `${created} new`, updated && `${updated} replaced`].filter(Boolean).join(", ");
+    const summary =
+      [created && t("fo.drivenew", { n: created }), updated && t("fo.drivereplaced", { n: updated })]
+        .filter(Boolean)
+        .join(", ") || t("fo.nothing");
     notify(
       failed.length === 0
-        ? `${summary || "Nothing"} in the Drive folder.`
-        : `${summary || "Nothing"} in the Drive folder.\n\nCouldn't export ${failed.length}:\n${failed.join("\n")}`,
-      failed.length === 0 ? "Exported to Drive" : "Exported with problems",
+        ? t("fo.drivesummary", { summary })
+        : t("fo.drivefailed", { summary, n: failed.length, list: failed.join("\n") }),
+      failed.length === 0 ? t("fo.drivedone") : t("fo.driveproblems"),
     );
   };
 
@@ -255,7 +261,7 @@ export default function FolderOverview({
 
       {counts.length > 0 && (
         <p className="gr-muted">
-          {counts.map(([k, n]) => `${n} × ${FOLDER_OPTS[k]}`).join(" · ")}
+          {counts.map(([k, n]) => `${n} × ${label(FOLDER_OPTS, k, lang)}`).join(" · ")}
           {totalFraction % 1 !== 0 && <> — {(pages - totalFraction).toFixed(3).replace(/\.?0+$/, "")} page still free</>}
         </p>
       )}
@@ -303,7 +309,7 @@ export default function FolderOverview({
                     <td>
                       <strong>{r.company}</strong>
                     </td>
-                    <td>{FOLDER_OPTS[r.size]}</td>
+                    <td>{label(FOLDER_OPTS, r.size, lang)}</td>
                     <td className="gr-r">{r.fraction}</td>
                     <td>{loading ? <span className="gr-muted">…</span> : <Tag tone={q.tone}>{q.text}</Tag>}</td>
                     <td className="gr-muted">{rec?.name || "—"}</td>

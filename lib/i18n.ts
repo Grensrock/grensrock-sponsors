@@ -405,6 +405,14 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Admin features are hidden. You are still signed in as an admin, so anything you change here really changes.",
   ],
   "vu.stop": ["Terug als beheerder", "Back as admin"],
+  "c.noname": ["geen naam", "no name"],
+  // preview a sponsor's portal
+  "pv.portal": ["Portaal bekijken", "View portal"],
+  "pv.portalshort": ["Portaal", "Portal"],
+  "pv.portalhint": [
+    "Toon het sponsorportaal zoals deze contactpersoon het ziet, in hun taal",
+    "Show the sponsor portal as this contact sees it, in their language",
+  ],
 
   /* ---------- dialogs: confirmations, warnings and notifications ----------
      Values may carry {placeholders}; see teamT below. */

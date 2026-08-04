@@ -46,6 +46,7 @@ export default function SponsorDetail({
   onEditContact,
   onShowAcceptance,
   onActivateContact,
+  onPreviewPortal,
   logos = [],
   onLogosChange,
   onEmail,
@@ -67,6 +68,8 @@ export default function SponsorDetail({
   onEditContact: (c: Contact | null) => void;
   onShowAcceptance: (d: Deal) => void;
   onActivateContact: (c: Contact) => void;
+  /** Open this sponsor's portal as one of their contacts sees it, read-only. */
+  onPreviewPortal?: (contact?: Contact | null) => void;
   onEmail: (d: Deal) => void;
   logos?: SponsorLogo[];
   onLogosChange?: (logos: SponsorLogo[]) => void;
@@ -172,6 +175,11 @@ export default function SponsorDetail({
             <span className="gr-muted">
               {contacts.length} {t("sd.contactcount")}
             </span>
+            {onPreviewPortal && (
+              <button className="gr-btn-ghost" onClick={() => onPreviewPortal(null)}>
+                {t("pv.portal")}
+              </button>
+            )}
             <button className="gr-btn" onClick={() => onEditContact(null)}>
               {t("sd.addcontact")}
             </button>
@@ -196,20 +204,20 @@ export default function SponsorDetail({
                   {contacts.map((c, i) => (
                     <tr key={c.id || i} title={t("tt.editcontact")} onClick={() => onEditContact(c)}>
                       <td>
-                        <strong>{contactName(c) || <span className="gr-muted">no name</span>}</strong>
+                        <strong>{contactName(c) || <span className="gr-muted">{t("c.noname")}</span>}</strong>
                       </td>
                       <td>{c.email || <span className="gr-muted">—</span>}</td>
                       <td>{c.phone || <span className="gr-muted">—</span>}</td>
                       <td>{(c.language || "nl").toUpperCase()}</td>
                       <td onClick={(e) => e.stopPropagation()}>
                         {c.portalAccess ? (
-                          <Tag tone="green">active</Tag>
+                          <Tag tone="green">{t("c.active")}</Tag>
                         ) : c.email ? (
                           <button className="gr-mini" onClick={() => onActivateContact(c)}>
                             {t("c.activate")}
                           </button>
                         ) : (
-                          <span className="gr-muted">no email</span>
+                          <span className="gr-muted">{t("c.noemail")}</span>
                         )}
                       </td>
                       <td>
@@ -222,6 +230,15 @@ export default function SponsorDetail({
                         </div>
                       </td>
                       <td className="gr-rowbtns" onClick={(e) => e.stopPropagation()}>
+                        {onPreviewPortal && (
+                          <button
+                            className="gr-mini"
+                            title={t("pv.portalhint")}
+                            onClick={() => onPreviewPortal(c)}
+                          >
+                            {t("pv.portalshort")}
+                          </button>
+                        )}
                         {c.email && (
                           <CopyInviteButton
                             sponsor={sponsor}

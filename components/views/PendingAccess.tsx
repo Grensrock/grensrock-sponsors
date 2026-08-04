@@ -32,7 +32,7 @@ export default function PendingAccess({ me, onExit }: { me: User; onExit: () => 
           </button>
         ))}
       </div>
-      <PickLogo size={150} />
+      <PickLogo size={84} />
       <span className="gr-brandsub" style={{ marginTop: 10 }}>
         {L("Sponsorbeheer", "Sponsor management")}
       </span>

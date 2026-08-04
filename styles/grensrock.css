@@ -17,6 +17,8 @@
 .gr-brand { display:flex; align-items:center; gap:14px; }
 .gr-brandsub { display:block; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:#B9B4C0; }
 .gr-nav { display:flex; gap:4px; flex-wrap:wrap; align-self:flex-end; }
+/* Shown only below the nav breakpoint — see the mobile block at the end. */
+.gr-navtoggle { display:none; }
 .gr-nav button { background:none; border:none; color:#CFCAD6; font:600 14px 'IBM Plex Sans',sans-serif;
   padding:9px 14px; cursor:pointer; border-radius:6px 6px 0 0; }
 .gr-nav button:hover { color:#fff; }
@@ -24,6 +26,11 @@
 .gr-nav button:focus-visible, .gr-root button:focus-visible, .gr-root a:focus-visible,
 .gr-root input:focus-visible, .gr-root select:focus-visible, .gr-root textarea:focus-visible
   { outline:2px solid var(--blue-deep); outline-offset:1px; }
+
+/* The wordmark draws in currentColor. Both places it appears are black, and
+   .gr-root's inherited colour is --ink, so it has to be told white here or it
+   would be a black logo on a black background. */
+.gr-header .gr-logo, .gr-landing .gr-logo { color:#fff; }
 
 .gr-borderline { height:4px; background:var(--rainbow); }
 
@@ -210,7 +217,11 @@
   border-radius:6px; padding:3px 6px; font:600 12px 'IBM Plex Sans',sans-serif; cursor:pointer; margin-right:4px; }
 .gr-langswitch option { color:var(--ink); }
 
-.gr-landlang { position:absolute; top:18px; right:18px; display:flex; gap:2px; z-index:2; }
+/* `.gr-landing > *` below sets position:relative on every child at the same
+   specificity and later in the file, which quietly won — so this never left the
+   flow and sat above the logo instead of in the corner, overlapping it once the
+   logo got its share of a phone screen. Scoped one level deeper to settle it. */
+.gr-landing > .gr-landlang { position:absolute; top:18px; right:18px; display:flex; gap:2px; z-index:2; }
 .gr-landlang button { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.25); color:#fff;
   padding:4px 9px; font:600 12px 'IBM Plex Sans',sans-serif; cursor:pointer; border-radius:6px; }
 .gr-landlang button.on { background:var(--pink); border-color:var(--pink); }
@@ -370,3 +381,122 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
 .gr-root .gr-logometa strong { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .gr-root .gr-logometa .gr-muted { font-size:11px; }
 .gr-root .gr-logometa .gr-check { font-size:12px; margin:0; }
+
+
+/* ============================================================
+   Touch and small screens
+   ============================================================
+   Two breakpoints, for two different problems.
+
+   900px is where the header nav stops fitting. Nine destinations plus the
+   language, account and sign-out controls need about 1500px on one line, so
+   below that it wrapped into five rows and filled most of a phone screen
+   before any content began. Everything in this first block is about reaching
+   things with a thumb, and applies to tablets as much as phones.
+
+   640px is the existing layout breakpoint: one column instead of two, and the
+   points where a row of controls is better stacked. Kept separate so a tablet
+   does not get a phone's full-bleed modals and full-width buttons.
+   ============================================================ */
+
+@media (max-width:900px) {
+  /* Two sticky bars would cost 13% of a 375x812 screen permanently, and they
+     both pin to top:0 so the later one simply covers the other. The preview bar
+     wins because it is a control — the way back out — where this one is a
+     marker you read on arrival. It still leads the page; it just scrolls. */
+  .gr-envbanner { position:static; }
+
+  /* ---------- the menu ---------- */
+  .gr-header { padding:12px 16px; gap:8px; }
+  .gr-brand { flex:1; min-width:0; gap:10px; }
+  .gr-navtoggle { display:inline-flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.25); color:#fff;
+    border-radius:8px; padding:10px 14px; font:600 14px 'IBM Plex Sans',sans-serif;
+    cursor:pointer; min-height:44px; }
+  .gr-navtoggle[aria-expanded="true"] { background:var(--paper); border-color:var(--paper); color:var(--ink); }
+  .gr-navtoggle-label { max-width:9em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* A disclosure, not an overlay: it takes a full row of the wrapping header
+     and pushes the page down, so there is no positioning to get wrong, nothing
+     to trap focus in, and no way to leave the page unreachable underneath. */
+  .gr-nav { display:none; }
+  .gr-nav.open { display:flex; width:100%; flex-direction:column; align-items:stretch;
+    gap:2px; margin-top:6px; padding-top:8px; border-top:1px solid #2A2731; }
+  .gr-nav.open button { text-align:left; border-radius:8px; padding:13px 14px; font-size:15px; min-height:44px; }
+  .gr-nav.open button.on { background:var(--paper); color:var(--ink); }
+  .gr-nav.open .gr-langswitch { align-self:flex-start; margin:8px 0 0; padding:8px 10px; min-height:44px; }
+  .gr-nav.open .gr-whoami { border-left:none; border-top:1px solid #2A2731;
+    margin:6px 0 0; padding:12px 2px 4px; }
+
+  /* ---------- touch targets ----------
+     The mini buttons are the row actions, and 24px tall is a miss on a thumb. */
+  .gr-root .gr-mini { padding:9px 12px; font-size:13px; min-height:38px; }
+  .gr-rowbtns { display:flex; flex-wrap:wrap; gap:6px; }
+  .gr-rowbtns .gr-mini { margin-left:0; }
+  .gr-subnav button { padding:11px 12px; min-height:44px; }
+  .gr-x { min-width:44px; min-height:44px; font-size:18px; }
+
+  /* ---------- forms ----------
+     16px is the threshold below which iOS Safari zooms the page in when a field
+     takes focus, and it does not zoom back out — leaving the layout scrolled
+     sideways for every field after the first. */
+  .gr-field input, .gr-field select, .gr-field textarea,
+  .gr-search, .gr-landcard input, .gr-inline-input { font-size:16px; }
+  .gr-field input, .gr-field select, .gr-field textarea { padding:11px 12px; }
+
+  /* ---------- tables ----------
+     They stay tables and scroll sideways. Turning ten columns into stacked
+     cards needs a per-table decision about what still matters at 375px, which
+     is a bigger change than this one. What is fixed is losing your place while
+     scrolling: the column naming the row holds still, so the row you are
+     reading keeps its name. That column is the first one — unless the table has
+     a selection box, where it is the second, because pinning the checkbox would
+     spend 40px of a 375px screen on nothing. */
+  .gr-tablewrap { -webkit-overflow-scrolling:touch; }
+  .gr-table th, .gr-table td { padding:9px 10px; }
+  .gr-table:not(:has(tbody td:first-child > input[type="checkbox"])) :is(th,td):first-child,
+  .gr-table:has(tbody td:first-child > input[type="checkbox"]) :is(th,td):nth-child(2) {
+    position:sticky; left:0; z-index:1; background:#fff; box-shadow:1px 0 0 var(--line); }
+  .gr-clickable tbody tr:hover :is(td:first-child, td:nth-child(2)) { background:#FBF3F7; }
+  .gr-cancelled :is(td:first-child, td:nth-child(2)) { background:#FBFAF8; }
+  /* nowrap was there to keep desktop rows tidy; on a phone it forces the scroll. */
+  .gr-benefitlist li { white-space:normal; }
+}
+
+@media (max-width:640px) {
+  .gr-main { padding:18px 14px 60px; }
+  .gr-warn, .gr-setupbar, .gr-root .gr-previewbar { padding-left:14px; padding-right:14px; }
+  .gr-h2 { font-size:21px; }
+  .gr-statrow { gap:10px; }
+  .gr-stat { flex:1 1 calc(50% - 5px); min-width:0; padding:10px 12px 8px; }
+  .gr-stat span { font-size:19px; }
+  .gr-toolbar { gap:8px; }
+  .gr-toolbar .gr-btn, .gr-toolbar .gr-btn-ghost { flex:1 1 auto; }
+
+  /* Stacked and full width: on a phone these are the screen's main action, and
+     a right-aligned row of three wraps into a ragged staircase. Source order is
+     kept, which puts them in the right places by itself — the destructive one
+     first, furthest from the thumb, and the primary one last, where the thumb
+     already rests. */
+  .gr-actions { flex-direction:column; align-items:stretch; }
+  .gr-actions .gr-btn, .gr-actions .gr-btn-ghost { width:100%; text-align:center; }
+
+  /* Full-bleed: a centred card with 16px of overlay either side wastes the only
+     dimension a phone is short of. */
+  .gr-overlay { padding:0; align-items:stretch; }
+  .gr-modal { max-width:none; border-radius:0; min-height:100%; }
+  .gr-modal-head { padding:14px 16px 0; position:sticky; top:0; background:var(--paper); z-index:1; }
+  .gr-modal-body { padding:12px 16px 24px; }
+
+  .gr-landing { padding:64px 16px 40px; }
+  .gr-landcards { gap:14px; margin-top:26px; width:100%; }
+  .gr-landcard { width:100%; max-width:340px; }
+
+  .gr-formulacards { gap:10px; }
+  .gr-formulacard { flex:1 1 100%; }
+  .gr-acceptbanner .gr-btn { width:100%; }
+  .gr-dl { grid-template-columns:1fr; gap:2px 0; }
+  .gr-dl dd { margin-bottom:8px; }
+  .gr-examplegrid { grid-template-columns:1fr 1fr; gap:10px; }
+  .gr-voucherrow input, .gr-splitrow input { flex:1 1 80px; width:auto; }
+}

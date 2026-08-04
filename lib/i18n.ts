@@ -64,6 +64,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "nav.invoicing": ["Facturatie", "Invoicing"],
   "nav.audit": ["Audit log", "Audit log"],
   "nav.team": ["Team", "Team"],
+  "nav.menu": ["Menu", "Menu"],
   "common.logout": ["Afmelden", "Log out"],
   "common.cancel": ["Annuleren", "Cancel"],
   "common.save": ["Opslaan", "Save"],

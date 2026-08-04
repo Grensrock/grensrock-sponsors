@@ -225,7 +225,7 @@ export default function SponsorPortal({
     <div className="gr-root">
       <header className="gr-header">
         <div className="gr-brand">
-          <PickLogo size={54} />
+          <PickLogo size={34} />
           <span className="gr-brandsub">{T("Sponsorportaal", "Portail sponsors", "Sponsor portal")}</span>
         </div>
         <button className="gr-btn-ghost gr-exit" onClick={onExit}>

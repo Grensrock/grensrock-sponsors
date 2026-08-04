@@ -393,6 +393,18 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dup.checkfirst": ["Controleer of dit niet dezelfde sponsor is voordat u opslaat.", "Check this isn't the same sponsor before saving."],
   "hd.saveerr": ["Kon de laatste wijziging niet opslaan — controleer uw verbinding en probeer opnieuw.",
                  "Couldn't save the last change — check your connection and try again."],
+  // view as user
+  "vu.start": ["Bekijken als gebruiker", "View as user"],
+  "vu.starthint": [
+    "Toon de app zoals een teamlid met de rol Gebruiker ze ziet",
+    "Show the app as a team member with the User role sees it",
+  ],
+  "vu.banner": ["U bekijkt de app als gebruiker.", "You are viewing the app as a user."],
+  "vu.note": [
+    "Beheerfuncties zijn verborgen. U blijft aangemeld als beheerder, dus wat u hier wijzigt, wijzigt u echt.",
+    "Admin features are hidden. You are still signed in as an admin, so anything you change here really changes.",
+  ],
+  "vu.stop": ["Terug als beheerder", "Back as admin"],
 
   /* ---------- dialogs: confirmations, warnings and notifications ----------
      Values may carry {placeholders}; see teamT below. */

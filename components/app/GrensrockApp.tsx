@@ -174,6 +174,17 @@ export default function GrensrockApp() {
   const [agSettle, setAgSettle] = useState("");
   const [adminSub, setAdminSub] = useState("editions");
   const [dialog, setDialog] = useState<DialogSpec | null>(null);
+  /* ----- "view as user" -----
+     An admin checking what a colleague on the user role sees. Everything
+     admin-only already hangs off `admin` (below), so hiding it is a matter of
+     answering false — there is no second list of features to keep in step.
+
+     A preview of the interface, not of the permissions: the session is still
+     an admin's, so is_admin() in the policies stays true and anything written
+     from here is written as an admin. It shows what a user can reach, not what
+     they would be allowed to do. Kept in memory, like langOverride, so a
+     reload or a new session always lands back on the admin's own view. */
+  const [previewUser, setPreviewUser] = useState(false);
   const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "companyName", dir: 1 });
   const [fEdition, setFEdition] = useState(""); // "" = all editions
   const [fResponsible, setFResponsible] = useState(""); // "" = everyone, "me", "none", or a user id
@@ -301,6 +312,7 @@ export default function GrensrockApp() {
     await supabase.auth.signOut();
     setUserId(null);
     setData(EMPTY_DATA);
+    setPreviewUser(false); // whoever signs in next starts on their own view
     setMode({ view: "landing" });
   };
 
@@ -309,7 +321,8 @@ export default function GrensrockApp() {
   const users = data.users || [];
   const vouchers = data.vouchers || [];
   const me = users.find((u) => u.id === userId) || null;
-  const admin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
+  const realAdmin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
+  const admin = realAdmin && !previewUser;
   // A non-admin should never sit on an admin-only tab (e.g. after losing admin, or stale state)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- unchanged Stage-1 guard
@@ -1533,12 +1546,28 @@ export default function GrensrockApp() {
               "setup"
             )}
           </span>
+          {realAdmin && !previewUser && (
+            <button onClick={() => setPreviewUser(true)} title={t("vu.starthint")}>
+              {t("vu.start")}
+            </button>
+          )}
           <button onClick={signOut} title={t("common.logout")}>
             {t("common.logout")}
           </button>
         </nav>
       </header>
       <div className="gr-borderline" aria-hidden="true" />
+      {/* Sticky, and the only way back: an admin who forgets they are in here
+          would read the missing Admin tab as the app having broken. */}
+      {previewUser && (
+        <div className="gr-previewbar" role="status">
+          <strong>{t("vu.banner")}</strong>
+          <span className="gr-previewbar-note">{t("vu.note")}</span>
+          <button className="gr-mini" onClick={() => setPreviewUser(false)}>
+            {t("vu.stop")}
+          </button>
+        </div>
+      )}
       {saveErr && <div className="gr-warn">{t("hd.saveerr")}</div>}
       <main className="gr-main">
         {/* Admin panel sub-navigation */}

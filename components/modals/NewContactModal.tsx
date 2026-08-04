@@ -4,10 +4,10 @@ import { useState } from "react";
 import EmailInput from "@/components/ui/EmailInput";
 import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
-import { COMMS, LANGS, emptyContact, uid, type CommKey } from "@/lib/constants";
+import { COMM_LABELS, LANGS, emptyContact, label, uid, type CommKey } from "@/lib/constants";
 import { contactName, sponsorContacts } from "@/lib/contacts";
 import { emailToStore, sameEmail, validateEmail } from "@/lib/email-validate";
-import type { Contact, Sponsor, TranslateFn } from "@/types";
+import type { Contact, Language, Sponsor, TranslateFn } from "@/types";
 
 /* ---------- Add a contact from the overview (needs a sponsor picker) ---------- */
 
@@ -16,11 +16,13 @@ export default function NewContactModal({
   onSave,
   onClose,
   t = (k) => k,
+  lang = "nl",
 }: {
   sponsors: Sponsor[];
   onSave: (sponsorId: string, contact: Contact) => void;
   onClose: () => void;
   t?: TranslateFn;
+  lang?: Language;
 }) {
   const [sponsorId, setSponsorId] = useState("");
   const [q, setQ] = useState("");
@@ -120,7 +122,7 @@ export default function NewContactModal({
             </Field>
             <Field label={t("c.receives")}>
               <div className="gr-checkrow" style={{ paddingTop: 6 }}>
-                {(Object.entries(COMMS) as Array<[CommKey, string]>).map(([k, label]) => {
+                {(Object.keys(COMM_LABELS) as CommKey[]).map((k) => {
                   const on = !!contact.prefs && !!contact.prefs[k];
                   return (
                     <label key={k} className={"gr-check gr-check-sm" + (on ? " on" : "")}>
@@ -131,7 +133,7 @@ export default function NewContactModal({
                           setContact({ ...contact, prefs: { ...(contact.prefs || {}), [k]: e.target.checked } })
                         }
                       />
-                      {label}
+                      {label(COMM_LABELS, k, lang)}
                     </label>
                   );
                 })}

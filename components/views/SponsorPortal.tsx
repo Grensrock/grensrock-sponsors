@@ -12,7 +12,16 @@ import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
 import VatInput from "@/components/ui/VatInput";
 import { fmtDateTime, isAccepted } from "@/lib/acceptance";
-import { COMMS, COMM_LABELS, DRINK_TICKET_VALUE, VOUCHER_STATUS, VOUCHER_TYPES, uid, type CommKey } from "@/lib/constants";
+import {
+  COMM_LABELS,
+  DRINK_TICKET_VALUE,
+  VOUCHER_STATUS,
+  VOUCHER_TYPES,
+  label,
+  uid,
+  voucherLabel,
+  type CommKey,
+} from "@/lib/constants";
 import { contactName, primaryContact, sponsorContacts } from "@/lib/contacts";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
@@ -264,7 +273,7 @@ export default function SponsorPortal({
             <button key={k} className={sub === k ? "on" : ""} onClick={() => setSub(k)}>
               {l}
               {k === "sponsoring" && toAccept.length > 0 && (
-                <span className="gr-tabdot" title="Action required">
+                <span className="gr-tabdot" title={T("Actie vereist", "Action requise", "Action required")}>
                   ●
                 </span>
               )}
@@ -371,7 +380,7 @@ export default function SponsorPortal({
             sponsorId={sponsor.id}
             logos={logos}
             onChange={(next) => onLogosChange?.(next)}
-            T={T}
+            lang={lang}
           />
         )}
 
@@ -436,10 +445,10 @@ export default function SponsorPortal({
                         </td>
                         <td>
                           <div className="gr-commtags">
-                            {(Object.keys(COMMS) as CommKey[])
+                            {(Object.keys(COMM_LABELS) as CommKey[])
                               .filter((k) => c.prefs?.[k])
                               .map((k) => (
-                                <Tag key={k}>{COMM_LABELS[k][lang] || COMMS[k]}</Tag>
+                                <Tag key={k}>{label(COMM_LABELS, k, lang)}</Tag>
                               ))}
                           </div>
                         </td>
@@ -460,6 +469,7 @@ export default function SponsorPortal({
                 : T("Nieuwe contactpersoon", "Nouveau contact", "New contact person")
             }
             onClose={() => setEditingContact(null)}
+            lang={lang}
           >
             <ContactForm
               initial={editingContact.id ? (editingContact as Contact) : undefined}
@@ -862,6 +872,7 @@ export default function SponsorPortal({
           <Modal
             title={T("Formule bevestigen", "Confirmer la formule", "Confirm formula")}
             onClose={() => setChosen(null)}
+            lang={lang}
           >
             <p>
               {T("U kiest de formule", "Vous choisissez la formule", "You are choosing the formula")}{" "}
@@ -930,10 +941,10 @@ export default function SponsorPortal({
                       return (
                         <tr key={v.id} className={v.status === "cancelled" ? "gr-cancelled" : undefined}>
                           <td>{ed ? ed.name : "—"}</td>
-                          <td>{VOUCHER_TYPES[v.type]?.label || v.type}</td>
+                          <td>{voucherLabel(VOUCHER_TYPES[v.type], lang, v.type)}</td>
                           <td className="gr-r">{v.value > 0 ? eur(v.value) : "—"}</td>
                           <td>
-                            <Tag tone={st.tone}>{st.label}</Tag>
+                            <Tag tone={st.tone}>{voucherLabel(st, lang, v.status)}</Tag>
                           </td>
                           <td>
                             {v.recipientName || v.recipientEmail ? (
@@ -974,9 +985,10 @@ export default function SponsorPortal({
           <Modal
             title={T("Ticket doorgeven", "Transmettre le ticket", "Pass on ticket")}
             onClose={() => setAssigning(null)}
+            lang={lang}
           >
             <p className="gr-muted">
-              {VOUCHER_TYPES[assigning.type]?.label}
+              {voucherLabel(VOUCHER_TYPES[assigning.type], lang, assigning.type)}
               {assigning.value > 0 ? ` · ${eur(assigning.value)}` : ""}
             </p>
             <Field label={T("Naam", "Nom", "Name")}>
@@ -985,7 +997,7 @@ export default function SponsorPortal({
                 onChange={(e) => setAssignDraft({ ...assignDraft, name: e.target.value })}
               />
             </Field>
-            <Field label="Email">
+            <Field label={T("E-mail", "E-mail", "Email")}>
               <EmailInput
                 value={assignDraft.email}
                 lang={lang}

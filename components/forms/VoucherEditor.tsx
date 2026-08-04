@@ -82,7 +82,7 @@ export default function VoucherEditor({
             </button>
           ))}
           <button className="gr-mini" onClick={() => addRow("")}>
-            + Other
+            + {L("Ander", "Autre", "Other")}
           </button>
         </div>
       </div>
@@ -133,7 +133,7 @@ export default function VoucherEditor({
               type="number"
               min="0"
               value={r.qty}
-              placeholder="qty"
+              placeholder={L("aantal", "nbre", "qty")}
               onChange={(e) => upd(i, "qty", e.target.value)}
             />
             <span className="gr-voucherline">{eur((Number(r.value) || 0) * (Number(r.qty) || 0))}</span>

@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import { buildInvitation } from "@/lib/email-templates";
-import type { Contact, Sponsor } from "@/types";
+import type { Contact, Sponsor, TranslateFn } from "@/types";
 
 export default function CopyInviteButton({
   sponsor,
   contact,
   responsible,
+  t = (k) => k,
 }: {
   sponsor: Sponsor;
   contact?: Contact | null;
   responsible?: string;
+  t?: TranslateFn;
 }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -25,7 +27,7 @@ export default function CopyInviteButton({
   };
   return (
     <button className="gr-btn-ghost" onClick={copy}>
-      {copied ? "Copied ✓" : "Invite (" + (contact?.language || "nl").toUpperCase() + ")"}
+      {copied ? t("cp.copied") : t("cp.invite", { lang: (contact?.language || "nl").toUpperCase() })}
     </button>
   );
 }

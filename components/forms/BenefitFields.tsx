@@ -2,12 +2,11 @@
 
 import VoucherEditor from "@/components/forms/VoucherEditor";
 import Field from "@/components/ui/Field";
-import { DRINK_TICKET_VALUE, FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS } from "@/lib/constants";
-import { optLabel } from "@/lib/i18n";
+import { DRINK_TICKET_VALUE, FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS, label } from "@/lib/constants";
 import { eur } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import { drinkPoolValue } from "@/lib/vouchers";
-import type { FormulaFields, LedZone, TranslateFn } from "@/types";
+import type { FormulaFields, Language, LedZone, TranslateFn } from "@/types";
 
 export type BenefitSetter = (k: string, val: unknown) => void;
 
@@ -18,11 +17,14 @@ export default function BenefitFields({
   set,
   showVouchers,
   t = (k) => k,
+  lang = "nl",
 }: {
   v: FormulaFields;
   set: BenefitSetter;
   showVouchers?: boolean;
   t?: TranslateFn;
+  /** For the option labels, which are shared with the sponsor portal. */
+  lang?: Language;
 }) {
   const num = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     set(k, e.target.value === "" ? "" : Math.max(0, Number(e.target.value)));
@@ -80,7 +82,7 @@ export default function BenefitFields({
           <select value={normFolder(v.folderMention)} onChange={(e) => set("folderMention", e.target.value)}>
             {Object.keys(FOLDER_OPTS).map((k) => (
               <option key={k} value={k}>
-                {optLabel(t, k)}
+                {label(FOLDER_OPTS, k, lang)}
               </option>
             ))}
           </select>
@@ -89,7 +91,7 @@ export default function BenefitFields({
           <select value={v.posterMention || "none"} onChange={(e) => set("posterMention", e.target.value)}>
             {Object.keys(POSTER_OPTS).map((k) => (
               <option key={k} value={k}>
-                {optLabel(t, k)}
+                {label(POSTER_OPTS, k, lang)}
               </option>
             ))}
           </select>
@@ -98,7 +100,7 @@ export default function BenefitFields({
           <select value={v.websiteMention} onChange={(e) => set("websiteMention", e.target.value)}>
             {Object.keys(WEBSITE_OPTS).map((k) => (
               <option key={k} value={k}>
-                {optLabel(t, k)}
+                {label(WEBSITE_OPTS, k, lang)}
               </option>
             ))}
           </select>
@@ -114,7 +116,7 @@ export default function BenefitFields({
       </div>
       <Field label={t("bf.led")}>
         <div className="gr-checkrow">
-          {(Object.entries(LED_ZONES) as Array<[LedZone, string]>).map(([k, l]) => {
+          {(Object.keys(LED_ZONES) as LedZone[]).map((k) => {
             const zones = normLed(v.ledboarding);
             const on = zones.includes(k);
             return (
@@ -124,7 +126,7 @@ export default function BenefitFields({
                   checked={on}
                   onChange={(e) => set("ledboarding", e.target.checked ? [...zones, k] : zones.filter((z) => z !== k))}
                 />
-                {l}
+                {label(LED_ZONES, k, lang)}
               </label>
             );
           })}

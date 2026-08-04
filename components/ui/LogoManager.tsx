@@ -4,9 +4,9 @@
 import { useEffect, useState } from "react";
 import Tag from "@/components/ui/Tag";
 import * as logosApi from "@/lib/api/logos";
-import { LOGO_ACCEPT, LOGO_REQUIREMENTS, prettyBytes, readLogoFile, type LogoRecord } from "@/lib/logo";
+import { LOGO_ACCEPT, logoMessage, logoRequirements, prettyBytes, readLogoFile, type LogoRecord } from "@/lib/logo";
 import { loadLogoFile, newLogoPath, removeLogoFile, uploadLogoFile } from "@/lib/supabase/storage";
-import type { SponsorLogo } from "@/types";
+import type { Language, SponsorLogo } from "@/types";
 
 /* ============================================================
    A sponsor's logos, and what each is for
@@ -23,23 +23,21 @@ import type { SponsorLogo } from "@/types";
    a permanently broken logo.
    ============================================================ */
 
-type Text = (nl: string, fr: string, en: string) => string;
-
 export default function LogoManager({
   sponsorId,
   logos,
   onChange,
-  T,
+  lang = "nl",
   readOnly,
 }: {
   sponsorId: string;
   logos: SponsorLogo[];
   /** Called after any change so the owner can refresh its copy. */
   onChange: (logos: SponsorLogo[]) => void;
-  T?: Text;
+  lang?: Language;
   readOnly?: boolean;
 }) {
-  const L: Text = T || ((nl, fr, en) => en);
+  const L = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang] || en;
   const [files, setFiles] = useState<Record<string, LogoRecord | null>>({});
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -73,7 +71,7 @@ export default function LogoManager({
       const created = await logosApi.createLogo(sponsorId, path, file.name);
       onChange([...logos, created]);
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(logoMessage(e, lang));
     }
     setBusy("");
   };
@@ -85,7 +83,7 @@ export default function LogoManager({
     try {
       await logosApi.updateLogoUse(logo.id, { [key]: value });
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(logoMessage(e, lang));
       onChange(logos.map((l) => (l.id === logo.id ? { ...l, [key]: !value } : l)));
     }
   };
@@ -101,7 +99,7 @@ export default function LogoManager({
       });
       onChange(logos.filter((l) => l.id !== logo.id));
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(logoMessage(e, lang));
     }
     setBusy("");
   };
@@ -116,7 +114,7 @@ export default function LogoManager({
         )}
       </p>
       <p className="gr-muted" style={{ fontSize: 12 }}>
-        {LOGO_REQUIREMENTS}
+        {logoRequirements(lang)}
       </p>
 
       {!readOnly && (

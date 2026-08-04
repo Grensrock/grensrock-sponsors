@@ -3,6 +3,12 @@
 import { mailMessage, validateEmail } from "@/lib/email-validate";
 import type { Language } from "@/types";
 
+const MAIL_EXAMPLE: Record<Language, string> = {
+  nl: "naam@bedrijf.be",
+  fr: "nom@societe.be",
+  en: "name@company.com",
+};
+
 /* Shared email input with live validation feedback */
 export default function EmailInput({
   value,
@@ -22,7 +28,7 @@ export default function EmailInput({
         type="email"
         value={value}
         onChange={onChange}
-        placeholder={placeholder || "naam@bedrijf.be"}
+        placeholder={placeholder || MAIL_EXAMPLE[lang]}
         style={res && !res.valid ? { borderColor: "var(--red)" } : undefined}
       />
       {res && !res.valid && (

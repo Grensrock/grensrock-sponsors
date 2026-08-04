@@ -1,5 +1,5 @@
-import { OPT_KEYMAP } from "@/lib/constants";
-import type { Settlement, TeamLanguage, TranslateFn } from "@/types";
+import { SETTLEMENTS, label } from "@/lib/constants";
+import type { Language, Settlement, TeamLanguage } from "@/types";
 
 /* ---------- Team-app translations (NL / EN) ----------
    t(key) returns the string in the active team language. English is the
@@ -346,16 +346,6 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "pick.add": ["+ Nieuwe sponsor toevoegen", "+ Add new sponsor"],
   "df.newtitle": ["Nieuwe overeenkomst", "New agreement"],
   "df.edittitle": ["Overeenkomst bewerken", "Edit agreement"],
-  "opt.nomention": ["Geen vermelding", "No mention"],
-  "opt.nameonly": ["Enkel naam", "Name only"],
-  "opt.logo": ["Logo", "Logo"],
-  "opt.fullpage": ["Volledige pagina", "Full page"],
-  "opt.halfpage": ["Halve pagina", "Half page"],
-  "opt.quarterpage": ["1/4 pagina", "1/4 page"],
-  "opt.eighthpage": ["1/8 pagina", "1/8 page"],
-  "set.invoicefull": ["Factuur (geld)", "Invoice (money)"],
-  "set.inkindfull": ["In natura — geen factuur", "In kind — no invoice"],
-  "set.mixedfull": ["Combinatie: deels gefactureerd, deels in natura", "Combination: part invoiced, part in kind"],
   "ed.editionstitle": ["Festivaledities", "Festival editions"],
   "ov.addsponsor": ["Een sponsor toevoegen", "Add a sponsor"],
   "ov.addsponsors": ["Voeg uw sponsors toe", "Add your sponsors"],
@@ -403,16 +393,366 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dup.checkfirst": ["Controleer of dit niet dezelfde sponsor is voordat u opslaat.", "Check this isn't the same sponsor before saving."],
   "hd.saveerr": ["Kon de laatste wijziging niet opslaan — controleer uw verbinding en probeer opnieuw.",
                  "Couldn't save the last change — check your connection and try again."],
+
+  /* ---------- dialogs: confirmations, warnings and notifications ----------
+     Values may carry {placeholders}; see teamT below. */
+  "dlg.confirm": ["Bevestigen", "Please confirm"],
+  "dlg.ok": ["OK", "OK"],
+  "dlg.done": ["Klaar", "Done"],
+  "dlg.savefail": ["Kon niet opslaan", "Couldn't save"],
+  // team accounts
+  "dlg.mailnotsent": ["Toegang gegeven, e-mail niet verzonden", "Access granted, email not sent"],
+  "dlg.usermailfail": [
+    "{name} heeft nu toegang, maar de verwittigingsmail kon niet verzonden worden: {error}\n\nLaat het hen op een andere manier weten — ze kunnen zich meteen aanmelden.",
+    "{name} now has access, but the notification email couldn't be sent: {error}\n\nLet them know another way — they can sign in straight away.",
+  ],
+  "dlg.declineask": [
+    "De toegangsaanvraag van {name} weigeren? Ze kunnen zich opnieuw aanmelden, wat hen terug op deze lijst zet.",
+    "Decline the access request from {name}? They can sign in again, which puts them back on this list.",
+  ],
+  "dlg.declinetitle": ["Aanvraag weigeren", "Decline request"],
+  "dlg.decline": ["Weigeren", "Decline"],
+  "dlg.lastadmin": ["U kan de laatste beheerder niet verwijderen.", "You can't remove the last admin."],
+  "dlg.notpossible": ["Niet mogelijk", "Not possible"],
+  "dlg.removeuserask": [
+    "Het account van {name} verwijderen? Ze verliezen onmiddellijk hun toegang.",
+    "Remove the account of {name}? They lose access immediately.",
+  ],
+  "dlg.removeusertitle": ["Account verwijderen", "Remove account"],
+  "dlg.remove": ["Verwijderen", "Remove"],
+  // agreements
+  "dlg.deldealissued": [
+    "Deze overeenkomst verwijderen?\n\n{n} bon(nen) waren al aangemaakt of verzonden — ze worden hier als geannuleerd gemarkeerd. Annuleer ze ook in Tickoweb.",
+    "Delete this agreement?\n\n{n} voucher(s) were already created or sent — they will be marked as cancelled here. Cancel them in Tickoweb as well.",
+  ],
+  "dlg.deldealpending": [
+    "Deze overeenkomst en de {n} bon(nen) die nog niet aangemaakt zijn verwijderen?",
+    "Delete this agreement and its {n} voucher(s) that were not created yet?",
+  ],
+  "dlg.deldeal": ["Deze overeenkomst verwijderen?", "Delete this agreement?"],
+  "dlg.deldealtitle": ["Overeenkomst verwijderen", "Delete agreement"],
+  "dlg.delete": ["Verwijderen", "Delete"],
+  "dlg.resetacceptask": [
+    "De sponsor opnieuw laten aanvaarden? De huidige aanvaarding wordt gewist.",
+    "Ask the sponsor to accept again? The current acceptance is cleared.",
+  ],
+  "dlg.resetaccepttitle": ["Aanvaarding opnieuw vragen", "Reset acceptance"],
+  "dlg.reset": ["Opnieuw", "Reset"],
+  // vouchers
+  "dlg.allgenerated": ["Alles is al gegenereerd voor deze editie.", "Everything is already generated for this edition."],
+  "dlg.nothingtoadd": ["Niets toe te voegen", "Nothing to add"],
+  "dlg.vouchersadded": ['{n} bon(nen) toegevoegd als "aan te maken".', '{n} voucher(s) added as "to create".'],
+  "dlg.vouchersgenerated": ["Bonnen gegenereerd", "Vouchers generated"],
+  "dlg.cancelvouchersask": ["{n} bon(nen) annuleren?", "Cancel {n} voucher(s)?"],
+  "dlg.cancelvoucherstitle": ["Bonnen annuleren", "Cancel vouchers"],
+  // contacts
+  "dlg.contactmailfail": [
+    '{name} heeft portaaltoegang, maar de e-mail kon niet verzonden worden: {error}\n\nGebruik "Nieuwe link sturen" zodra dat opgelost is.',
+    '{name} has portal access, but the email couldn\'t be sent: {error}\n\nUse "Resend portal link" once that\'s fixed.',
+  ],
+  "dlg.delcontactask": [
+    "Deze contactpersoon verwijderen? Ze verliezen hun toegang tot het sponsorportaal.",
+    "Remove this contact person? They lose access to the sponsor portal.",
+  ],
+  "dlg.delcontacttitle": ["Contactpersoon verwijderen", "Remove contact"],
+  "dlg.grantnoemail": [
+    "Niets te doen — {n} hiervan hebben geen e-mailadres, en de rest heeft al toegang.",
+    "Nothing to do — {n} of these have no email address, and the rest already have access.",
+  ],
+  "dlg.grantalready": ["Die contactpersonen hebben al portaaltoegang.", "Those contacts already have portal access."],
+  "dlg.grantnothing": ["Niets te activeren", "Nothing to activate"],
+  "dlg.granted": [
+    "{n} contactperso(o)n(en) geactiveerd en een link gestuurd om een wachtwoord in te stellen.",
+    "{n} contact(s) activated and sent a link to set a password.",
+  ],
+  "dlg.grantskipped": ["\n\n{n} overgeslagen: geen e-mailadres.", "\n\n{n} skipped: no email address."],
+  "dlg.granttitle": ["Portaaltoegang gegeven", "Portal access granted"],
+  "dlg.delcontactsask": ["{n} contactperso(o)n(en) verwijderen?", "Remove {n} contact person(s)?"],
+  "dlg.delcontactsaccess": [
+    "{n} daarvan kunnen nu aanmelden op het sponsorportaal en verliezen die toegang.",
+    "{n} of them can currently log in to the sponsor portal and will lose that access.",
+  ],
+  "dlg.delcontactsnoaccess": ["Geen van hen kan aanmelden op het portaal.", "None of them can log in to the portal."],
+  "dlg.delcontactstitle": ["{n} contactperso(o)n(en) verwijderen", "Remove {n} contact(s)"],
+  "dlg.removefailed": [
+    "{done} verwijderd. Kon {failed} niet verwijderen:\n{list}",
+    "Removed {done}. Couldn't remove {failed}:\n{list}",
+  ],
+  "dlg.removefailedtitle": ["Sommige contactpersonen zijn niet verwijderd", "Some contacts were not removed"],
+  // sponsors
+  "dlg.delsponsorask": [
+    "Deze sponsor, al hun overeenkomsten en bonnen verwijderen?",
+    "Delete this sponsor, all their agreements and vouchers?",
+  ],
+  "dlg.delsponsortitle": ["Sponsor verwijderen", "Delete sponsor"],
+  "dlg.delsponsorsask": ["{n} sponsor(s) verwijderen?", "Delete {n} sponsor(s)?"],
+  "dlg.delsponsorsalso": [
+    "Dit verwijdert ook {what}. Dit kan niet ongedaan gemaakt worden.",
+    "This also deletes {what}. It cannot be undone.",
+  ],
+  "dlg.undone": ["Dit kan niet ongedaan gemaakt worden.", "It cannot be undone."],
+  "dlg.delsponsorstitle": ["{n} sponsor(s) verwijderen", "Delete {n} sponsor(s)"],
+  "dlg.deletefailed": [
+    "{done} verwijderd. Kon {failed} niet verwijderen:\n{list}",
+    "Deleted {done}. Couldn't delete {failed}:\n{list}",
+  ],
+  "dlg.deletefailedtitle": ["Sommige sponsors zijn niet verwijderd", "Some sponsors were not deleted"],
+  "dlg.ncontacts": ["{n} contactperso(o)n(en)", "{n} contact(s)"],
+  "dlg.ndeals": ["{n} overeenkomst(en)", "{n} agreement(s)"],
+  "dlg.nvouchers": ["{n} bon(nen)", "{n} voucher(s)"],
+  "dlg.andmore": ["\n  • … en nog {n}", "\n  • … and {n} more"],
+  // editions & formulas
+  "dlg.deleditionask": [
+    "Deze editie heeft {n} overeenkomst(en). De editie, haar overeenkomsten en bonnen verwijderen?",
+    "This edition has {n} agreement(s). Delete the edition, its agreements and vouchers?",
+  ],
+  "dlg.deleditionplain": ["Deze editie verwijderen?", "Delete this edition?"],
+  "dlg.deleditiontitle": ["Editie verwijderen", "Delete edition"],
+  "dlg.delformulaask": [
+    'Formule "{name}" verwijderen? Bestaande overeenkomsten behouden hun waarden.',
+    'Delete formula "{name}"? Existing agreements keep their values.',
+  ],
+  "dlg.delformulatitle": ["Formule verwijderen", "Delete formula"],
+  // exports
+  "dlg.nothingexport": ["Niets om te exporteren met deze filters.", "Nothing to export with these filters."],
+  "dlg.emptylist": ["Lege lijst", "Empty list"],
+  "dlg.nothingexportlog": ["Niets om te exporteren.", "Nothing to export."],
+  "dlg.emptylog": ["Leeg logboek", "Empty log"],
+
+  /* ---------- modal titles ---------- */
+  "md.newsponsor": ["Nieuwe sponsor", "New sponsor"],
+  "md.editsponsor": ["Sponsor bewerken", "Edit sponsor"],
+  "md.newcontact": ["Nieuwe contactpersoon", "New contact person"],
+  "md.editcontact": ["Contactpersoon bewerken", "Edit contact person"],
+  "md.acceptance": ["Aanvaarding van het contract", "Contract acceptance"],
+  "md.examples": ["Voorbeeldafbeeldingen van de zichtbaarheid", "Example images of returns"],
+  "md.vatlookup": ["BTW-opzoeking (KBO/CBE)", "VAT lookup (CBE/KBO)"],
+  "md.tickoweb": ["Tickoweb-koppeling", "Tickoweb integration"],
+  "md.newaccount": ["Nieuw teamaccount", "New team account"],
+  "md.editaccount": ["Account bewerken", "Edit account"],
+  "md.newedition": ["Nieuwe editie", "New edition"],
+  "md.editedition": ["Editie bewerken", "Edit edition"],
+  "md.newformula": ["Nieuwe formule", "New formula"],
+  "md.editformula": ["Formule bewerken", "Edit formula"],
+
+  /* ---------- empty states ---------- */
+  "em.nosponsors": ["Nog geen sponsors — voeg uw eerste toe.", "No sponsors yet — add your first one."],
+  "em.nosponsormatch": ["Geen sponsors voldoen aan uw zoekopdracht.", "No sponsors match your search."],
+  "em.novouchers": [
+    'Nog geen bonnen voor deze editie — gebruik "Genereren uit overeenkomsten".',
+    'No vouchers yet for this edition — use "Generate from agreements".',
+  ],
+  "em.novouchermatch": ["Geen bonnen voldoen aan deze filters.", "No vouchers match these filters."],
+  "em.nocontacts": ["Nog geen contactpersonen.", "No contact persons yet."],
+  "em.nocontactmatch": ["Geen contactpersonen voldoen aan deze filters.", "No contacts match these filters."],
+  "em.nolog": ["Nog geen wijzigingen geregistreerd.", "No changes recorded yet."],
+  "em.nologmatch": ["Geen items voldoen aan deze filters.", "No entries match these filters."],
+
+  /* ---------- tooltips ---------- */
+  "tt.uilanguage": ["Taal van de interface", "Interface language"],
+  "tt.sort": ["Klik om te sorteren", "Click to sort"],
+  "tt.editformula": ["Klik om deze formule te bekijken of te bewerken", "Click to view or edit this formula"],
+  "tt.delformula": ["Formule verwijderen", "Delete formula"],
+  "tt.editcontact": ["Klik om deze contactpersoon te bewerken", "Click to edit this contact"],
+  "tt.resendlink": [
+    "Stuurt een nieuwe link om een wachtwoord in te stellen. Elke eerdere link werkt niet meer.",
+    "Sends a fresh link to set a password. Any earlier link stops working.",
+  ],
+  "tt.editaccount": ["Klik om dit account te bewerken", "Click to edit this account"],
+
+  /* ---------- audit entity names ---------- */
+  "au.e.sponsor": ["Sponsor", "Sponsor"],
+  "au.e.contact": ["Contactpersoon", "Contact"],
+  "au.e.agreement": ["Overeenkomst", "Agreement"],
+  "au.e.edition": ["Editie", "Edition"],
+  "au.e.vouchers": ["Bonnen", "Vouchers"],
+  "au.e.account": ["Account", "Account"],
+
+  /* ---------- export column headers & cell values ---------- */
+  "xl.firstname": ["Voornaam", "First name"],
+  "xl.lastname": ["Achternaam", "Last name"],
+  "xl.portalaccess": ["Portaaltoegang", "Portal access"],
+  "xl.activated": ["actief", "active"],
+  "xl.notactivated": ["niet geactiveerd", "not activated"],
+  "xl.receivesvouchers": ["Ontvangt bonnen", "Receives vouchers"],
+  "xl.yes": ["ja", "yes"],
+  "xl.datetime": ["Datum & tijd", "Date & time"],
+  "xl.vipfrsagu": ["VIP vr/za/gast", "VIP fr/sa/gu"],
+
+  /* ---------- roles & misc ---------- */
+  "tm.roleadmin": [
+    "— alles: edities, formules, facturatie en teamaccounts.",
+    "— everything: editions, formulas, invoicing and team accounts.",
+  ],
+  "tm.roleuser": [
+    "— kan alle sponsors en hun overeenkomsten bekijken en aanpassen.",
+    "— can view and update all sponsors and their agreements.",
+  ],
+  "uf.lastadminhint": [
+    "Dit is de laatste beheerder — de rol kan niet gewijzigd worden.",
+    "This is the last admin — the role can't be changed.",
+  ],
+  "uf.uilanguage": ["Taal van de interface voor dit account", "Interface language for this account"],
+  "ac.currentcontribution": ["Huidige bijdrage", "Current contribution"],
+  "ac.reqnew": ["Opnieuw laten aanvaarden", "Request new acceptance"],
+  "ed.formulas": ["Formules", "Formulas"],
+  "vo.manualmode": [
+    "Manuele modus — er wordt niets automatisch naar Tickoweb gestuurd. Maak de bon daar aan en plak de code hier terug.",
+    "Manual mode — nothing is sent to Tickoweb automatically. Create the voucher there and paste the code back here.",
+  ],
+  "vo.codefrom": ["code uit Tickoweb", "code from Tickoweb"],
+
+  /* ---------- forms ---------- */
+  "ef.name": ["Naam van de editie *", "Edition name *"],
+  "ef.start": ["Startdatum", "Start date"],
+  "ef.end": ["Einddatum", "End date"],
+  "ef.location": ["Locatie", "Location"],
+  "ff.name": ["Naam van de formule *", "Formula name *"],
+  "ff.cost": ["Kostprijs (€) *", "Cost (€) *"],
+  "sf.responsibleteam": ["Verantwoordelijke (ons team)", "Responsible (our team)"],
+  "sf.noteam": [
+    "Nog geen teamaccounts — voeg ze toe in het tabblad Team",
+    "No team accounts yet — add them in the Team tab",
+  ],
+  "uf.customaddress": ["Eigen adres", "Custom address"],
+  "uf.autoaddress": [
+    "Automatisch gegenereerd als voornaam@{domain}",
+    "Generated automatically as firstname@{domain}",
+  ],
+  "vl.mode": ["Modus", "Mode"],
+  "vl.on": [
+    "Aan — controleren bij de Kruispuntbank van Ondernemingen (KBO/CBE)",
+    "On — check against the Belgian company registry (CBE/KBO)",
+  ],
+  "vl.off": ["Uit — bedrijfsgegevens manueel invullen", "Off — enter company details by hand"],
+  "tw.mode": ["Modus", "Mode"],
+  "tw.proxy": ["Proxy-URL (aanbevolen)", "Proxy URL (recommended)"],
+  "tw.baseurl": ["Basis-URL van Tickoweb", "Tickoweb base URL"],
+  "tw.apikey": ["API-sleutel (enkel zonder proxy)", "API key (only without proxy)"],
+  "tw.eventid": ["Event-ID in Tickoweb", "Event ID in Tickoweb"],
+  "tw.productid": ["Tickoweb-product-id", "Tickoweb product id"],
+  "em.writelang": ["Schrijven in de taal van", "Write in the language of"],
+
+  /* ---------- sponsor detail ---------- */
+  "sd.refrequired": ["Vereist op contract & factuur", "Required on contract & invoice"],
+  "sd.refnotrequired": ["Niet vereist", "Not required"],
+  "tt.showaccepted": ["Tonen wat aanvaard werd", "Show what was accepted"],
+  "tt.deldeal": ["Overeenkomst verwijderen", "Delete agreement"],
+
+  /* ---------- folder overview ---------- */
+  "fo.nologosdl": ["Nog geen logo's om te downloaden.", "No logos to download yet."],
+  "fo.nologosexp": ["Nog geen logo's om te exporteren.", "No logos to export yet."],
+  "fo.nothingexport": ["Niets te exporteren", "Nothing to export"],
+  "fo.exported": ["Logo's geëxporteerd", "Logos exported"],
+  "fo.drivedone": ["Naar Drive geëxporteerd", "Exported to Drive"],
+  "fo.driveproblems": ["Geëxporteerd met problemen", "Exported with problems"],
+  "fo.mentions": ["{n} vermeldingen", "{n} mentions"],
+  "fo.logofile": ["Logobestand", "Logo file"],
+  "fo.folderformat": ["Folderformaat", "Folder format"],
+  "fo.missing": ["ONTBREEKT", "MISSING"],
+  "fo.total": ["TOTAAL", "TOTAL"],
+  "fo.pagesneededn": ["{n} pagina('s) nodig", "{n} page(s) needed"],
+  "fo.uploaded": ["opgeladen", "uploaded"],
+  "fo.downloaded": [
+    "{n} logobestand(en) gedownload. Uw browser vraagt mogelijk toestemming voor meerdere downloads.",
+    "{n} logo file(s) downloaded. Your browser may ask permission for multiple downloads.",
+  ],
+  "fo.drivesummary": ["{summary} in de Drive-map.", "{summary} in the Drive folder."],
+  "fo.drivefailed": [
+    "{summary} in de Drive-map.\n\nKon {n} niet exporteren:\n{list}",
+    "{summary} in the Drive folder.\n\nCouldn't export {n}:\n{list}",
+  ],
+  "fo.drivenew": ["{n} nieuw", "{n} new"],
+  "fo.drivereplaced": ["{n} vervangen", "{n} replaced"],
+  "fo.nothing": ["Niets", "Nothing"],
+  "c.notes": ["Notities", "Notes"],
+
+  /* ---------- images & invites ---------- */
+  "im.processing": ["Bezig…", "Processing…"],
+  "im.replace": ["Vervangen", "Replace"],
+  "im.upload": ["Opladen", "Upload"],
+  "im.remove": ["Verwijderen", "Remove"],
+  "im.vector": ["Vectorbestand (.{ext}) — ideaal voor druk", "Vector file (.{ext}) — ideal for print"],
+  "im.jpegnote": [
+    " — JPEG heeft geen transparante achtergrond; PNG of vector is beter",
+    " — JPEG has no transparent background; PNG or vector is better",
+  ],
+  "im.below": ["{got} px — onder {min}", "{got} px — below {min}"],
+  "im.removefail": ["Kon dit bestand niet verwijderen.", "Couldn't remove this file."],
+  "cp.copied": ["Gekopieerd ✓", "Copied ✓"],
+  "cp.invite": ["Uitnodiging ({lang})", "Invite ({lang})"],
+  "cp.copyinvite": ["Uitnodiging kopiëren", "Copy invite"],
+
+  /* ---------- environment banner ---------- */
+  "eb.staging": ["Staging", "Staging"],
+  "eb.local": ["Lokaal", "Local"],
+  "eb.branch": ["branch", "branch"],
+  "eb.database": ["database", "database"],
+  "eb.note": [
+    "geen productie — wijzigingen hier zijn niet echt",
+    "not production — changes here are not real",
+  ],
+
+  /* ---------- import ---------- */
+  "im.needheadersp": [
+    "Het bestand heeft een hoofdingrij nodig plus minstens één sponsorrij.",
+    "The file needs a header row plus at least one sponsor row.",
+  ],
+  "im.needheaderct": [
+    "Het bestand heeft een hoofdingrij nodig plus minstens één rij met een contactpersoon.",
+    "The file needs a header row plus at least one contact row.",
+  ],
+  "im.donesp": ["Import voltooid", "Import complete"],
+  "im.unreadable": [
+    "Kon dit bestand niet lezen. Bewaar het als .xlsx of .csv en probeer opnieuw.",
+    "Couldn't read this file. Save it as .xlsx or .csv and try again.",
+  ],
+  "im.importsp": ["Sponsors importeren", "Import sponsors"],
+  "im.importct": ["Contactpersonen importeren", "Import contact persons"],
+  "im.lang": ["Taal", "Lang"],
+  "im.badvat": [
+    "Het BTW-nummer lijkt ongeldig — het wordt zo geïmporteerd, corrigeer het nadien",
+    "VAT number looks invalid — will be imported as-is, fix it afterwards",
+  ],
+  "im.bademail": [
+    "Het e-mailadres lijkt ongeldig — het wordt zo geïmporteerd, corrigeer het nadien",
+    "Email looks invalid — imported as-is, fix it afterwards",
+  ],
+
+  "ex.managerhint": [
+    "Laad één afbeelding op per type zichtbaarheid. Sponsors zien de afbeeldingen die bij hun eigen overeenkomst horen, zodat ze weten hoe hun logo op de affiche, de ledboarding of een hoes er echt uitziet.",
+    "Upload one picture per type of return. Sponsors see the pictures that apply to their own agreement, so they know what their logo on the poster, the LED boarding or a fence cover actually looks like.",
+  ],
+
+  /* ---------- tickoweb ---------- */
+  "tw.manual": [
+    "Manueel — maak de bonnen zelf aan in Tickoweb en plak de codes hier",
+    "Manual — create vouchers in Tickoweb yourself, paste the codes here",
+  ],
+  "tw.live": ["Live — de Tickoweb-API vanuit deze tool aanroepen", "Live — call the Tickoweb API from this tool"],
+  "tw.keywarn": [
+    'Een API-sleutel in een browsertoepassing is leesbaar voor iedereen die ze gebruikt, en Tickoweb blokkeert wellicht rechtstreekse browseroproepen (CORS). Laat "Proxy-URL" wijzen naar een kleine eigen server die de sleutel bijhoudt en de oproepen doorstuurt — laat de API-sleutel hier dan leeg.',
+    'An API key in a browser app is readable by anyone using it, and Tickoweb will likely block direct browser calls (CORS). Point "Proxy URL" at a small server of your own that holds the key and forwards the calls — leave the API key here empty in that case.',
+  ],
+  "tw.proxyhint": [
+    "Uw eigen endpoint dat doorstuurt naar Tickoweb met de sleutel erbij",
+    "Your own endpoint that forwards to Tickoweb with the key attached",
+  ],
+  "tw.paths": [
+    "De gebruikte endpoint-paden ( POST /vouchers, POST /vouchers/{code}/send, DELETE /vouchers/{code} ) zijn aannames — controleer ze tegen de Tickoweb-documentatie en pas de module {module} in de code aan.",
+    "The endpoint paths used ( POST /vouchers, POST /vouchers/{code}/send, DELETE /vouchers/{code} ) are assumptions — verify them against the Tickoweb reference and adjust the {module} module in the code.",
+  ],
 };
 
-export const teamT = (key: string, lang: TeamLanguage): string => {
+export const teamT = (key: string, lang: TeamLanguage, params?: Record<string, string | number>): string => {
   const row = TEAM_TEXT[key];
   if (!row) return key;
-  return (lang === "nl" ? row[0] : row[1]) || row[1];
+  const text = (lang === "nl" ? row[0] : row[1]) || row[1];
+  /* {name}-style placeholders are filled here rather than by concatenating at
+     the call site, so a translation is free to put them in a different order. */
+  return params ? text.replace(/\{(\w+)\}/g, (m, k) => (k in params ? String(params[k]) : m)) : text;
 };
 
-/* Language-aware display labels for the option constants (keys stay stable) */
-export const optLabel = (t: TranslateFn, k: string) => (OPT_KEYMAP[k] ? t(OPT_KEYMAP[k]) : k);
-
-export const settleLabel = (t: TranslateFn, k: Settlement | string) =>
-  t(k === "inkind" ? "set.inkindfull" : k === "mixed" ? "set.mixedfull" : "set.invoicefull");
+/* Option labels live with the options themselves, in lib/constants, so the
+   sponsor portal and the team app read the same table. */
+export const settleLabel = (k: Settlement | string, lang: Language = "nl") => label(SETTLEMENTS, k, lang);

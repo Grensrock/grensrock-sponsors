@@ -6,7 +6,7 @@
    are capped so the log can never outgrow the storage limit. */
 
 import { SNAPSHOT_FIELDS, isAccepted } from "@/lib/acceptance";
-import { AUDIT_MAX, COMMS, VOUCHER_STATUS, uid, type CommKey } from "@/lib/constants";
+import { AUDIT_MAX, COMM_LABELS, VOUCHER_STATUS, uid, type CommKey } from "@/lib/constants";
 import { contactName } from "@/lib/contacts";
 import { userName } from "@/lib/users";
 import type { AppData, AuditActor, AuditEntity, AuditEntry, Deal, VoucherStatus } from "@/types";
@@ -88,8 +88,8 @@ export function diffForAudit(prev: AppData, next: AppData, actor?: AuditActor | 
             add("contact", c.id, `${contactName(c)} · ${s.companyName}`, "portal activated");
           if (oc.portalAccess && !c.portalAccess)
             add("contact", c.id, `${contactName(c)} · ${s.companyName}`, "portal deactivated");
-          const op = (Object.keys(COMMS) as CommKey[]).filter((k) => oc.prefs?.[k]).join(",");
-          const np = (Object.keys(COMMS) as CommKey[]).filter((k) => c.prefs?.[k]).join(",");
+          const op = (Object.keys(COMM_LABELS) as CommKey[]).filter((k) => oc.prefs?.[k]).join(",");
+          const np = (Object.keys(COMM_LABELS) as CommKey[]).filter((k) => c.prefs?.[k]).join(",");
           if (op !== np)
             add("contact", c.id, `${contactName(c)} · ${s.companyName}`, "preferences changed", np || "none");
         }
@@ -157,7 +157,7 @@ export function diffForAudit(prev: AppData, next: AppData, actor?: AuditActor | 
       "vouchers",
       "",
       `${n} voucher(s)`,
-      `→ ${(VOUCHER_STATUS[status as VoucherStatus]?.label || status).toLowerCase()}`,
+      `→ ${(VOUCHER_STATUS[status as VoucherStatus]?.label.en || status).toLowerCase()}`,
     );
   }
 

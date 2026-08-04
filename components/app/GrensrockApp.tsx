@@ -42,7 +42,7 @@ import { supabase } from "@/lib/supabase/client";
 import { removeAllLogoFiles } from "@/lib/supabase/storage";
 import {
   ADMIN_TABS,
-  COMMS,
+  COMM_LABELS,
   FOLDER_OPTS,
   LANGS,
   POSTER_OPTS,
@@ -51,6 +51,8 @@ import {
   VOUCHER_TYPES,
   WEBSITE_OPTS,
   emptySponsor,
+  label,
+  voucherLabel,
   type CommKey,
 } from "@/lib/constants";
 import { contactName, primaryContact, sponsorContacts, voucherContact } from "@/lib/contacts";
@@ -85,6 +87,7 @@ import type {
   SponsorLogo,
   TeamLanguage,
   TickowebConfig,
+  TranslateFn,
   User,
   Voucher,
   VoucherStatus,
@@ -177,13 +180,17 @@ export default function GrensrockApp() {
   const toggleSort = (key: string) => setSort((p) => (p.key === key ? { key, dir: -p.dir } : { key, dir: 1 }));
   const ask = (message: string, onConfirm: () => void, opts: Partial<DialogSpec> = {}) =>
     setDialog({ message, onConfirm, danger: true, ...opts });
-  const notify = (message: string, title?: string) => setDialog({ message, title: title || "Done" });
+  const notify = (message: string, title?: string) => setDialog({ message, title: title || t("dlg.done") });
 
   /* ----- error surface for every write ----- */
-  const failWith = useCallback((e: unknown, title = "Couldn't save") => {
+  /* The title is passed on as a key, not a sentence: the UI language is only
+     known further down (it comes from the loaded user), while failWith has to
+     keep a stable identity for the effects that depend on it. ConfirmDialog
+     translates it at the point it is drawn. */
+  const failWith = useCallback((e: unknown, title?: string) => {
     console.error(e);
     setSaveErr(true);
-    setDialog({ message: String((e as Error)?.message || e), title });
+    setDialog({ message: String((e as Error)?.message || e), title, titleKey: "dlg.savefail" });
   }, []);
 
   /* ----- load: one parallel read per table, assembled into the shape the UI expects ----- */
@@ -323,7 +330,7 @@ export default function GrensrockApp() {
   }, [tab, admin, mode.view]);
   const [langOverride, setLangOverride] = useState<TeamLanguage | null>(null); // header switcher, this session only
   const uiLang: TeamLanguage = langOverride || me?.language || "nl";
-  const t = (key: string) => teamT(key, uiLang);
+  const t: TranslateFn = (key, params) => teamT(key, uiLang, params);
   const activeEditions = editions.filter((e) => e.active);
   const sortedEditions = [...editions].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
 
@@ -421,7 +428,7 @@ export default function GrensrockApp() {
         [t("sp.responsible")]: responsibleName(s, users),
         [t("sp.editions")]: sDeals.length,
         [t("sp.lifetime")]: sDeals.reduce((sum, d) => sum + dealTotalCost(d), 0),
-        [t("inv.reference")]: s.refRequired ? "yes" : "",
+        [t("inv.reference")]: s.refRequired ? t("xl.yes") : "",
         [t("c.contact") + "s"]: sponsorContacts(s).length,
       };
     });
@@ -503,10 +510,8 @@ export default function GrensrockApp() {
       } catch (mailErr) {
         console.error(mailErr);
         notify(
-          `${userName(saved)} now has access, but the notification email couldn't be sent: ${
-            (mailErr as Error).message
-          }\n\nLet them know another way — they can sign in straight away.`,
-          "Access granted, email not sent",
+          t("dlg.usermailfail", { name: userName(saved), error: (mailErr as Error).message }),
+          t("dlg.mailnotsent"),
         );
       }
     } catch (e) {
@@ -517,7 +522,7 @@ export default function GrensrockApp() {
   const declineUser = (id: string) => {
     const u = (data.pendingUsers || []).find((x) => x.id === id);
     ask(
-      `Decline the access request from ${userName(u)}? They can sign in again, which puts them back on this list.`,
+      t("dlg.declineask", { name: userName(u) }),
       async () => {
         try {
           await usersApi.deleteUser(id);
@@ -527,7 +532,7 @@ export default function GrensrockApp() {
           failWith(e);
         }
       },
-      { title: "Decline request", confirmLabel: "Decline" },
+      { title: t("dlg.declinetitle"), confirmLabel: t("dlg.decline") },
     );
   };
 
@@ -535,11 +540,11 @@ export default function GrensrockApp() {
     const u = users.find((x) => x.id === id);
     const admins = users.filter(isAdmin);
     if (isAdmin(u) && admins.length <= 1) {
-      notify("You can't remove the last admin.", "Not possible");
+      notify(t("dlg.lastadmin"), t("dlg.notpossible"));
       return;
     }
     ask(
-      `Remove the account of ${userName(u)}? They lose access immediately.`,
+      t("dlg.removeuserask", { name: userName(u) }),
       async () => {
         try {
           await usersApi.deleteUser(id);
@@ -550,7 +555,7 @@ export default function GrensrockApp() {
           failWith(e);
         }
       },
-      { title: "Remove account", confirmLabel: "Remove" },
+      { title: t("dlg.removeusertitle"), confirmLabel: t("dlg.remove") },
     );
   };
   const deleteDeal = (dealId: string) => {
@@ -559,10 +564,10 @@ export default function GrensrockApp() {
     const linked = vouchers.filter((v) => v.dealId === dealId);
     const issued = linked.filter((v) => v.status === "created" || v.status === "sent");
     const msg = issued.length
-      ? `Delete this agreement?\n\n${issued.length} voucher(s) were already created or sent — they will be marked as cancelled here. Cancel them in Tickoweb as well.`
+      ? t("dlg.deldealissued", { n: issued.length })
       : linked.length
-        ? `Delete this agreement and its ${linked.length} voucher(s) that were not created yet?`
-        : "Delete this agreement?";
+        ? t("dlg.deldealpending", { n: linked.length })
+        : t("dlg.deldeal");
     ask(
       msg,
       async () => {
@@ -580,7 +585,7 @@ export default function GrensrockApp() {
           failWith(e);
         }
       },
-      { title: "Delete agreement", confirmLabel: "Delete" },
+      { title: t("dlg.deldealtitle"), confirmLabel: t("dlg.delete") },
     );
   };
 
@@ -716,14 +721,14 @@ export default function GrensrockApp() {
       });
     });
     if (added.length === 0) {
-      notify("Everything is already generated for this edition.", "Nothing to add");
+      notify(t("dlg.allgenerated"), t("dlg.nothingtoadd"));
       return;
     }
     try {
       const created = await vouchersApi.createVouchers(added);
       setData((d) => ({ ...d, vouchers: [...(d.vouchers || []), ...created] }));
       setSaveErr(false);
-      notify(`${created.length} voucher(s) added as "to create".`, "Vouchers generated");
+      notify(t("dlg.vouchersadded", { n: created.length }), t("dlg.vouchersgenerated"));
     } catch (e) {
       failWith(e);
     }
@@ -732,9 +737,9 @@ export default function GrensrockApp() {
   /* Run a Tickoweb action over a selection, one by one so a failure doesn't stop the rest */
   const runVoucherAction = async (action: string, ids: string[]) => {
     if (action === "cancel") {
-      ask(`Cancel ${ids.length} voucher(s)?`, () => doVoucherAction(action, ids), {
-        title: "Cancel vouchers",
-        confirmLabel: "Cancel vouchers",
+      ask(t("dlg.cancelvouchersask", { n: ids.length }), () => doVoucherAction(action, ids), {
+        title: t("dlg.cancelvoucherstitle"),
+        confirmLabel: t("dlg.cancelvoucherstitle"),
       });
       return;
     }
@@ -879,10 +884,11 @@ export default function GrensrockApp() {
       /* The access itself is already saved; only the email failed. Saying so
          beats rolling back a permission the team meant to grant. */
       notify(
-        `${contactName(contact) || contact.email} has portal access, but the email couldn't be sent: ${
-          (e as Error).message
-        }\n\nUse "Resend portal link" once that's fixed.`,
-        "Access granted, email not sent",
+        t("dlg.contactmailfail", {
+          name: contactName(contact) || contact.email,
+          error: (e as Error).message,
+        }),
+        t("dlg.mailnotsent"),
       );
     }
   };
@@ -972,7 +978,7 @@ export default function GrensrockApp() {
   };
   const deleteContact = (sponsorId: string, contactId: string) =>
     ask(
-      "Remove this contact person? They lose access to the sponsor portal.",
+      t("dlg.delcontactask"),
       async () => {
         try {
           await contactsApi.deleteContact(contactId);
@@ -988,7 +994,7 @@ export default function GrensrockApp() {
           failWith(e);
         }
       },
-      { title: "Remove contact", confirmLabel: "Remove" },
+      { title: t("dlg.delcontacttitle"), confirmLabel: t("dlg.remove") },
     );
 
   /* Logos are written by LogoManager itself; this only keeps the app's copy
@@ -1009,10 +1015,8 @@ export default function GrensrockApp() {
     const noEmail = items.filter((x) => !x.contact.email).length;
     if (todo.length === 0) {
       notify(
-        noEmail > 0
-          ? `Nothing to do — ${noEmail} of these have no email address, and the rest already have access.`
-          : "Those contacts already have portal access.",
-        "Nothing to activate",
+        noEmail > 0 ? t("dlg.grantnoemail", { n: noEmail }) : t("dlg.grantalready"),
+        t("dlg.grantnothing"),
       );
       return;
     }
@@ -1021,9 +1025,8 @@ export default function GrensrockApp() {
     setCoBusy("");
     setCoSel([]);
     notify(
-      `${todo.length} contact${todo.length === 1 ? "" : "s"} activated and sent a link to set a password.` +
-        (noEmail > 0 ? `\n\n${noEmail} skipped: no email address.` : ""),
-      "Portal access granted",
+      t("dlg.granted", { n: todo.length }) + (noEmail > 0 ? t("dlg.grantskipped", { n: noEmail }) : ""),
+      t("dlg.granttitle"),
     );
   };
 
@@ -1036,13 +1039,13 @@ export default function GrensrockApp() {
         : items
             .slice(0, 8)
             .map((x) => `  • ${contactName(x.contact) || x.contact.email || "?"} (${x.sponsor.companyName})`)
-            .join("\n") + `\n  • … and ${items.length - 8} more`;
+            .join("\n") + t("dlg.andmore", { n: items.length - 8 });
 
     ask(
-      `Remove ${items.length} contact person${items.length === 1 ? "" : "s"}?\n\n${names}\n\n` +
+      `${t("dlg.delcontactsask", { n: items.length })}\n\n${names}\n\n` +
         (withAccess > 0
-          ? `${withAccess} of them can currently log in to the sponsor portal and will lose that access.`
-          : "None of them can log in to the portal."),
+          ? t("dlg.delcontactsaccess", { n: withAccess })
+          : t("dlg.delcontactsnoaccess")),
       async () => {
         setCoBusy("delete");
         const gone: string[] = [];
@@ -1066,14 +1069,16 @@ export default function GrensrockApp() {
         setCoBusy("");
         if (failed.length) {
           failWith(
-            new Error(`Removed ${gone.length}. Couldn't remove ${failed.length}:\n${failed.join("\n")}`),
-            "Some contacts were not removed",
+            new Error(
+              t("dlg.removefailed", { done: gone.length, failed: failed.length, list: failed.join("\n") }),
+            ),
+            t("dlg.removefailedtitle"),
           );
         } else {
           setSaveErr(false);
         }
       },
-      { title: `Remove ${items.length} contact${items.length === 1 ? "" : "s"}`, confirmLabel: "Remove" },
+      { title: t("dlg.delcontactstitle", { n: items.length }), confirmLabel: t("dlg.remove") },
     );
   };
 
@@ -1149,7 +1154,7 @@ export default function GrensrockApp() {
   };
   const deleteSponsor = (id: string) => {
     ask(
-      "Delete this sponsor, all their agreements and vouchers?",
+      t("dlg.delsponsorask"),
       async () => {
         try {
           /* contacts, deals and vouchers cascade with the sponsor row. */
@@ -1169,7 +1174,7 @@ export default function GrensrockApp() {
           failWith(e);
         }
       },
-      { title: "Delete sponsor", confirmLabel: "Delete" },
+      { title: t("dlg.delsponsortitle"), confirmLabel: t("dlg.delete") },
     );
   };
   /* Bulk delete. Acts only on rows the filters currently show — see where
@@ -1190,21 +1195,19 @@ export default function GrensrockApp() {
         : chosen
             .slice(0, 8)
             .map((s) => `  • ${s.companyName}`)
-            .join("\n") + `\n  • … and ${chosen.length - 8} more`;
+            .join("\n") + t("dlg.andmore", { n: chosen.length - 8 });
 
     const alsoGoes = [
-      contactCount && `${contactCount} contact${contactCount === 1 ? "" : "s"}`,
-      dealCount && `${dealCount} agreement${dealCount === 1 ? "" : "s"}`,
-      voucherCount && `${voucherCount} voucher${voucherCount === 1 ? "" : "s"}`,
+      contactCount && t("dlg.ncontacts", { n: contactCount }),
+      dealCount && t("dlg.ndeals", { n: dealCount }),
+      voucherCount && t("dlg.nvouchers", { n: voucherCount }),
     ]
       .filter(Boolean)
       .join(", ");
 
     ask(
-      `Delete ${chosen.length} sponsor${chosen.length === 1 ? "" : "s"}?\n\n${names}\n\n` +
-        (alsoGoes
-          ? `This also deletes ${alsoGoes}. It cannot be undone.`
-          : "It cannot be undone."),
+      `${t("dlg.delsponsorsask", { n: chosen.length })}\n\n${names}\n\n` +
+        (alsoGoes ? t("dlg.delsponsorsalso", { what: alsoGoes }) : t("dlg.undone")),
       async () => {
         setSpBusy(true);
         const failed: string[] = [];
@@ -1232,14 +1235,16 @@ export default function GrensrockApp() {
         setSpBusy(false);
         if (failed.length) {
           failWith(
-            new Error(`Deleted ${gone.length}. Couldn't delete ${failed.length}:\n${failed.join("\n")}`),
-            "Some sponsors were not deleted",
+            new Error(
+              t("dlg.deletefailed", { done: gone.length, failed: failed.length, list: failed.join("\n") }),
+            ),
+            t("dlg.deletefailedtitle"),
           );
         } else {
           setSaveErr(false);
         }
       },
-      { title: `Delete ${chosen.length} sponsor${chosen.length === 1 ? "" : "s"}`, confirmLabel: "Delete" },
+      { title: t("dlg.delsponsorstitle", { n: chosen.length }), confirmLabel: t("dlg.delete") },
     );
   };
 
@@ -1277,7 +1282,7 @@ export default function GrensrockApp() {
   const deleteEdition = (id: string) => {
     const n = deals.filter((d) => d.editionId === id).length;
     ask(
-      n ? `This edition has ${n} agreement(s). Delete the edition, its agreements and vouchers?` : "Delete this edition?",
+      n ? t("dlg.deleditionask", { n }) : t("dlg.deleditionplain"),
       async () => {
         try {
           /* formulas, deals and vouchers cascade with the edition row. */
@@ -1293,7 +1298,7 @@ export default function GrensrockApp() {
           failWith(e);
         }
       },
-      { title: "Delete edition", confirmLabel: "Delete" },
+      { title: t("dlg.deleditiontitle"), confirmLabel: t("dlg.delete") },
     );
   };
   const saveFormula = async (editionId: string, f: Formula, originalName?: string) => {
@@ -1323,7 +1328,7 @@ export default function GrensrockApp() {
   };
   const deleteFormula = (editionId: string, name: string) =>
     ask(
-      `Delete formula "${name}"? Existing agreements keep their values.`,
+      t("dlg.delformulaask", { name }),
       async () => {
         try {
           await formulasApi.deleteFormula(editionId, name);
@@ -1338,7 +1343,7 @@ export default function GrensrockApp() {
           failWith(e);
         }
       },
-      { title: "Delete formula", confirmLabel: "Delete" },
+      { title: t("dlg.delformulatitle"), confirmLabel: t("dlg.delete") },
     );
   const saveDeal = async (d: DealFormState) => {
     try {
@@ -1511,7 +1516,7 @@ export default function GrensrockApp() {
             className="gr-langswitch"
             value={uiLang}
             onChange={(e) => setLangOverride(e.target.value as TeamLanguage)}
-            title="Interface language"
+            title={t("tt.uilanguage")}
           >
             {Object.entries(TEAM_LANGS).map(([k]) => (
               <option key={k} value={k}>
@@ -1754,7 +1759,7 @@ export default function GrensrockApp() {
             )}
             {filteredSponsors.length === 0 ? (
               <p className="gr-empty">
-                {sponsors.length === 0 ? "No sponsors yet — add your first one." : "No sponsors match your search."}
+                {t(sponsors.length === 0 ? "em.nosponsors" : "em.nosponsormatch")}
               </p>
             ) : (
               <div className="gr-tablewrap">
@@ -1785,7 +1790,7 @@ export default function GrensrockApp() {
                           ["lifetime", t("sp.lifetime"), "gr-r"],
                         ] as Array<[string, string, string]>
                       ).map(([k, label, cls]) => (
-                        <th key={k} className={"gr-sortable " + cls} onClick={() => toggleSort(k)} title="Click to sort">
+                        <th key={k} className={"gr-sortable " + cls} onClick={() => toggleSort(k)} title={t("tt.sort")}>
                           {label}
                           <span className="gr-sortarrow">{sort.key === k ? (sort.dir === 1 ? "▲" : "▼") : "↕"}</span>
                         </th>
@@ -1863,6 +1868,7 @@ export default function GrensrockApp() {
             users={users}
             vouchers={vouchers}
             t={t}
+            lang={uiLang}
             onBack={() => setOpenSponsorId(null)}
             onEdit={() => setModal({ type: "sponsor", payload: openSponsor })}
             canDelete={admin}
@@ -1923,13 +1929,13 @@ export default function GrensrockApp() {
                       {admin && (
                         <>
                           <button className="gr-mini" onClick={() => setModal({ type: "edition", payload: ed })}>
-                            Edit
+                            {t("common.edit")}
                           </button>
                           <button className="gr-mini" onClick={() => toggleEdition(ed.id)}>
                             {ed.active ? "Deactivate" : "Activate"}
                           </button>
                           <button className="gr-mini gr-danger" onClick={() => deleteEdition(ed.id)}>
-                            Delete
+                            {t("common.delete")}
                           </button>
                         </>
                       )}
@@ -1937,7 +1943,7 @@ export default function GrensrockApp() {
                   </div>
                   <div className="gr-formulas">
                     <div className="gr-formulahead">
-                      <span className="gr-label">Formulas</span>
+                      <span className="gr-label">{t("ed.formulas")}</span>
                       {admin && (
                         <button
                           className="gr-mini"
@@ -1973,7 +1979,7 @@ export default function GrensrockApp() {
                             {(ed.formulas || []).map((f) => (
                               <tr
                                 key={f.name}
-                                title="Click to view or edit this formula"
+                                title={t("tt.editformula")}
                                 onClick={() =>
                                   admin && setModal({ type: "formula", payload: { editionId: ed.id, formula: f } })
                                 }
@@ -1989,14 +1995,18 @@ export default function GrensrockApp() {
                                 <td className="gr-r">{Number(f.foodDrinkValue) > 0 ? eur(f.foodDrinkValue) : "—"}</td>
                                 <td>
                                   {normFolder(f.folderMention) !== "none"
-                                    ? FOLDER_OPTS[normFolder(f.folderMention)]
+                                    ? label(FOLDER_OPTS, normFolder(f.folderMention), uiLang)
                                     : "—"}
                                 </td>
-                                <td>{f.websiteMention !== "none" ? WEBSITE_OPTS[f.websiteMention] : "—"}</td>
                                 <td>
-                                  {f.posterMention && f.posterMention !== "none" ? POSTER_OPTS[f.posterMention] : "—"}
+                                  {f.websiteMention !== "none" ? label(WEBSITE_OPTS, f.websiteMention, uiLang) : "—"}
                                 </td>
-                                <td>{normLed(f.ledboarding).length > 0 ? ledLabel(f.ledboarding) : "—"}</td>
+                                <td>
+                                  {f.posterMention && f.posterMention !== "none"
+                                    ? label(POSTER_OPTS, f.posterMention, uiLang)
+                                    : "—"}
+                                </td>
+                                <td>{normLed(f.ledboarding).length > 0 ? ledLabel(f.ledboarding, uiLang) : "—"}</td>
                                 <td className="gr-r">
                                   {(Number(f.barrierCovers) || 0) + (Number(f.herasCovers) || 0) > 0
                                     ? `${Number(f.barrierCovers) || 0} / ${Number(f.herasCovers) || 0}`
@@ -2006,7 +2016,7 @@ export default function GrensrockApp() {
                                   {admin && (
                                     <button
                                       className="gr-mini gr-danger"
-                                      title="Delete formula"
+                                      title={t("tt.delformula")}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         deleteFormula(ed.id, f.name);
@@ -2105,7 +2115,7 @@ export default function GrensrockApp() {
                     <option value="">{t("vo.allstatus")}</option>
                     {Object.entries(VOUCHER_STATUS).map(([k, v]) => (
                       <option key={k} value={k}>
-                        {v.label}
+                        {voucherLabel(v, uiLang, k)}
                       </option>
                     ))}
                   </select>
@@ -2113,8 +2123,7 @@ export default function GrensrockApp() {
 
                 {cfg.mode !== "live" && (
                   <p className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
-                    Manual mode — nothing is sent to Tickoweb automatically. Create the voucher there and paste the
-                    code back here.
+                    {t("vo.manualmode")}
                   </p>
                 )}
 
@@ -2122,7 +2131,7 @@ export default function GrensrockApp() {
                   {Object.entries(VOUCHER_STATUS).map(([k, v]) => (
                     <div className="gr-stat" key={k}>
                       <span>{counts[k] || 0}</span>
-                      {v.label.toLowerCase()}
+                      {voucherLabel(v, uiLang, k).toLowerCase()}
                     </div>
                   ))}
                 </div>
@@ -2130,8 +2139,8 @@ export default function GrensrockApp() {
                 {shown.length === 0 ? (
                   <p className="gr-empty">
                     {all.length === 0
-                      ? 'No vouchers yet for this edition — use "Generate from agreements".'
-                      : "No vouchers match these filters."}
+                      ? t("em.novouchers")
+                      : t("em.novouchermatch")}
                   </p>
                 ) : (
                   <>
@@ -2199,10 +2208,10 @@ export default function GrensrockApp() {
                                   />
                                 </td>
                                 <td>{sp ? sp.companyName : "?"}</td>
-                                <td>{VOUCHER_TYPES[v.type]?.label || v.type}</td>
+                                <td>{voucherLabel(VOUCHER_TYPES[v.type], uiLang, v.type)}</td>
                                 <td className="gr-r">{v.value > 0 ? eur(v.value) : "—"}</td>
                                 <td>
-                                  <Tag tone={st.tone}>{st.label}</Tag>
+                                  <Tag tone={st.tone}>{voucherLabel(st, uiLang, v.status)}</Tag>
                                   {v.error && (
                                     <div className="gr-muted" style={{ color: "var(--red)", fontSize: 11 }}>
                                       {v.error}
@@ -2212,7 +2221,7 @@ export default function GrensrockApp() {
                                 <td>
                                   <input
                                     className="gr-inline-input"
-                                    placeholder="code from Tickoweb"
+                                    placeholder={t("vo.codefrom")}
                                     value={v.code || ""}
                                     onChange={(e) => updateVoucher(v.id, { code: e.target.value })}
                                   />
@@ -2232,7 +2241,7 @@ export default function GrensrockApp() {
                                 <td className="gr-rowbtns">
                                   {v.url && (
                                     <a className="gr-mini gr-btn-link" href={v.url} target="_blank" rel="noreferrer">
-                                      View
+                                      {t("c.view")}
                                     </a>
                                   )}
                                 </td>
@@ -2278,20 +2287,20 @@ export default function GrensrockApp() {
             const exportContacts = () => {
               const rowData = rows.map(({ contact: c, sponsor: sp }) => ({
                 Sponsor: sp.companyName,
-                "First name": c.firstName || "",
-                "Last name": c.lastName || "",
-                Email: c.email || "",
-                Phone: c.phone || "",
-                Language: (c.language || "nl").toUpperCase(),
-                "Portal access": c.portalAccess ? "active" : "not activated",
-                Information: c.prefs?.info ? "yes" : "",
-                Invoicing: c.prefs?.invoice ? "yes" : "",
-                "Receives vouchers": voucherContact(sp)?.id === c.id ? "yes" : "",
-                Responsible: responsibleName(sp, users),
-                City: sp.city || "",
+                [t("xl.firstname")]: c.firstName || "",
+                [t("xl.lastname")]: c.lastName || "",
+                [t("c.email")]: c.email || "",
+                [t("c.phone")]: c.phone || "",
+                [t("c.language")]: (c.language || "nl").toUpperCase(),
+                [t("xl.portalaccess")]: c.portalAccess ? t("xl.activated") : t("xl.notactivated"),
+                [label(COMM_LABELS, "info", uiLang)]: c.prefs?.info ? t("xl.yes") : "",
+                [label(COMM_LABELS, "invoice", uiLang)]: c.prefs?.invoice ? t("xl.yes") : "",
+                [t("xl.receivesvouchers")]: voucherContact(sp)?.id === c.id ? t("xl.yes") : "",
+                [t("sp.responsible")]: responsibleName(sp, users),
+                [t("sp.city")]: sp.city || "",
               }));
               if (rowData.length === 0) {
-                notify("Nothing to export with these filters.", "Empty list");
+                notify(t("dlg.nothingexport"), t("dlg.emptylist"));
                 return;
               }
               const ws = XLSX.utils.json_to_sheet(rowData);
@@ -2349,9 +2358,9 @@ export default function GrensrockApp() {
                     onChange={(e) => setCoComm(e.target.value)}
                   >
                     <option value="">{t("c.allcomm")}</option>
-                    {Object.entries(COMMS).map(([k, l]) => (
+                    {Object.keys(COMM_LABELS).map((k) => (
                       <option key={k} value={k}>
-                        Receives: {l}
+                        {t("c.receives")}: {label(COMM_LABELS, k, uiLang)}
                       </option>
                     ))}
                   </select>
@@ -2415,7 +2424,7 @@ export default function GrensrockApp() {
                 )}
                 {rows.length === 0 ? (
                   <p className="gr-empty">
-                    {all.length === 0 ? "No contact persons yet." : "No contacts match these filters."}
+                    {t(all.length === 0 ? "em.nocontacts" : "em.nocontactmatch")}
                   </p>
                 ) : (
                   <div className="gr-tablewrap">
@@ -2448,7 +2457,7 @@ export default function GrensrockApp() {
                         {rows.map(({ contact: c, sponsor: sp }) => (
                           <tr
                             key={sp.id + (c.id || "")}
-                            title="Click to edit this contact"
+                            title={t("tt.editcontact")}
                             onClick={() => setModal({ type: "contact", payload: { sponsorId: sp.id, contact: c } })}
                           >
                             {/* Stops the row's own click, or ticking a box opens the editor. */}
@@ -2474,7 +2483,7 @@ export default function GrensrockApp() {
                                   <Tag tone="green">active</Tag>{" "}
                                   <button
                                     className="gr-mini"
-                                    title="Sends a fresh link to set a password. Any earlier link stops working."
+                                    title={t("tt.resendlink")}
                                     onClick={() => sendPortalLink(c)}
                                   >
                                     {t("ct.resendlink")}
@@ -2485,7 +2494,7 @@ export default function GrensrockApp() {
                                   className="gr-mini"
                                   onClick={() => saveContact(sp.id, { ...c, portalAccess: true })}
                                 >
-                                  Activate
+                                  {t("c.activate")}
                                 </button>
                               ) : (
                                 <span className="gr-muted">no email</span>
@@ -2493,10 +2502,10 @@ export default function GrensrockApp() {
                             </td>
                             <td>
                               <div className="gr-commtags">
-                                {(Object.keys(COMMS) as CommKey[])
+                                {(Object.keys(COMM_LABELS) as CommKey[])
                                   .filter((k) => c.prefs?.[k])
                                   .map((k) => (
-                                    <Tag key={k}>{COMMS[k]}</Tag>
+                                    <Tag key={k}>{label(COMM_LABELS, k, uiLang)}</Tag>
                                   ))}
                               </div>
                             </td>
@@ -2572,11 +2581,11 @@ export default function GrensrockApp() {
                 [t("c.cost")]: dealTotalCost(d),
                 [t("inv.toinvoice")]: invoiceAmount(d),
                 [t("ag.settlement")]: t("set." + (d.settlement || "invoice")),
-                "VIP fr/sa/gu": `${d.vipFriday || 0}/${d.vipSaturday || 0}/${d.vipGuests || 0}`,
+                [t("xl.vipfrsagu")]: `${d.vipFriday || 0}/${d.vipSaturday || 0}/${d.vipGuests || 0}`,
                 [t("th.drinks")]: d.drinkTickets || 0,
                 [t("th.fooddrink")]: Number(d.foodDrinkValue) || 0,
                 [t("c.accepted")]: isAccepted(d) ? fmtDateTime(d.acceptance!.acceptedAt) : "",
-                [t("th.invoice")]: d.invoiceCreated ? d.invoiceNumber || "yes" : "",
+                [t("th.invoice")]: d.invoiceCreated ? d.invoiceNumber || t("xl.yes") : "",
                 [t("sp.responsible")]: responsibleName(sponsor, users),
               }));
               const ws = XLSX.utils.json_to_sheet(data2);
@@ -3064,26 +3073,19 @@ export default function GrensrockApp() {
                   ),
               );
 
-            const ENTITY_LABEL: Record<AuditEntity, string> = {
-              sponsor: "Sponsor",
-              contact: "Contact",
-              agreement: "Agreement",
-              edition: "Edition",
-              vouchers: "Vouchers",
-              account: "Account",
-            };
+            const ENTITY_LABEL = (e: AuditEntity | string) => t(`au.e.${e}`);
 
             const exportLog = () => {
               const out = rows.map((e) => ({
-                "Date & time": fmtDateTime(e.at),
-                By: auditActorLabel(e.actor),
-                Type: ENTITY_LABEL[e.entity] || e.entity,
-                Item: e.entityName,
-                Action: e.action,
-                Details: e.detail,
+                [t("xl.datetime")]: fmtDateTime(e.at),
+                [t("au.by")]: auditActorLabel(e.actor),
+                [t("au.type")]: ENTITY_LABEL(e.entity),
+                [t("au.item")]: e.entityName,
+                [t("au.action")]: e.action,
+                [t("au.details")]: e.detail,
               }));
               if (out.length === 0) {
-                notify("Nothing to export.", "Empty log");
+                notify(t("dlg.nothingexportlog"), t("dlg.emptylog"));
                 return;
               }
               const ws = XLSX.utils.json_to_sheet(out);
@@ -3141,7 +3143,7 @@ export default function GrensrockApp() {
 
                 {rows.length === 0 ? (
                   <p className="gr-empty">
-                    {log.length === 0 ? "No changes recorded yet." : "No entries match these filters."}
+                    {t(log.length === 0 ? "em.nolog" : "em.nologmatch")}
                   </p>
                 ) : (
                   <div className="gr-tablewrap">
@@ -3163,7 +3165,7 @@ export default function GrensrockApp() {
                             <td>{auditActorLabel(e.actor)}</td>
                             <td>
                               <Tag tone={e.actor?.type === "sponsor" ? "blue" : "grey"}>
-                                {ENTITY_LABEL[e.entity] || e.entity}
+                                {ENTITY_LABEL(e.entity)}
                               </Tag>
                             </td>
                             <td>{e.entityName}</td>
@@ -3211,6 +3213,7 @@ export default function GrensrockApp() {
               users={users}
               notify={notify}
               t={t}
+              lang={uiLang}
             />
           </section>
         )}
@@ -3273,14 +3276,14 @@ export default function GrensrockApp() {
                   <thead>
                     <tr>
                       <th>{t("c.name")}</th>
-                      <th>Email (login)</th>
+                      <th>{t("uf.emaillogin")}</th>
                       <th>{t("c.role")}</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {users.map((u) => (
-                      <tr key={u.id} title="Click to edit this account" onClick={() => setModal({ type: "user", payload: u })}>
+                      <tr key={u.id} title={t("tt.editaccount")} onClick={() => setModal({ type: "user", payload: u })}>
                         <td>
                           <strong>{userName(u)}</strong>
                           {u.id === userId && <span className="gr-muted"> · you</span>}
@@ -3290,7 +3293,7 @@ export default function GrensrockApp() {
                         </td>
                         <td>{isAdmin(u) ? <Tag tone="green">admin</Tag> : <Tag>user</Tag>}</td>
                         <td className="gr-rowbtns" onClick={(e) => e.stopPropagation()}>
-                          <CopyUserInvite user={u} />
+                          <CopyUserInvite user={u} t={t} />
                           <button className="gr-mini gr-danger" onClick={() => deleteUser(u.id)}>
                             ✕
                           </button>
@@ -3302,9 +3305,9 @@ export default function GrensrockApp() {
               </div>
             )}
             <p className="gr-muted" style={{ marginTop: 12 }}>
-              <strong>Admin</strong> — everything: editions, formulas, invoicing and team accounts.
+              <strong>{t("tm.admin")}</strong> {t("tm.roleadmin")}
               <br />
-              <strong>User</strong> — can view and update all sponsors and their agreements.
+              <strong>{t("tm.user")}</strong> {t("tm.roleuser")}
             </p>
             <div className="gr-portalbox" style={{ marginTop: 14 }}>
               Everyone logs in with their own email address and password.
@@ -3476,7 +3479,7 @@ export default function GrensrockApp() {
 
       {/* ---------- modals ---------- */}
       {modal?.type === "sponsor" && (
-        <Modal title={modal.payload ? "Edit sponsor" : "New sponsor"} onClose={() => setModal(null)}>
+        <Modal title={t(modal.payload ? "md.editsponsor" : "md.newsponsor")} onClose={() => setModal(null)} lang={uiLang}>
           <SponsorForm
             initial={modal.payload}
             teamMembers={users}
@@ -3488,10 +3491,10 @@ export default function GrensrockApp() {
           />
         </Modal>
       )}
-      <ConfirmDialog dialog={dialog} onClose={() => setDialog(null)} />
+      <ConfirmDialog dialog={dialog} onClose={() => setDialog(null)} t={t} lang={uiLang} />
       {modal?.type === "contact" && (
         <Modal
-          title={modal.payload.contact ? "Edit contact person" : "New contact person"}
+          title={t(modal.payload.contact ? "md.editcontact" : "md.newcontact")}
           onClose={() => setModal(null)}
         >
           <ContactForm
@@ -3506,12 +3509,19 @@ export default function GrensrockApp() {
         <NewContactModal
           sponsors={sponsors}
           t={t}
+          lang={uiLang}
           onClose={() => setModal(null)}
           onSave={(sponsorId, contact) => saveContact(sponsorId, contact)}
         />
       )}
       {modal?.type === "importContacts" && admin && (
-        <ContactImportModal sponsors={sponsors} onImport={importContacts} onClose={() => setModal(null)} t={t} />
+        <ContactImportModal
+          sponsors={sponsors}
+          onImport={importContacts}
+          onClose={() => setModal(null)}
+          t={t}
+          lang={uiLang}
+        />
       )}
       {modal?.type === "acceptance" &&
         (() => {
@@ -3521,18 +3531,18 @@ export default function GrensrockApp() {
           const snap = a.snapshot || {};
           const changed = changedSinceAcceptance(d);
           return (
-            <Modal title="Contract acceptance" onClose={() => setModal(null)} wide>
+            <Modal title={t("md.acceptance")} onClose={() => setModal(null)} wide lang={uiLang}>
               <dl className="gr-dl">
                 <dt>{t("ac.acceptedby")}</dt>
                 <dd>
                   <strong>{a.name || "—"}</strong>
                   {a.email ? ` · ${a.email}` : ""}
                 </dd>
-                <dt>Date &amp; time</dt>
+                <dt>{t("xl.datetime")}</dt>
                 <dd>{fmtDateTime(a.acceptedAt)}</dd>
-                <dt>Formula</dt>
+                <dt>{t("c.formula")}</dt>
                 <dd>{snap.formulaName || "—"}</dd>
-                <dt>Contribution</dt>
+                <dt>{t("c.contribution")}</dt>
                 <dd>{eur(snap.cost)}</dd>
               </dl>
               <h4 className="gr-subhead">{t("ac.termsaccepted")}</h4>
@@ -3554,13 +3564,13 @@ export default function GrensrockApp() {
                       <li key={i}>{line}</li>
                     ))}
                   </ul>
-                  <p className="gr-muted">Current contribution: {eur(d.cost)}</p>
+                  <p className="gr-muted">{t("ac.currentcontribution")}: {eur(d.cost)}</p>
                   <div className="gr-actions">
                     <button
                       className="gr-btn-ghost gr-danger"
                       onClick={() =>
                         ask(
-                          "Ask the sponsor to accept again? The current acceptance is cleared.",
+                          t("dlg.resetacceptask"),
                           async () => {
                             try {
                               const saved = await dealsApi.updateDeal(d.id, { acceptance: null });
@@ -3574,11 +3584,11 @@ export default function GrensrockApp() {
                               failWith(e);
                             }
                           },
-                          { title: "Reset acceptance", confirmLabel: "Reset" },
+                          { title: t("dlg.resetaccepttitle"), confirmLabel: t("dlg.reset") },
                         )
                       }
                     >
-                      Request new acceptance
+                      {t("ac.reqnew")}
                     </button>
                   </div>
                 </>
@@ -3587,23 +3597,25 @@ export default function GrensrockApp() {
           );
         })()}
       {modal?.type === "examples" && (
-        <Modal title="Example images of returns" onClose={() => setModal(null)} wide>
-          <ExampleImagesManager onClose={() => setModal(null)} />
+        <Modal title={t("md.examples")} onClose={() => setModal(null)} wide lang={uiLang}>
+          <ExampleImagesManager onClose={() => setModal(null)} t={t} lang={uiLang} />
         </Modal>
       )}
       {modal?.type === "vatlookup" && (
-        <Modal title="VAT lookup (CBE/KBO)" onClose={() => setModal(null)}>
+        <Modal title={t("md.vatlookup")} onClose={() => setModal(null)} lang={uiLang}>
           <VatLookupSettings
             value={data.settings?.vatLookup || defaultVatLookup}
             onSave={(cfg) => saveSettings({ vatLookup: cfg })}
             onCancel={() => setModal(null)}
+            t={t}
           />
         </Modal>
       )}
       {modal?.type === "tickoweb" && (
-        <Modal title="Tickoweb integration" onClose={() => setModal(null)} wide>
+        <Modal title={t("md.tickoweb")} onClose={() => setModal(null)} wide lang={uiLang}>
           <TickowebSettings
             t={t}
+            lang={uiLang}
             value={data.settings?.tickoweb || defaultTickoweb}
             onSave={(cfg) => saveSettings({ tickoweb: cfg })}
             onCancel={() => setModal(null)}
@@ -3611,9 +3623,10 @@ export default function GrensrockApp() {
         </Modal>
       )}
       {modal?.type === "user" && (
-        <Modal title={modal.payload ? "Edit account" : "New team account"} onClose={() => setModal(null)}>
+        <Modal title={t(modal.payload ? "md.editaccount" : "md.newaccount")} onClose={() => setModal(null)} lang={uiLang}>
           <UserForm
             t={t}
+            lang={uiLang}
             initial={modal.payload}
             existing={users}
             isOnlyAdmin={
@@ -3625,17 +3638,24 @@ export default function GrensrockApp() {
         </Modal>
       )}
       {modal?.type === "import" && (
-        <ImportModal sponsors={sponsors} onImport={importSponsors} onClose={() => setModal(null)} t={t} />
+        <ImportModal
+          sponsors={sponsors}
+          onImport={importSponsors}
+          onClose={() => setModal(null)}
+          t={t}
+          lang={uiLang}
+        />
       )}
       {modal?.type === "edition" && (
-        <Modal title={modal.payload ? "Edit edition" : "New edition"} onClose={() => setModal(null)}>
+        <Modal title={t(modal.payload ? "md.editedition" : "md.newedition")} onClose={() => setModal(null)} lang={uiLang}>
           <EditionForm initial={modal.payload} onSave={saveEdition} onCancel={() => setModal(null)} t={t} />
         </Modal>
       )}
       {modal?.type === "formula" && (
-        <Modal title={modal.payload.formula ? "Edit formula" : "New formula"} onClose={() => setModal(null)} wide>
+        <Modal title={t(modal.payload.formula ? "md.editformula" : "md.newformula")} onClose={() => setModal(null)} wide lang={uiLang}>
           <FormulaForm
             t={t}
+            lang={uiLang}
             initial={modal.payload.formula}
             onSave={(f) => saveFormula(modal.payload.editionId, f, modal.payload.formula?.name)}
             onCancel={() => setModal(null)}
@@ -3654,6 +3674,7 @@ export default function GrensrockApp() {
             onAddSponsor={addSponsorInline}
             vatCfg={data.settings?.vatLookup || defaultVatLookup}
             t={t}
+            lang={uiLang}
             onDelete={admin ? deleteDeal : undefined}
           />
         </Modal>

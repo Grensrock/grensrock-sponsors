@@ -3,10 +3,10 @@
 import { useState } from "react";
 import EmailInput from "@/components/ui/EmailInput";
 import Field from "@/components/ui/Field";
-import { ROLES, TEAM_DOMAIN, TEAM_LANGS, emptyUser } from "@/lib/constants";
+import { ROLES, TEAM_DOMAIN, TEAM_LANGS, emptyUser, label } from "@/lib/constants";
 import { emailToStore, sameEmail, validateEmail } from "@/lib/email-validate";
 import { teamEmailFor } from "@/lib/users";
-import type { Role, TeamLanguage, TranslateFn, User } from "@/types";
+import type { Language, Role, TeamLanguage, TranslateFn, User } from "@/types";
 
 /* ---------- Team account form ---------- */
 
@@ -19,6 +19,7 @@ export default function UserForm({
   isOnlyAdmin,
   existing = [],
   t = (k) => k,
+  lang = "nl",
 }: {
   initial?: Partial<User> | null;
   onSave: (u: UserFormState) => void;
@@ -26,6 +27,7 @@ export default function UserForm({
   isOnlyAdmin?: boolean;
   existing?: User[];
   t?: TranslateFn;
+  lang?: Language;
 }) {
   const [u, setU] = useState<UserFormState>({ ...emptyUser, ...initial });
   /* Email follows firstname@grensrock.be unless it was edited by hand */
@@ -49,7 +51,7 @@ export default function UserForm({
       </div>
       <Field
         label={t("uf.emaillogin")}
-        hint={customEmail ? "Custom address" : `Generated automatically as firstname@${TEAM_DOMAIN}`}
+        hint={customEmail ? t("uf.customaddress") : t("uf.autoaddress", { domain: TEAM_DOMAIN })}
       >
         <EmailInput
           value={email}
@@ -77,16 +79,16 @@ export default function UserForm({
         )}
       </Field>
       <div className="gr-grid2">
-        <Field label={t("c.role")} hint={isOnlyAdmin ? "This is the last admin — the role can't be changed." : undefined}>
+        <Field label={t("c.role")} hint={isOnlyAdmin ? t("uf.lastadminhint") : undefined}>
           <select value={u.role} onChange={(e) => setU({ ...u, role: e.target.value as Role })} disabled={isOnlyAdmin}>
-            {Object.entries(ROLES).map(([k, l]) => (
+            {Object.keys(ROLES).map((k) => (
               <option key={k} value={k}>
-                {l}
+                {label(ROLES, k, lang)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label={t("c.language")} hint="Interface language for this account">
+        <Field label={t("c.language")} hint={t("uf.uilanguage")}>
           <select
             value={u.language || "nl"}
             onChange={(e) => setU({ ...u, language: e.target.value as TeamLanguage })}
@@ -105,7 +107,7 @@ export default function UserForm({
       </p>
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button className="gr-btn" disabled={!valid} onClick={() => onSave({ ...u, email: emailToStore(email) })}>
           {t("tm.save")}

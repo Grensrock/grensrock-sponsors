@@ -4,6 +4,7 @@ import {
   POSTER_OPTS,
   WEBSITE_OPTS,
   emptyDeal,
+  label,
   type ReturnExampleType,
 } from "@/lib/constants";
 import { eur } from "@/lib/money";
@@ -106,11 +107,11 @@ export function visibilityLines(v: BenefitSource, lang: Language = "nl"): string
   const out: string[] = [];
   if (!v) return out;
   if (normFolder(v.folderMention) !== "none")
-    out.push(`${B("Folder", "Dépliant", "Folder")}: ${FOLDER_OPTS[normFolder(v.folderMention)]}`);
+    out.push(`${B("Folder", "Dépliant", "Folder")}: ${label(FOLDER_OPTS, normFolder(v.folderMention), lang)}`);
   if (v.posterMention && v.posterMention !== "none")
-    out.push(`${B("Affiche", "Affiche", "Poster")}: ${POSTER_OPTS[v.posterMention]}`);
-  if (v.websiteMention !== "none") out.push(`Website: ${WEBSITE_OPTS[v.websiteMention as keyof typeof WEBSITE_OPTS]}`);
-  if (normLed(v.ledboarding).length) out.push(`LED: ${ledLabel(v.ledboarding)}`);
+    out.push(`${B("Affiche", "Affiche", "Poster")}: ${label(POSTER_OPTS, v.posterMention, lang)}`);
+  if (v.websiteMention !== "none") out.push(`Website: ${label(WEBSITE_OPTS, v.websiteMention || "none", lang)}`);
+  if (normLed(v.ledboarding).length) out.push(`LED: ${ledLabel(v.ledboarding, lang)}`);
   if (Number(v.barrierCovers) > 0)
     out.push(`${v.barrierCovers} × ${B("nadarhoes", "housse Nadar", "barrier cover")}`);
   if (Number(v.herasCovers) > 0) out.push(`${v.herasCovers} × ${B("Heras-hoes", "housse Heras", "Heras cover")}`);

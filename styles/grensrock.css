@@ -482,11 +482,19 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   .gr-actions .gr-btn, .gr-actions .gr-btn-ghost { width:100%; text-align:center; }
 
   /* Full-bleed: a centred card with 16px of overlay either side wastes the only
-     dimension a phone is short of. */
+     dimension a phone is short of.
+
+     The modal is exactly the height of the screen, so the scrolling has to
+     happen inside it: .gr-modal carries overflow:hidden, and align-items above
+     pins its height to the overlay's, which together clipped everything past
+     the first screenful with no way to reach it — on the agreement form that
+     meant most of the fields and the Save button. A column with a scrolling
+     body is the fix and the better sheet anyway: the title and close button
+     stay put instead of scrolling away. */
   .gr-overlay { padding:0; align-items:stretch; }
-  .gr-modal { max-width:none; border-radius:0; min-height:100%; }
-  .gr-modal-head { padding:14px 16px 0; position:sticky; top:0; background:var(--paper); z-index:1; }
-  .gr-modal-body { padding:12px 16px 24px; }
+  .gr-modal { max-width:none; border-radius:0; display:flex; flex-direction:column; }
+  .gr-modal-head { padding:14px 16px 0; flex:none; }
+  .gr-modal-body { padding:12px 16px 24px; flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 
   .gr-landing { padding:64px 16px 40px; }
   .gr-landcards { gap:14px; margin-top:26px; width:100%; }

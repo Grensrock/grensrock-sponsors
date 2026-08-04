@@ -350,6 +350,15 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
 .gr-root .gr-previewbar button { margin-left:auto; }
 @media (max-width:640px){ .gr-root .gr-previewbar-note { display:none; } }
 
+/* The portal preview is inert, which is invisible on its own — without a cue
+   the page just stops responding and reads as broken. Muted rather than
+   greyed out: the point is to judge how the real thing looks. */
+.gr-root .gr-portallock { opacity:.92; }
+.gr-root .gr-portallock input,
+.gr-root .gr-portallock select,
+.gr-root .gr-portallock textarea,
+.gr-root .gr-portallock button { cursor:not-allowed; }
+
 /* ---------- sponsor logos (components/ui/LogoManager.tsx) ---------- */
 .gr-root .gr-logogrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; }
 .gr-root .gr-logocard { display:flex; gap:12px; border:1px solid var(--line); border-radius:10px;

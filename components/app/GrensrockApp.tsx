@@ -185,6 +185,9 @@ export default function GrensrockApp() {
      they would be allowed to do. Kept in memory, like langOverride, so a
      reload or a new session always lands back on the admin's own view. */
   const [previewUser, setPreviewUser] = useState(false);
+  /* The same idea one audience further out: the sponsor's own portal, as one of
+     their contacts receives it. Read-only — see the lock in SponsorPortal. */
+  const [previewPortal, setPreviewPortal] = useState<{ sponsorId: string; contactId: string } | null>(null);
   const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "companyName", dir: 1 });
   const [fEdition, setFEdition] = useState(""); // "" = all editions
   const [fResponsible, setFResponsible] = useState(""); // "" = everyone, "me", "none", or a user id
@@ -313,6 +316,7 @@ export default function GrensrockApp() {
     setUserId(null);
     setData(EMPTY_DATA);
     setPreviewUser(false); // whoever signs in next starts on their own view
+    setPreviewPortal(null);
     setMode({ view: "landing" });
   };
 
@@ -1486,6 +1490,36 @@ export default function GrensrockApp() {
     );
   }
 
+  /* Team member looking at a sponsor's portal. The write handlers are no-ops
+     rather than the real ones: the screen is already inert, and a preview that
+     silently does nothing is a far better failure than one that writes to a
+     sponsor's record if that lock ever comes off. */
+  if (previewPortal) {
+    const ps = sponsors.find((s) => s.id === previewPortal.sponsorId);
+    if (ps) {
+      const noop = () => {};
+      return (
+        <SponsorPortal
+          preview
+          sponsor={ps}
+          asContact={sponsorContacts(ps).find((c) => c.id === previewPortal.contactId)}
+          deals={deals}
+          editions={editions}
+          vouchers={vouchers}
+          vatCfg={data.settings?.vatLookup || defaultVatLookup}
+          logos={(data.logos || []).filter((l) => l.sponsorId === ps.id)}
+          onSaveSponsor={noop}
+          onAssignVoucher={noop}
+          onRequestFormula={noop}
+          onUpdateSplit={noop}
+          onUpdateExtra={noop}
+          onAcceptAgreement={noop}
+          onExit={() => setPreviewPortal(null)}
+        />
+      );
+    }
+  }
+
   const invEd = editions.find((e) => e.id === (invEdition || overviewEdition?.id));
   const invDeals = invEd ? deals.filter((d) => d.editionId === invEd.id) : [];
 
@@ -1908,6 +1942,15 @@ export default function GrensrockApp() {
             onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
             onShowAcceptance={(d) => setModal({ type: "acceptance", payload: d })}
             onActivateContact={(c) => saveContact(openSponsor.id, { ...c, portalAccess: true })}
+            /* No contact given (the sponsor has none, or none was picked) still
+               previews: the portal falls back to the primary contact's language
+               and hides the accept button, which is what such a sponsor sees. */
+            onPreviewPortal={(c) =>
+              setPreviewPortal({
+                sponsorId: openSponsor.id,
+                contactId: c?.id || primaryContact(openSponsor)?.id || "",
+              })
+            }
             logos={(data.logos || []).filter((l) => l.sponsorId === openSponsor.id)}
             onLogosChange={(next) => applyLogos(openSponsor.id, next)}
             onEmail={(d) => setModal({ type: "email", payload: d })}

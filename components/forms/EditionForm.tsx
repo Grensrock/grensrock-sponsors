@@ -24,23 +24,23 @@ export default function EditionForm({
   const valid = ed.name.trim().length > 0;
   return (
     <div>
-      <Field label="Edition name *">
+      <Field label={t("ef.name")}>
         <input value={ed.name} onChange={set("name")} placeholder="Grensrock 2026" />
       </Field>
       <div className="gr-grid2">
-        <Field label="Start date">
+        <Field label={t("ef.start")}>
           <input type="date" value={ed.startDate} onChange={set("startDate")} />
         </Field>
-        <Field label="End date">
+        <Field label={t("ef.end")}>
           <input type="date" value={ed.endDate} onChange={set("endDate")} />
         </Field>
       </div>
-      <Field label="Location">
+      <Field label={t("ef.location")}>
         <input value={ed.location} onChange={set("location")} placeholder="Menen" />
       </Field>
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button className="gr-btn" disabled={!valid} onClick={() => onSave(ed)}>
           {t("ed.saveedition")}

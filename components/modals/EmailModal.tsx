@@ -66,7 +66,7 @@ export default function EmailModal({
           </p>
           {recipients.length > 1 && (
             <Field
-              label="Write in the language of"
+              label={t("em.writelang")}
               hint={
                 mixedLangs
                   ? "These contacts prefer different languages — one text is sent to all of them."

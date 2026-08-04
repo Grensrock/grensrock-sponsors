@@ -4,6 +4,7 @@ import { useState } from "react";
 import PickLines from "@/components/ui/PickLines";
 import PickLogo from "@/components/ui/PickLogo";
 import { supabase } from "@/lib/supabase/client";
+import type { Language } from "@/types";
 
 /* ---------- Landing (choose team vs sponsor access) ----------
 
@@ -18,6 +19,13 @@ import { supabase } from "@/lib/supabase/client";
 
 const TEAM_DOMAIN = "grensrock.be";
 
+/* An example address reads as an example only in the reader's own language. */
+const MAIL_PLACEHOLDER: Record<Language, string> = {
+  nl: "uw@bedrijf.be",
+  fr: "vous@societe.be",
+  en: "you@company.com",
+};
+
 export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promise<void> }) {
   const [side, setSide] = useState<null | "team" | "sponsor" | "forgot">(null);
   const [email, setEmail] = useState("");
@@ -25,8 +33,8 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
-  const [lng, setLng] = useState("nl");
-  const L = (nl: string, en: string) => (lng === "nl" ? nl : en);
+  const [lng, setLng] = useState<Language>("nl");
+  const L = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lng];
 
   const reset = () => {
     setSide(null);
@@ -54,6 +62,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       setErr(
         L(
           "Aanmelden met Google lukte niet. Probeer het zo dadelijk opnieuw.",
+          "La connexion avec Google a échoué. Réessayez dans un instant.",
           "Could not sign in with Google. Please try again in a moment.",
         ),
       );
@@ -81,6 +90,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       setErr(
         L(
           "Dat e-mailadres en wachtwoord passen niet bij elkaar.",
+          "Cette adresse e-mail et ce mot de passe ne correspondent pas.",
           "That email address and password don't match.",
         ),
       );
@@ -98,7 +108,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
   const requestLink = async () => {
     if (busy) return;
     if (!email.trim()) {
-      setErr(L("Vul uw e-mailadres in.", "Enter your email address."));
+      setErr(L("Vul uw e-mailadres in.", "Saisissez votre adresse e-mail.", "Enter your email address."));
       return;
     }
     setErr("");
@@ -116,6 +126,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     setInfo(
       L(
         "Als dat adres bij een sponsorcontact met portaaltoegang hoort, is er een link onderweg. Die blijft 14 dagen geldig.",
+        "Si cette adresse correspond à un contact sponsor disposant d'un accès au portail, un lien est en route. Il reste valable 14 jours.",
         "If that address belongs to a sponsor contact with portal access, a link is on its way. It stays valid for 14 days.",
       ),
     );
@@ -130,12 +141,13 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       <p className="gr-muted">
         {L(
           "Vul uw e-mailadres in. Als dat adres bij een sponsorcontact met portaaltoegang hoort, sturen we u een link om een wachtwoord te kiezen. Die link blijft 14 dagen geldig.",
+          "Saisissez votre adresse e-mail. Si elle correspond à un contact sponsor disposant d'un accès au portail, nous vous enverrons un lien pour choisir un mot de passe. Ce lien reste valable 14 jours.",
           "Enter your email address. If it belongs to a sponsor contact with portal access, we'll send you a link to choose a password. The link stays valid for 14 days.",
         )}
       </p>
       <input
         type="email"
-        placeholder="uw@email.com"
+        placeholder={MAIL_PLACEHOLDER[lng]}
         value={email}
         onChange={(e) => {
           setEmail(e.target.value);
@@ -145,7 +157,9 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
         autoFocus
       />
       <button className="gr-btn" disabled={busy} onClick={requestLink}>
-        {busy ? L("Bezig…", "Working…") : L("Stuur me een link", "Send me a link")}
+        {busy
+          ? L("Bezig…", "En cours…", "Working…")
+          : L("Stuur me een link", "Envoyez-moi un lien", "Send me a link")}
       </button>
       <button
         className="gr-linkbtn"
@@ -155,7 +169,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
           setSide("sponsor");
         }}
       >
-        {L("← Terug naar aanmelden", "← Back to sign in")}
+        {L("← Terug naar aanmelden", "← Retour à la connexion", "← Back to sign in")}
       </button>
     </>
   );
@@ -165,14 +179,19 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       <p className="gr-muted">
         {L(
           "Beheer sponsors, edities, overeenkomsten en facturatie.",
+          "Gérez les sponsors, les éditions, les accords et la facturation.",
           "Manage sponsors, editions, agreements and invoicing.",
         )}
       </p>
       <button className="gr-btn" disabled={busy} onClick={teamLogin}>
-        {L("Aanmelden met Google", "Sign in with Google")}
+        {L("Aanmelden met Google", "Se connecter avec Google", "Sign in with Google")}
       </button>
       <p className="gr-muted" style={{ fontSize: 12 }}>
-        {L(`Met uw @${TEAM_DOMAIN}-account.`, `With your @${TEAM_DOMAIN} account.`)}
+        {L(
+          `Met uw @${TEAM_DOMAIN}-account.`,
+          `Avec votre compte @${TEAM_DOMAIN}.`,
+          `With your @${TEAM_DOMAIN} account.`,
+        )}
       </p>
     </>
   );
@@ -181,7 +200,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     <>
       <input
         type="email"
-        placeholder="uw@email.com"
+        placeholder={MAIL_PLACEHOLDER[lng]}
         value={email}
         onChange={(e) => {
           setEmail(e.target.value);
@@ -193,7 +212,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       <input
         type="password"
         autoComplete="current-password"
-        placeholder={L("Wachtwoord", "Password")}
+        placeholder={L("Wachtwoord", "Mot de passe", "Password")}
         value={password}
         onChange={(e) => {
           setPassword(e.target.value);
@@ -202,7 +221,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
         onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
       />
       <button className="gr-btn" disabled={busy} onClick={sponsorLogin}>
-        {L("Aanmelden", "Sign in")}
+        {L("Aanmelden", "Se connecter", "Sign in")}
       </button>
       <button
         className="gr-linkbtn"
@@ -213,10 +232,14 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
           setSide("forgot");
         }}
       >
-        {L("Wachtwoord vergeten of nog geen wachtwoord?", "Forgot your password, or don't have one yet?")}
+        {L(
+          "Wachtwoord vergeten of nog geen wachtwoord?",
+          "Mot de passe oublié, ou pas encore de mot de passe ?",
+          "Forgot your password, or don't have one yet?",
+        )}
       </button>
       <button className="gr-linkbtn" onClick={reset}>
-        {L("Terug", "Back")}
+        {L("Terug", "Retour", "Back")}
       </button>
     </>
   );
@@ -225,7 +248,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     <div className="gr-landing">
       <PickLines />
       <div className="gr-landlang">
-        {["nl", "en"].map((k) => (
+        {(["nl", "fr", "en"] as const).map((k) => (
           <button key={k} className={lng === k ? "on" : ""} onClick={() => setLng(k)}>
             {k.toUpperCase()}
           </button>
@@ -233,16 +256,18 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       </div>
       <PickLogo size={150} />
       <span className="gr-brandsub" style={{ marginTop: 10 }}>
-        {L("Sponsorbeheer", "Sponsor management")}
+        {L("Sponsorbeheer", "Gestion des sponsors", "Sponsor management")}
       </span>
       <div className="gr-landcards">
         <div className="gr-landcard">
-          <h3 className="gr-h3">{L("Organisatie", "Organisation")}</h3>
+          <h3 className="gr-h3">{L("Organisatie", "Organisation", "Organisation")}</h3>
           {teamCard}
         </div>
         <div className={"gr-landcard" + (side === "sponsor" || side === "forgot" ? " on" : "")}>
           <h3 className="gr-h3">
-            {side === "forgot" ? L("Wachtwoord vergeten", "Forgot your password") : "Sponsor"}
+            {side === "forgot"
+              ? L("Wachtwoord vergeten", "Mot de passe oublié", "Forgot your password")
+              : "Sponsor"}
           </h3>
           {side === "forgot" ? (
             forgotForm
@@ -253,6 +278,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
               <p className="gr-muted">
                 {L(
                   "Werk uw bedrijfsgegevens bij en laad uw logo op.",
+                  "Mettez à jour les données de votre entreprise et téléchargez votre logo.",
                   "Update your company details and upload your logo.",
                 )}
               </p>
@@ -264,7 +290,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
                   setSide("sponsor");
                 }}
               >
-                {L("Aanmelden als sponsor", "Log in as sponsor")}
+                {L("Aanmelden als sponsor", "Se connecter en tant que sponsor", "Log in as sponsor")}
               </button>
             </>
           )}

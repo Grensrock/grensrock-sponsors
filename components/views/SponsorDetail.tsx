@@ -7,12 +7,14 @@ import Tag from "@/components/ui/Tag";
 import { changedSinceAcceptance, isAccepted } from "@/lib/acceptance";
 import { formatAddress } from "@/lib/address";
 import {
-  COMMS,
+  COMM_LABELS,
   FOLDER_OPTS,
   POSTER_OPTS,
   VOUCHER_STATUS,
   VOUCHER_TYPES,
   WEBSITE_OPTS,
+  label,
+  voucherLabel,
   type CommKey,
 } from "@/lib/constants";
 import { contactName, sponsorContacts, voucherContact } from "@/lib/contacts";
@@ -20,7 +22,7 @@ import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, needsInvoice, refMis
 import { ledLabel, normFolder, normLed } from "@/lib/normalize";
 import { responsibleName } from "@/lib/users";
 import { voucherText } from "@/lib/vouchers";
-import type { Contact, Deal, Edition, Sponsor, TranslateFn, User, Voucher, SponsorLogo } from "@/types";
+import type { Contact, Deal, Edition, Language, Sponsor, SponsorLogo, TranslateFn, User, Voucher } from "@/types";
 
 /* ---------- Sponsor detail (history) ---------- */
 
@@ -34,6 +36,7 @@ export default function SponsorDetail({
   vouchers = [],
   canDelete,
   t = (k) => k,
+  lang = "nl",
   onBack,
   onEdit,
   onDelete,
@@ -54,6 +57,7 @@ export default function SponsorDetail({
   vouchers?: Voucher[];
   canDelete?: boolean;
   t?: TranslateFn;
+  lang?: Language;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -149,7 +153,7 @@ export default function SponsorDetail({
                   })()}
                 </dd>
                 <dt>{t("inv.reference")}</dt>
-                <dd>{sponsor.refRequired ? "Required on contract & invoice" : "Not required"}</dd>
+                <dd>{t(sponsor.refRequired ? "sd.refrequired" : "sd.refnotrequired")}</dd>
               </dl>
             </div>
           </div>
@@ -158,7 +162,7 @@ export default function SponsorDetail({
 
       {/* ---- Logos ---- */}
       {sub === "logos" && (
-        <LogoManager sponsorId={sponsor.id} logos={logos} onChange={(next) => onLogosChange?.(next)} />
+        <LogoManager sponsorId={sponsor.id} logos={logos} onChange={(next) => onLogosChange?.(next)} lang={lang} />
       )}
 
       {/* ---- Contact persons ---- */}
@@ -190,7 +194,7 @@ export default function SponsorDetail({
                 </thead>
                 <tbody>
                   {contacts.map((c, i) => (
-                    <tr key={c.id || i} title="Click to edit this contact" onClick={() => onEditContact(c)}>
+                    <tr key={c.id || i} title={t("tt.editcontact")} onClick={() => onEditContact(c)}>
                       <td>
                         <strong>{contactName(c) || <span className="gr-muted">no name</span>}</strong>
                       </td>
@@ -202,7 +206,7 @@ export default function SponsorDetail({
                           <Tag tone="green">active</Tag>
                         ) : c.email ? (
                           <button className="gr-mini" onClick={() => onActivateContact(c)}>
-                            Activate
+                            {t("c.activate")}
                           </button>
                         ) : (
                           <span className="gr-muted">no email</span>
@@ -210,10 +214,10 @@ export default function SponsorDetail({
                       </td>
                       <td>
                         <div className="gr-commtags">
-                          {(Object.keys(COMMS) as CommKey[])
+                          {(Object.keys(COMM_LABELS) as CommKey[])
                             .filter((k) => c.prefs?.[k])
                             .map((k) => (
-                              <Tag key={k}>{COMMS[k]}</Tag>
+                              <Tag key={k}>{label(COMM_LABELS, k, lang)}</Tag>
                             ))}
                         </div>
                       </td>
@@ -223,6 +227,7 @@ export default function SponsorDetail({
                             sponsor={sponsor}
                             contact={c}
                             responsible={responsibleName(sponsor, users)}
+                            t={t}
                           />
                         )}
                       </td>
@@ -333,10 +338,10 @@ export default function SponsorDetail({
                           "—"
                         )}
                       </td>
-                      <td>{normFolder(d.folderMention) !== "none" ? FOLDER_OPTS[normFolder(d.folderMention)] : "—"}</td>
-                      <td>{d.websiteMention !== "none" ? WEBSITE_OPTS[d.websiteMention] : "—"}</td>
-                      <td>{d.posterMention && d.posterMention !== "none" ? POSTER_OPTS[d.posterMention] : "—"}</td>
-                      <td>{normLed(d.ledboarding).length > 0 ? ledLabel(d.ledboarding) : "—"}</td>
+                      <td>{normFolder(d.folderMention) !== "none" ? label(FOLDER_OPTS, normFolder(d.folderMention), lang) : "—"}</td>
+                      <td>{d.websiteMention !== "none" ? label(WEBSITE_OPTS, d.websiteMention, lang) : "—"}</td>
+                      <td>{d.posterMention && d.posterMention !== "none" ? label(POSTER_OPTS, d.posterMention, lang) : "—"}</td>
+                      <td>{normLed(d.ledboarding).length > 0 ? ledLabel(d.ledboarding, lang) : "—"}</td>
                       <td className="gr-r">
                         {(Number(d.barrierCovers) || 0) + (Number(d.herasCovers) || 0) > 0
                           ? `${Number(d.barrierCovers) || 0} / ${Number(d.herasCovers) || 0}`
@@ -346,7 +351,7 @@ export default function SponsorDetail({
                         {isAccepted(d) ? (
                           <button
                             className="gr-mini"
-                            title="Show what was accepted"
+                            title={t("tt.showaccepted")}
                             onClick={(e) => {
                               e.stopPropagation();
                               onShowAcceptance(d);
@@ -387,7 +392,7 @@ export default function SponsorDetail({
                         {canDelete && (
                           <button
                             className="gr-mini gr-danger"
-                            title="Delete agreement"
+                            title={t("tt.deldeal")}
                             onClick={(e) => {
                               e.stopPropagation();
                               onDeleteDeal(d.id);
@@ -431,10 +436,10 @@ export default function SponsorDetail({
                   return (
                     <tr key={v.id} className={v.status === "cancelled" ? "gr-cancelled" : undefined}>
                       <td>{ed ? ed.name : "—"}</td>
-                      <td>{VOUCHER_TYPES[v.type]?.label || v.type}</td>
+                      <td>{voucherLabel(VOUCHER_TYPES[v.type], lang, v.type)}</td>
                       <td className="gr-r">{v.value > 0 ? eur(v.value) : "—"}</td>
                       <td>
-                        <Tag tone={st.tone}>{st.label}</Tag>
+                        <Tag tone={st.tone}>{voucherLabel(st, lang, v.status)}</Tag>
                       </td>
                       <td>{v.code || <span className="gr-muted">—</span>}</td>
                       <td>
@@ -452,7 +457,7 @@ export default function SponsorDetail({
                       <td className="gr-rowbtns">
                         {v.url && (
                           <a className="gr-mini gr-btn-link" href={v.url} target="_blank" rel="noreferrer">
-                            View
+                            {t("c.view")}
                           </a>
                         )}
                       </td>

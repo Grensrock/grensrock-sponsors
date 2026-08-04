@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { buildUserInvite } from "@/lib/email-templates";
-import type { User } from "@/types";
+import type { TranslateFn, User } from "@/types";
 
-export default function CopyUserInvite({ user }: { user: User }) {
+export default function CopyUserInvite({ user, t = (k) => k }: { user: User; t?: TranslateFn }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -19,7 +19,7 @@ export default function CopyUserInvite({ user }: { user: User }) {
         }
       }}
     >
-      {copied ? "Copied ✓" : "Copy invite"}
+      {copied ? t("cp.copied") : t("cp.copyinvite")}
     </button>
   );
 }

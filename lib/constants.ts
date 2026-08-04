@@ -32,11 +32,7 @@ export const ADMIN_TABS = ["editions", "team", "audit"];
 /* ---------- contacts ---------- */
 export type CommKey = "info" | "invoice";
 
-export const COMMS: Record<CommKey, string> = {
-  info: "Information",
-  invoice: "Invoicing",
-};
-export const COMM_LABELS: Record<CommKey, Record<Language, string>> = {
+export const COMM_LABELS: LabelMap<CommKey> = {
   info: { nl: "Algemene informatie", fr: "Informations générales", en: "General information" },
   invoice: { nl: "Facturatie", fr: "Facturation", en: "Invoicing" },
 };
@@ -50,14 +46,31 @@ export const emptyContact: Omit<Contact, "id"> = {
   portalAccess: false, // must be activated before they can log in
 };
 
-export const WEBSITE_OPTS: Record<WebsiteMention, string> = { logo: "Logo", name: "Name only", none: "No mention" };
-export const POSTER_OPTS: Record<PosterMention, string> = { logo: "Logo", name: "Name only", none: "No mention" };
-export const FOLDER_OPTS: Record<FolderMention, string> = {
-  none: "No mention",
-  full: "Full page",
-  half: "Half page",
-  quarter: "1/4 page",
-  eighth: "1/8 page",
+/* ---------- option labels ----------
+   Every option map below is keyed by the stored value and holds one label per
+   language. The maps double as the set of values we accept (see lib/normalize),
+   so there is one place to add an option rather than a key list and a label list
+   that drift apart. Read them through `label()` so a missing translation falls
+   back to English instead of rendering "undefined". */
+export type LabelMap<K extends string> = Record<K, Record<Language, string>>;
+
+export const label = <K extends string>(map: LabelMap<K>, key: K | string, lang: Language = "nl"): string =>
+  map[key as K]?.[lang] || map[key as K]?.en || String(key);
+
+const MENTION_LABELS = {
+  logo: { nl: "Logo", fr: "Logo", en: "Logo" },
+  name: { nl: "Enkel naam", fr: "Nom seul", en: "Name only" },
+  none: { nl: "Geen vermelding", fr: "Pas de mention", en: "No mention" },
+};
+
+export const WEBSITE_OPTS: LabelMap<WebsiteMention> = MENTION_LABELS;
+export const POSTER_OPTS: LabelMap<PosterMention> = MENTION_LABELS;
+export const FOLDER_OPTS: LabelMap<FolderMention> = {
+  none: { nl: "Geen vermelding", fr: "Pas de mention", en: "No mention" },
+  full: { nl: "Volledige pagina", fr: "Page entière", en: "Full page" },
+  half: { nl: "Halve pagina", fr: "Demi-page", en: "Half page" },
+  quarter: { nl: "1/4 pagina", fr: "1/4 de page", en: "1/4 page" },
+  eighth: { nl: "1/8 pagina", fr: "1/8 de page", en: "1/8 page" },
 };
 /* How much of a page each format takes up, for the folder page count */
 export const FOLDER_FRACTION: Record<FolderMention, number> = {
@@ -67,30 +80,33 @@ export const FOLDER_FRACTION: Record<FolderMention, number> = {
   quarter: 0.25,
   eighth: 0.125,
 };
-export const LED_ZONES: Record<LedZone, string> = { vip: "VIP", foodvillage: "Food village", stage: "Stage" };
-
-/* How the sponsor settles their contribution */
-export const SETTLEMENTS: Record<Settlement, string> = {
-  invoice: "Invoice (money)",
-  inkind: "In kind — no invoice",
-  mixed: "Combination: part invoiced, part in kind",
+/* VIP and Food village are the zones' own names on site and stay as they are;
+   "stage" is translated, not least because Dutch "stage" means internship. */
+export const LED_ZONES: LabelMap<LedZone> = {
+  vip: { nl: "VIP", fr: "VIP", en: "VIP" },
+  foodvillage: { nl: "Food village", fr: "Food village", en: "Food village" },
+  stage: { nl: "Podium", fr: "Scène", en: "Stage" },
 };
 
-/* Language-aware display labels for the option constants (keys stay stable) */
-export const OPT_KEYMAP: Record<string, string> = {
-  none: "opt.nomention",
-  name: "opt.nameonly",
-  logo: "opt.logo",
-  full: "opt.fullpage",
-  half: "opt.halfpage",
-  quarter: "opt.quarterpage",
-  eighth: "opt.eighthpage",
+/* How the sponsor settles their contribution */
+export const SETTLEMENTS: LabelMap<Settlement> = {
+  invoice: { nl: "Factuur (geld)", fr: "Facture (argent)", en: "Invoice (money)" },
+  inkind: { nl: "In natura — geen factuur", fr: "En nature — sans facture", en: "In kind — no invoice" },
+  mixed: {
+    nl: "Combinatie: deels gefactureerd, deels in natura",
+    fr: "Combinaison : en partie facturé, en partie en nature",
+    en: "Combination: part invoiced, part in kind",
+  },
 };
 
 /* ---------- access ---------- */
-export const ROLES: Record<Role, string> = {
-  admin: "Admin — full access",
-  user: "User — sponsors & agreements",
+export const ROLES: LabelMap<Role> = {
+  admin: { nl: "Beheerder — volledige toegang", fr: "Administrateur — accès complet", en: "Admin — full access" },
+  user: {
+    nl: "Gebruiker — sponsors & overeenkomsten",
+    fr: "Utilisateur — sponsors & accords",
+    en: "User — sponsors & agreements",
+  },
 };
 
 /* Team accounts use firstname@grensrock.be */
@@ -184,21 +200,40 @@ export const emptyUser: Omit<User, "id"> = {
 };
 
 /* ---------- vouchers ---------- */
-export const VOUCHER_TYPES: Record<VoucherType, { label: string; kind: string }> = {
-  vipFriday: { label: "VIP ticket Friday", kind: "ticket" },
-  vipSaturday: { label: "VIP ticket Saturday", kind: "ticket" },
-  vipGuests: { label: "VIP ticket guest", kind: "ticket" },
-  drink: { label: "Drink voucher", kind: "voucher" },
-  food: { label: "Food & drink voucher", kind: "voucher" },
+export const VOUCHER_TYPES: Record<VoucherType, { label: Record<Language, string>; kind: string }> = {
+  vipFriday: {
+    label: { nl: "VIP-ticket vrijdag", fr: "Ticket VIP vendredi", en: "VIP ticket Friday" },
+    kind: "ticket",
+  },
+  vipSaturday: {
+    label: { nl: "VIP-ticket zaterdag", fr: "Ticket VIP samedi", en: "VIP ticket Saturday" },
+    kind: "ticket",
+  },
+  vipGuests: {
+    label: { nl: "VIP-ticket genodigde", fr: "Ticket VIP invité", en: "VIP ticket guest" },
+    kind: "ticket",
+  },
+  drink: { label: { nl: "Drankbon", fr: "Bon boissons", en: "Drink voucher" }, kind: "voucher" },
+  food: {
+    label: { nl: "Bon eten & drinken", fr: "Bon food & boissons", en: "Food & drink voucher" },
+    kind: "voucher",
+  },
 };
 
-export const VOUCHER_STATUS: Record<VoucherStatus, { label: string; tone: Tone }> = {
-  pending: { label: "To create", tone: "amber" },
-  created: { label: "Created", tone: "grey" },
-  sent: { label: "Sent", tone: "green" },
-  cancelled: { label: "Cancelled", tone: "grey" },
-  error: { label: "Failed", tone: "amber" },
+export const VOUCHER_STATUS: Record<VoucherStatus, { label: Record<Language, string>; tone: Tone }> = {
+  pending: { label: { nl: "Aan te maken", fr: "À créer", en: "To create" }, tone: "amber" },
+  created: { label: { nl: "Aangemaakt", fr: "Créé", en: "Created" }, tone: "grey" },
+  sent: { label: { nl: "Verzonden", fr: "Envoyé", en: "Sent" }, tone: "green" },
+  cancelled: { label: { nl: "Geannuleerd", fr: "Annulé", en: "Cancelled" }, tone: "grey" },
+  error: { label: { nl: "Mislukt", fr: "Échec", en: "Failed" }, tone: "amber" },
 };
+
+/** Label of a voucher type or status, in the reader's language. */
+export const voucherLabel = (
+  entry: { label: Record<Language, string> } | undefined,
+  lang: Language = "nl",
+  fallback = "",
+) => entry?.label[lang] || entry?.label.en || fallback;
 
 /* ---------- Example images per return type ---------- */
 export type ReturnExampleType =

@@ -41,11 +41,13 @@ export default function ImportModal({
   onImport,
   onClose,
   t = (k) => k,
+  lang = "nl",
 }: {
   sponsors: Sponsor[];
   onImport: (list: SponsorImportRow[]) => void;
   onClose: () => void;
   t?: TranslateFn;
+  lang?: Language;
 }) {
   const [headers, setHeaders] = useState<string[] | null>(null);
   const [rows, setRows] = useState<unknown[][]>([]);
@@ -65,7 +67,7 @@ export default function ImportModal({
         r.some((c) => normStr(c) !== ""),
       );
       if (all.length < 2) {
-        setErr("The file needs a header row plus at least one sponsor row.");
+        setErr(t("im.needheadersp"));
         return;
       }
       const hdr = all[0].map(normStr);
@@ -73,7 +75,7 @@ export default function ImportModal({
       setRows(all.slice(1));
       setMap(autoMap(hdr));
     } catch {
-      setErr("Couldn't read this file. Save it as .xlsx or .csv and try again.");
+      setErr(t("im.unreadable"));
     }
   };
 
@@ -151,7 +153,7 @@ export default function ImportModal({
   /* ----- result screen ----- */
   if (result) {
     return (
-      <Modal title="Import complete" onClose={onClose}>
+      <Modal title={t("im.donesp")} onClose={onClose} lang={lang}>
         <p>
           <strong>{result.createdCount}</strong> new sponsor(s) created.
           {result.skipped.length > 0 && (
@@ -166,7 +168,7 @@ export default function ImportModal({
             <table className="gr-table gr-compact">
               <thead>
                 <tr>
-                  <th>Row</th>
+                  <th>{t("c.row")}</th>
                   <th>{t("c.name")}</th>
                   <th>{t("c.reason")}</th>
                 </tr>
@@ -185,7 +187,7 @@ export default function ImportModal({
         )}
         <div className="gr-actions">
           <button className="gr-btn" onClick={onClose}>
-            Done
+            {t("common.done")}
           </button>
         </div>
       </Modal>
@@ -193,7 +195,7 @@ export default function ImportModal({
   }
 
   return (
-    <Modal title="Import sponsors" onClose={onClose} wide>
+    <Modal title={t("im.importsp")} onClose={onClose} wide lang={lang}>
       {!headers ? (
         <>
           <p className="gr-muted">
@@ -254,7 +256,7 @@ export default function ImportModal({
                         <th>VAT</th>
                         <th>{t("c.contact")}</th>
                         <th>{t("c.email")}</th>
-                        <th>Lang</th>
+                        <th>{t("im.lang")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -269,7 +271,7 @@ export default function ImportModal({
                                 ? (
                                     <span
                                       style={{ color: "var(--red)" }}
-                                      title="VAT number looks invalid — will be imported as-is, fix it afterwards"
+                                      title={t("im.badvat")}
                                     >
                                       ⚠ {c.vatNumber}
                                     </span>
@@ -284,7 +286,7 @@ export default function ImportModal({
                                 ? (
                                     <span
                                       style={{ color: "var(--red)" }}
-                                      title="Email looks invalid — imported as-is, fix it afterwards"
+                                      title={t("im.bademail")}
                                     >
                                       ⚠ {c.emailPreview}
                                     </span>

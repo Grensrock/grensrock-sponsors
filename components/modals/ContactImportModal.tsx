@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import Tag from "@/components/ui/Tag";
-import { COMMS, emptyContact, uid, type CommKey } from "@/lib/constants";
+import { COMM_LABELS, emptyContact, label, uid, type CommKey } from "@/lib/constants";
 import { contactName, sponsorContacts } from "@/lib/contacts";
 import { emailToStore, sameEmail } from "@/lib/email-validate";
 import {
@@ -16,7 +16,7 @@ import {
   type ContactField,
 } from "@/lib/import-helpers";
 import { normLang, normNameKey, normStr } from "@/lib/normalize";
-import type { Contact, Sponsor, TranslateFn } from "@/types";
+import type { Contact, Language, Sponsor, TranslateFn } from "@/types";
 
 /* ---------- Contact import (xlsx / csv) ---------- */
 
@@ -38,11 +38,13 @@ export default function ContactImportModal({
   onImport,
   onClose,
   t = (k) => k,
+  lang = "nl",
 }: {
   sponsors: Sponsor[];
   onImport: (list: ContactImportRow[]) => void;
   onClose: () => void;
   t?: TranslateFn;
+  lang?: Language;
 }) {
   const [headers, setHeaders] = useState<string[] | null>(null);
   const [rows, setRows] = useState<unknown[][]>([]);
@@ -60,7 +62,7 @@ export default function ContactImportModal({
         XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }) as unknown[][]
       ).filter((r) => r.some((c) => normStr(c) !== ""));
       if (all.length < 2) {
-        setErr("The file needs a header row plus at least one contact row.");
+        setErr(t("im.needheaderct"));
         return;
       }
       const hdr = all[0].map(normStr);
@@ -68,7 +70,7 @@ export default function ContactImportModal({
       setRows(all.slice(1));
       setMap(autoMapContacts(hdr));
     } catch {
-      setErr("Couldn't read this file. Save it as .xlsx or .csv and try again.");
+      setErr(t("im.unreadable"));
     }
   };
 
@@ -141,7 +143,7 @@ export default function ContactImportModal({
 
   if (result) {
     return (
-      <Modal title="Import complete" onClose={onClose} wide>
+      <Modal title={t("im.donesp")} onClose={onClose} wide lang={lang}>
         <p>
           <strong>{result.created}</strong> contact person(s) added.
           {result.skipped.length > 0 && (
@@ -156,7 +158,7 @@ export default function ContactImportModal({
             <table className="gr-table gr-compact">
               <thead>
                 <tr>
-                  <th>Row</th>
+                  <th>{t("c.row")}</th>
                   <th>{t("c.value")}</th>
                   <th>{t("c.reason")}</th>
                 </tr>
@@ -175,7 +177,7 @@ export default function ContactImportModal({
         )}
         <div className="gr-actions">
           <button className="gr-btn" onClick={onClose}>
-            Done
+            {t("common.done")}
           </button>
         </div>
       </Modal>
@@ -183,7 +185,7 @@ export default function ContactImportModal({
   }
 
   return (
-    <Modal title="Import contact persons" onClose={onClose} wide>
+    <Modal title={t("im.importct")} onClose={onClose} wide lang={lang}>
       {!headers ? (
         <>
           <p className="gr-muted">
@@ -244,7 +246,7 @@ export default function ContactImportModal({
                         <th>Sponsor</th>
                         <th>{t("c.name")}</th>
                         <th>{t("c.email")}</th>
-                        <th>Lang</th>
+                        <th>{t("im.lang")}</th>
                         <th>{t("c.receives")}</th>
                       </tr>
                     </thead>
@@ -257,10 +259,10 @@ export default function ContactImportModal({
                           <td>{c.contact.language.toUpperCase()}</td>
                           <td>
                             <div className="gr-commtags">
-                              {(Object.keys(COMMS) as CommKey[])
+                              {(Object.keys(COMM_LABELS) as CommKey[])
                                 .filter((k) => c.contact.prefs[k])
                                 .map((k) => (
-                                  <Tag key={k}>{COMMS[k]}</Tag>
+                                  <Tag key={k}>{label(COMM_LABELS, k, lang)}</Tag>
                                 ))}
                             </div>
                           </td>

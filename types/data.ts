@@ -22,8 +22,10 @@ export interface AppData {
   settings?: Settings;
 }
 
-/* A translation function: t("nav.overview") -> string. */
-export type TranslateFn = (key: string) => string;
+/* A translation function: t("nav.overview") -> string.
+   Values may carry {placeholders}, filled from the second argument:
+   t("dlg.declineask", { name: "Jan" }). */
+export type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
 /* Colour tone of a <Tag>. */
 export type Tone = "grey" | "green" | "amber" | "blue";

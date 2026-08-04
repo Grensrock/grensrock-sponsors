@@ -17,25 +17,32 @@
    Unset (a local `npm run dev`) is treated as not-production too.
    ============================================================ */
 
+import { teamT } from "@/lib/i18n";
+import type { TeamLanguage } from "@/types";
+
 /** "https://abcd1234.supabase.co" -> "abcd1234" */
 const projectRef = (url?: string) => (url || "").replace(/^https?:\/\//, "").split(".")[0] || "unknown";
 
-export default function EnvBanner() {
+export default function EnvBanner({ lang = "nl" }: { lang?: TeamLanguage }) {
   const env = process.env.NEXT_PUBLIC_VERCEL_ENV;
   if (env === "production") return null;
 
   const branch = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF;
   const ref = projectRef(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const label = env === "preview" ? "Staging" : "Local";
+  const label = teamT(env === "preview" ? "eb.staging" : "eb.local", lang);
 
   return (
     <div className={"gr-envbanner" + (env === "preview" ? "" : " local")} role="status">
       <strong>{label}</strong>
-      {branch && <span>branch {branch}</span>}
+      {branch && (
+        <span>
+          {teamT("eb.branch", lang)} {branch}
+        </span>
+      )}
       <span>
-        database <code>{ref}</code>
+        {teamT("eb.database", lang)} <code>{ref}</code>
       </span>
-      <span className="gr-envbanner-note">not production — changes here are not real</span>
+      <span className="gr-envbanner-note">{teamT("eb.note", lang)}</span>
     </div>
   );
 }

@@ -66,7 +66,7 @@ export default function ImageStore({
       await removeImage(image);
       setLogo(null);
     } catch (ex) {
-      setErr((ex as Error).message || "Couldn't remove this file.");
+      setErr((ex as Error).message || t("im.removefail"));
     }
   };
 
@@ -102,16 +102,20 @@ export default function ImageStore({
   const quality: { tone: Tone; text: string } | null = !logo
     ? null
     : logo.vector
-      ? { tone: "green", text: `Vector file (.${logo.ext}) — ideal for print` }
+      ? { tone: "green", text: t("im.vector", { ext: logo.ext || "" }) }
       : logo.width
         ? logo.width >= LOGO_MIN_PX && (logo.height ?? 0) >= LOGO_MIN_PX
           ? {
               tone: logo.type === "image/jpeg" ? "amber" : "green",
-              text: `${logo.width}×${logo.height} px${
-                logo.type === "image/jpeg" ? " — JPEG has no transparent background; PNG or vector is better" : ""
-              }`,
+              text: `${logo.width}×${logo.height} px${logo.type === "image/jpeg" ? t("im.jpegnote") : ""}`,
             }
-          : { tone: "amber", text: `${logo.width}×${logo.height} px — below ${LOGO_MIN_PX}×${LOGO_MIN_PX}` }
+          : {
+              tone: "amber",
+              text: t("im.below", {
+                got: `${logo.width}×${logo.height}`,
+                min: `${LOGO_MIN_PX}×${LOGO_MIN_PX}`,
+              }),
+            }
         : null;
 
   return (
@@ -119,12 +123,12 @@ export default function ImageStore({
       <div className="gr-logoframe">{logo ? preview : <span className="gr-muted">{t("im.noimage")}</span>}</div>
       <div className="gr-logobtns">
         <label className="gr-mini gr-filebtn">
-          {busy ? "Processing…" : logo ? "Replace" : "Upload"}
+          {busy ? t("im.processing") : t(logo ? "im.replace" : "im.upload")}
           <input type="file" accept={LOGO_ACCEPT} onChange={onFile} hidden />
         </label>
         {logo && (
           <button className="gr-mini gr-danger" onClick={remove}>
-            Remove
+            {t("im.remove")}
           </button>
         )}
         {quality && <Tag tone={quality.tone}>{quality.text}</Tag>}

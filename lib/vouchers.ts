@@ -1,5 +1,4 @@
 import {
-  DRINK_TICKET_VALUE,
   FOLDER_OPTS,
   POSTER_OPTS,
   WEBSITE_OPTS,
@@ -13,7 +12,7 @@ import type { Deal, Formula, FormulaFields, Language, VoucherRow, VoucherType } 
 
 type BenefitSource = Partial<FormulaFields> | null | undefined;
 
-export const drinkPoolValue = (d?: BenefitSource) => (Number(d?.drinkTickets) || 0) * DRINK_TICKET_VALUE;
+export const drinkPoolValue = (d?: BenefitSource) => Number(d?.drinkValue) || 0;
 
 export const voucherTotal = (rows?: VoucherRow[] | null) =>
   (rows || []).reduce((s, r) => s + (Number(r.value) || 0) * (Number(r.qty) || 0), 0);
@@ -40,7 +39,7 @@ export function expectedVouchers(deal: Deal): ExpectedVoucher[] {
   push("vipGuests", 0, deal.vipGuests);
   const drinkRows = (deal.drinkVouchers || []).filter((r) => Number(r.qty) > 0 && Number(r.value) > 0);
   if (drinkRows.length) drinkRows.forEach((r) => push("drink", r.value, r.qty));
-  else push("drink", DRINK_TICKET_VALUE, deal.drinkTickets);
+  else if (Number(deal.drinkValue) > 0) push("drink", deal.drinkValue, 1); // no split defined yet
   const rows = (deal.foodDrinkVouchers || []).filter((r) => Number(r.qty) > 0 && Number(r.value) > 0);
   if (rows.length) rows.forEach((r) => push("food", r.value, r.qty));
   else if (Number(deal.foodDrinkValue) > 0) push("food", deal.foodDrinkValue, 1); // no split defined yet
@@ -59,7 +58,7 @@ export function dealFromFormula(f: Formula, sponsorId: string, editionId: string
     vipFriday: f.vipFriday,
     vipSaturday: f.vipSaturday,
     vipGuests: f.vipGuests,
-    drinkTickets: f.drinkTickets,
+    drinkValue: f.drinkValue,
     drinkVouchers: f.drinkVouchers || [],
     foodDrinkValue: f.foodDrinkValue,
     baseFoodDrink: f.foodDrinkValue,
@@ -83,12 +82,10 @@ export function ticketLines(v: BenefitSource, lang: Language = "nl"): string[] {
     out.push(`${v.vipSaturday} ${B("VIP-tickets zaterdag", "tickets VIP samedi", "VIP tickets Saturday")}`);
   if (Number(v.vipGuests) > 0)
     out.push(`${v.vipGuests} ${B("VIP-tickets genodigden", "tickets VIP invités", "VIP tickets guests")}`);
-  if (Number(v.drinkTickets) > 0) {
+  if (Number(v.drinkValue) > 0) {
     const dvt = voucherText(v.drinkVouchers);
     out.push(
-      `${B("Drankbonnen", "Bons boissons", "Drink vouchers")}: ${eur(drinkPoolValue(v))}${
-        dvt ? ` (${dvt})` : ` (${v.drinkTickets} × ${eur(DRINK_TICKET_VALUE)})`
-      }`,
+      `${B("Drankbonnen", "Bons boissons", "Drink vouchers")}: ${eur(drinkPoolValue(v))}${dvt ? ` (${dvt})` : ""}`,
     );
   }
   if (Number(v.foodDrinkValue) > 0) {

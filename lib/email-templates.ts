@@ -1,4 +1,4 @@
-import { DRINK_TICKET_VALUE, LED_ZONES } from "@/lib/constants";
+import { LED_ZONES } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
@@ -79,20 +79,15 @@ export function buildEmail(
         `${deal.vipGuests} VIP tickets for guests`,
       ),
     );
-  if (Number(deal.drinkTickets) > 0) {
+  if (Number(deal.drinkValue) > 0) {
     const dvt = voucherText(deal.drinkVouchers);
+    const split = dvt ? B(`, verdeeld in: ${dvt}`, `, répartis en : ${dvt}`, `, divided into: ${dvt}`) : "";
     benefits.push(
-      dvt
-        ? B(
-            `Drankbonnen ter waarde van ${eur(drinkPoolValue(deal))}, verdeeld in: ${dvt}`,
-            `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}, répartis en : ${dvt}`,
-            `Drink vouchers worth ${eur(drinkPoolValue(deal))}, divided into: ${dvt}`,
-          )
-        : B(
-            `${deal.drinkTickets} drankbonnen (waarde ${eur(DRINK_TICKET_VALUE)} per bon)`,
-            `${deal.drinkTickets} tickets boissons (valeur ${eur(DRINK_TICKET_VALUE)} par ticket)`,
-            `${deal.drinkTickets} drink tickets (value ${eur(DRINK_TICKET_VALUE)} each)`,
-          ),
+      B(
+        `Drankbonnen ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
+        `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}${split}`,
+        `Drink vouchers worth ${eur(drinkPoolValue(deal))}${split}`,
+      ),
     );
   }
   if (Number(deal.foodDrinkValue) > 0) {

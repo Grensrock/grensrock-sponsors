@@ -14,7 +14,6 @@ import VatInput from "@/components/ui/VatInput";
 import { fmtDateTime, isAccepted } from "@/lib/acceptance";
 import {
   COMM_LABELS,
-  DRINK_TICKET_VALUE,
   VOUCHER_STATUS,
   VOUCHER_TYPES,
   label,
@@ -149,7 +148,7 @@ export default function SponsorPortal({
   const splittable = myActiveDeals
     .map((d) => ({
       deal: d,
-      drink: Number(d.drinkTickets) > 0 && !created(d.id, "drink"),
+      drink: Number(d.drinkValue) > 0 && !created(d.id, "drink"),
       food: Number(d.foodDrinkValue) > 0 && !created(d.id, "food"),
       // top-up is possible until the food vouchers are created (it changes the food total)
       canTopUp: !created(d.id, "food"),
@@ -157,7 +156,7 @@ export default function SponsorPortal({
     .filter((x) => x.drink || x.food || x.canTopUp);
   const lockedSplits = myActiveDeals.filter(
     (d) =>
-      (Number(d.drinkTickets) > 0 && created(d.id, "drink")) ||
+      (Number(d.drinkValue) > 0 && created(d.id, "drink")) ||
       (Number(d.foodDrinkValue) > 0 && created(d.id, "food")),
   );
 
@@ -672,7 +671,6 @@ export default function SponsorPortal({
                           <VoucherEditor
                             amount={drinkPoolValue(d)}
                             rows={d.drinkVouchers || []}
-                            defaultUnit={DRINK_TICKET_VALUE}
                             lang={lang}
                             onChange={(rows) => onUpdateSplit(d.id, "drink", rows)}
                           />

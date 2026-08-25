@@ -19,7 +19,9 @@ import type {
 } from "@/types";
 
 export const STORAGE_KEY = "grensrock:data:v1";
-export const DRINK_TICKET_VALUE = 27.5;
+/* Drink vouchers used to be counted in tickets of this value. Only the migration
+   of records saved back then still needs it. */
+export const LEGACY_DRINK_TICKET_VALUE = 27.5;
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -142,7 +144,7 @@ export const emptyFormula: Formula = {
   vipFriday: 0,
   vipSaturday: 0,
   vipGuests: 0,
-  drinkTickets: 0,
+  drinkValue: 0,
   drinkVouchers: [],
   foodDrinkValue: 0,
   folderMention: "none",
@@ -161,7 +163,7 @@ export const emptyDeal: Omit<Deal, "id"> = {
   vipFriday: 0,
   vipSaturday: 0,
   vipGuests: 0,
-  drinkTickets: 0,
+  drinkValue: 0,
   drinkVouchers: [],
   foodDrinkValue: 0,
   foodDrinkVouchers: [],

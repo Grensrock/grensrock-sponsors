@@ -334,7 +334,7 @@ export default function SponsorDetail({
                         {d.vipFriday || 0} / {d.vipSaturday || 0} / {d.vipGuests || 0}
                       </td>
                       <td className="gr-r">
-                        {d.drinkTickets || 0}
+                        {Number(d.drinkValue) > 0 ? eur(d.drinkValue) : "—"}
                         {voucherText(d.drinkVouchers) && (
                           <div className="gr-muted" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
                             {voucherText(d.drinkVouchers)}

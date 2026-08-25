@@ -24,7 +24,8 @@ export interface FormulaFields {
   vipFriday: NumLike;
   vipSaturday: NumLike;
   vipGuests: NumLike;
-  drinkTickets: NumLike;
+  /** Drink vouchers are agreed as an amount in euro, not as a number of tickets. */
+  drinkValue: NumLike;
   drinkVouchers: VoucherRow[];
   foodDrinkValue: NumLike;
   /** What the formula included, so a sponsor top-up can still be billed. */

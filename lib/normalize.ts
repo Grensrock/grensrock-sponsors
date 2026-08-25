@@ -1,4 +1,11 @@
-import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, SETTLEMENTS, label } from "@/lib/constants";
+import {
+  FOLDER_OPTS,
+  LED_ZONES,
+  LEGACY_DRINK_TICKET_VALUE,
+  POSTER_OPTS,
+  SETTLEMENTS,
+  label,
+} from "@/lib/constants";
 import type { Deal, FolderMention, LedZone, Language, NumLike, VoucherRow } from "@/types";
 
 export const normStr = (v: unknown) => String(v ?? "").trim();
@@ -35,6 +42,7 @@ export const normFolder = (v: unknown): FolderMention =>
 type BenefitInput = Partial<Deal> & {
   extraFoodDrink?: NumLike;
   extraFoodDrinkVouchers?: VoucherRow[];
+  drinkTickets?: NumLike;
 };
 
 export function normBenefits<T extends BenefitInput>(o: T): T {
@@ -43,6 +51,11 @@ export function normBenefits<T extends BenefitInput>(o: T): T {
     ledboarding: normLed(o.ledboarding),
     folderMention: normFolder(o.folderMention),
     drinkVouchers: Array.isArray(o.drinkVouchers) ? o.drinkVouchers : [],
+    // Drink vouchers used to be a number of tickets of a fixed value; they are an amount now.
+    drinkValue:
+      o.drinkValue !== undefined
+        ? Number(o.drinkValue) || 0
+        : (Number(o.drinkTickets) || 0) * LEGACY_DRINK_TICKET_VALUE,
     posterMention: POSTER_OPTS[o.posterMention as keyof typeof POSTER_OPTS] ? o.posterMention : "none",
     barrierCovers: Number(o.barrierCovers) || 0,
     herasCovers: Number(o.herasCovers) || 0,

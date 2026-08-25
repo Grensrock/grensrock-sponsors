@@ -2,10 +2,8 @@
 
 import VoucherEditor from "@/components/forms/VoucherEditor";
 import Field from "@/components/ui/Field";
-import { DRINK_TICKET_VALUE, FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS, label } from "@/lib/constants";
-import { eur } from "@/lib/money";
+import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS, label } from "@/lib/constants";
 import { normFolder, normLed } from "@/lib/normalize";
-import { drinkPoolValue } from "@/lib/vouchers";
 import type { FormulaFields, Language, LedZone, TranslateFn } from "@/types";
 
 export type BenefitSetter = (k: string, val: unknown) => void;
@@ -41,17 +39,13 @@ export default function BenefitFields({
           <input type="number" min="0" value={v.vipGuests} onChange={num("vipGuests")} />
         </Field>
       </div>
-      <Field
-        label={`${t("bf.drinktickets")} (${eur(DRINK_TICKET_VALUE)} ${t("bf.each")})`}
-        hint={Number(v.drinkTickets) > 0 ? t("bf.totalvalue") + " " + eur(drinkPoolValue(v)) : null}
-      >
-        <input type="number" min="0" value={v.drinkTickets} onChange={num("drinkTickets")} />
+      <Field label={t("bf.drinkvalue")}>
+        <input type="number" min="0" step="0.01" value={v.drinkValue} onChange={num("drinkValue")} />
       </Field>
-      {showVouchers && Number(v.drinkTickets) > 0 && (
+      {showVouchers && Number(v.drinkValue) > 0 && (
         <VoucherEditor
-          amount={drinkPoolValue(v)}
+          amount={v.drinkValue}
           rows={v.drinkVouchers || []}
-          defaultUnit={DRINK_TICKET_VALUE}
           title="drink"
           onChange={(rows) => set("drinkVouchers", rows)}
         />

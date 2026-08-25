@@ -53,7 +53,7 @@ export function rowToFormulaFields(row: Row): FormulaFields {
     vipFriday: num(row.vip_friday),
     vipSaturday: num(row.vip_saturday),
     vipGuests: num(row.vip_guests),
-    drinkTickets: num(row.drink_tickets),
+    drinkValue: num(row.drink_value),
     drinkVouchers: voucherRows(row.drink_vouchers),
     foodDrinkValue: num(row.food_drink_value),
     baseFoodDrink: num(row.base_food_drink),
@@ -74,7 +74,7 @@ export function formulaFieldsToRow(f: Partial<FormulaFields>): Row {
   if (f.vipFriday !== undefined) r.vip_friday = num(f.vipFriday);
   if (f.vipSaturday !== undefined) r.vip_saturday = num(f.vipSaturday);
   if (f.vipGuests !== undefined) r.vip_guests = num(f.vipGuests);
-  if (f.drinkTickets !== undefined) r.drink_tickets = num(f.drinkTickets);
+  if (f.drinkValue !== undefined) r.drink_value = num(f.drinkValue);
   if (f.drinkVouchers !== undefined) r.drink_vouchers = voucherRowsToJson(f.drinkVouchers);
   if (f.foodDrinkValue !== undefined) r.food_drink_value = num(f.foodDrinkValue);
   if (f.baseFoodDrink !== undefined) r.base_food_drink = num(f.baseFoodDrink);

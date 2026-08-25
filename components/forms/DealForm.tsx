@@ -76,7 +76,7 @@ export default function DealForm({
       vipFriday: f.vipFriday,
       vipSaturday: f.vipSaturday,
       vipGuests: f.vipGuests,
-      drinkTickets: f.drinkTickets,
+      drinkValue: f.drinkValue,
       drinkVouchers: f.drinkVouchers || [],
       foodDrinkValue: f.foodDrinkValue,
       baseFoodDrink: f.foodDrinkValue,

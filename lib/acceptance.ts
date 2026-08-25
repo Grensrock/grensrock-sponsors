@@ -13,7 +13,7 @@ export const SNAPSHOT_FIELDS: Array<keyof Deal> = [
   "vipFriday",
   "vipSaturday",
   "vipGuests",
-  "drinkTickets",
+  "drinkValue",
   "drinkVouchers",
   "foodDrinkValue",
   "foodDrinkVouchers",

@@ -174,6 +174,25 @@ export default function GrensrockApp() {
   const [agSettle, setAgSettle] = useState("");
   const [adminSub, setAdminSub] = useState("editions");
   const [dialog, setDialog] = useState<DialogSpec | null>(null);
+  /* ----- "view as user" -----
+     An admin checking what a colleague on the user role sees. Everything
+     admin-only already hangs off `admin` (below), so hiding it is a matter of
+     answering false — there is no second list of features to keep in step.
+
+     A preview of the interface, not of the permissions: the session is still
+     an admin's, so is_admin() in the policies stays true and anything written
+     from here is written as an admin. It shows what a user can reach, not what
+     they would be allowed to do. Kept in memory, like langOverride, so a
+     reload or a new session always lands back on the admin's own view. */
+  const [previewUser, setPreviewUser] = useState(false);
+  /* Below 900px the header nav collapses behind this (see the mobile block in
+     grensrock.css). Nine destinations plus the account controls need ~1500px to
+     sit on one line, so on a phone the wrapped menu filled most of the screen
+     before any content started. */
+  const [navOpen, setNavOpen] = useState(false);
+  /* The same idea one audience further out: the sponsor's own portal, as one of
+     their contacts receives it. Read-only — see the lock in SponsorPortal. */
+  const [previewPortal, setPreviewPortal] = useState<{ sponsorId: string; contactId: string } | null>(null);
   const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "companyName", dir: 1 });
   const [fEdition, setFEdition] = useState(""); // "" = all editions
   const [fResponsible, setFResponsible] = useState(""); // "" = everyone, "me", "none", or a user id
@@ -301,6 +320,8 @@ export default function GrensrockApp() {
     await supabase.auth.signOut();
     setUserId(null);
     setData(EMPTY_DATA);
+    setPreviewUser(false); // whoever signs in next starts on their own view
+    setPreviewPortal(null);
     setMode({ view: "landing" });
   };
 
@@ -309,12 +330,22 @@ export default function GrensrockApp() {
   const users = data.users || [];
   const vouchers = data.vouchers || [];
   const me = users.find((u) => u.id === userId) || null;
-  const admin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
+  const realAdmin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
+  const admin = realAdmin && !previewUser;
   // A non-admin should never sit on an admin-only tab (e.g. after losing admin, or stale state)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- unchanged Stage-1 guard
     if (!admin && (ADMIN_TABS.includes(tab) || tab === "folder" || tab === "invoicing")) setTab("overview");
   }, [admin, tab]);
+  /* Escape closes the collapsed nav. It is a disclosure rather than a modal —
+     it pushes the page down instead of covering it — so it does not trap focus;
+     Escape is just the key people reach for to dismiss something. */
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
   /* The audit log is written by database triggers now, so it is re-read when the
      tab is opened instead of being kept up to date in memory. */
   useEffect(() => {
@@ -1473,6 +1504,36 @@ export default function GrensrockApp() {
     );
   }
 
+  /* Team member looking at a sponsor's portal. The write handlers are no-ops
+     rather than the real ones: the screen is already inert, and a preview that
+     silently does nothing is a far better failure than one that writes to a
+     sponsor's record if that lock ever comes off. */
+  if (previewPortal) {
+    const ps = sponsors.find((s) => s.id === previewPortal.sponsorId);
+    if (ps) {
+      const noop = () => {};
+      return (
+        <SponsorPortal
+          preview
+          sponsor={ps}
+          asContact={sponsorContacts(ps).find((c) => c.id === previewPortal.contactId)}
+          deals={deals}
+          editions={editions}
+          vouchers={vouchers}
+          vatCfg={data.settings?.vatLookup || defaultVatLookup}
+          logos={(data.logos || []).filter((l) => l.sponsorId === ps.id)}
+          onSaveSponsor={noop}
+          onAssignVoucher={noop}
+          onRequestFormula={noop}
+          onUpdateSplit={noop}
+          onUpdateExtra={noop}
+          onAcceptAgreement={noop}
+          onExit={() => setPreviewPortal(null)}
+        />
+      );
+    }
+  }
+
   const invEd = editions.find((e) => e.id === (invEdition || overviewEdition?.id));
   const invDeals = invEd ? deals.filter((d) => d.editionId === invEd.id) : [];
 
@@ -1480,65 +1541,106 @@ export default function GrensrockApp() {
     <div className="gr-root">
       <header className="gr-header">
         <div className="gr-brand">
-          <PickLogo size={54} />
+          <PickLogo size={34} />
           <span className="gr-brandsub">{t("hd.subtitle")}</span>
         </div>
-        <nav className="gr-nav">
-          {(
-            [
-              ["overview", t("nav.overview")],
-              ["sponsors", t("nav.sponsors")],
-              ["agreements", t("nav.agreements")],
-              ["contacts", t("nav.contacts")],
-              ["vouchers", t("nav.vouchers")],
-              ["analytics", t("nav.analytics")],
-              ...(admin
-                ? ([
-                    ["folder", t("nav.folder")],
-                    ["invoicing", t("nav.invoicing")],
-                    ["admin", t("nav.admin")],
-                  ] as Array<[string, string]>)
-                : []),
-            ] as Array<[string, string]>
-          ).map(([k, l]) => (
-            <button
-              key={k}
-              className={tab === k || (k === "admin" && ADMIN_TABS.includes(tab)) ? "on" : ""}
-              onClick={() => {
-                setTab(k === "admin" ? adminSub : k);
-                setOpenSponsorId(null);
-              }}
-            >
-              {l}
-            </button>
-          ))}
-          <select
-            className="gr-langswitch"
-            value={uiLang}
-            onChange={(e) => setLangOverride(e.target.value as TeamLanguage)}
-            title={t("tt.uilanguage")}
-          >
-            {Object.entries(TEAM_LANGS).map(([k]) => (
-              <option key={k} value={k}>
-                {k.toUpperCase()}
-              </option>
-            ))}
-          </select>
-          <span className="gr-whoami">
-            {me ? (
-              <>
-                {userName(me)} <Tag tone={admin ? "green" : "grey"}>{admin ? "admin" : "user"}</Tag>
-              </>
-            ) : (
-              "setup"
-            )}
-          </span>
-          <button onClick={signOut} title={t("common.logout")}>
-            {t("common.logout")}
-          </button>
-        </nav>
+        {(() => {
+          const destinations = [
+            ["overview", t("nav.overview")],
+            ["sponsors", t("nav.sponsors")],
+            ["agreements", t("nav.agreements")],
+            ["contacts", t("nav.contacts")],
+            ["vouchers", t("nav.vouchers")],
+            ["analytics", t("nav.analytics")],
+            ...(admin
+              ? ([
+                  ["folder", t("nav.folder")],
+                  ["invoicing", t("nav.invoicing")],
+                  ["admin", t("nav.admin")],
+                ] as Array<[string, string]>)
+              : []),
+          ] as Array<[string, string]>;
+          /* Naming the current screen on the button means the collapsed menu
+             still answers "where am I?" without being opened. */
+          const here =
+            destinations.find(([k]) => k === tab || (k === "admin" && ADMIN_TABS.includes(tab)))?.[1] || "";
+          return (
+            <>
+              <button
+                className="gr-navtoggle"
+                aria-expanded={navOpen}
+                aria-controls="gr-mainnav"
+                onClick={() => setNavOpen((o) => !o)}
+              >
+                <span aria-hidden="true">☰</span>
+                <span className="gr-navtoggle-label">{here || t("nav.menu")}</span>
+              </button>
+              <nav id="gr-mainnav" className={"gr-nav" + (navOpen ? " open" : "")}>
+                {destinations.map(([k, l]) => (
+                  <button
+                    key={k}
+                    className={tab === k || (k === "admin" && ADMIN_TABS.includes(tab)) ? "on" : ""}
+                    onClick={() => {
+                      setTab(k === "admin" ? adminSub : k);
+                      setOpenSponsorId(null);
+                      setNavOpen(false);
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
+                <select
+                  className="gr-langswitch"
+                  value={uiLang}
+                  onChange={(e) => setLangOverride(e.target.value as TeamLanguage)}
+                  title={t("tt.uilanguage")}
+                >
+                  {Object.entries(TEAM_LANGS).map(([k]) => (
+                    <option key={k} value={k}>
+                      {k.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+                <span className="gr-whoami">
+                  {me ? (
+                    <>
+                      {userName(me)} <Tag tone={admin ? "green" : "grey"}>{admin ? "admin" : "user"}</Tag>
+                    </>
+                  ) : (
+                    "setup"
+                  )}
+                </span>
+                {realAdmin && !previewUser && (
+                  <button
+                    onClick={() => {
+                      setPreviewUser(true);
+                      setNavOpen(false);
+                    }}
+                    title={t("vu.starthint")}
+                  >
+                    {t("vu.start")}
+                  </button>
+                )}
+                <button onClick={signOut} title={t("common.logout")}>
+                  {t("common.logout")}
+                </button>
+              </nav>
+            </>
+          );
+        })()}
       </header>
       <div className="gr-borderline" aria-hidden="true" />
+      {/* Sticky, and the only way back: an admin who forgets they are in here
+          would read the missing Admin tab as the app having broken. */}
+      {previewUser && (
+        <div className="gr-previewbar" role="status">
+          <strong>{t("vu.banner")}</strong>
+          <span className="gr-previewbar-note">{t("vu.note")}</span>
+          <button className="gr-mini" onClick={() => setPreviewUser(false)}>
+            {t("vu.stop")}
+          </button>
+        </div>
+      )}
       {saveErr && <div className="gr-warn">{t("hd.saveerr")}</div>}
       <main className="gr-main">
         {/* Admin panel sub-navigation */}
@@ -1879,6 +1981,15 @@ export default function GrensrockApp() {
             onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
             onShowAcceptance={(d) => setModal({ type: "acceptance", payload: d })}
             onActivateContact={(c) => saveContact(openSponsor.id, { ...c, portalAccess: true })}
+            /* No contact given (the sponsor has none, or none was picked) still
+               previews: the portal falls back to the primary contact's language
+               and hides the accept button, which is what such a sponsor sees. */
+            onPreviewPortal={(c) =>
+              setPreviewPortal({
+                sponsorId: openSponsor.id,
+                contactId: c?.id || primaryContact(openSponsor)?.id || "",
+              })
+            }
             logos={(data.logos || []).filter((l) => l.sponsorId === openSponsor.id)}
             onLogosChange={(next) => applyLogos(openSponsor.id, next)}
             onEmail={(d) => setModal({ type: "email", payload: d })}

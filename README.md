@@ -33,6 +33,55 @@ page naming the environment and the Supabase project it writes to
 System Environment Variables** switched on in the Vercel project so that
 `NEXT_PUBLIC_VERCEL_ENV` reaches the build.
 
+## Running against a local database
+
+Pointing a dev server at staging or production works, but it means every screen
+you open is a live one, and the screens worth testing are all behind a login —
+the team side through Google Workspace, the portal through a contact's password.
+Neither is something you can hand out. So there is a local stack instead, with
+data seeded to make those screens reachable.
+
+```bash
+npm run db:start          # first run pulls the images; needs Docker running
+npm run db:reset          # re-applies every migration, then supabase/seed.sql
+```
+
+Then create `.env.development.local`. Next loads it ahead of `.env.local` in
+development, so the dev server talks to the local stack without `.env.local`
+having to be edited — and deleting the file puts everything back:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+SUPABASE_SECRET_KEY=sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz
+```
+
+Those keys are the Supabase CLI's fixed local-development keys — identical on
+every machine, published in Supabase's own docs, and only good against a
+database listening on `127.0.0.1`. The band at the top of the page will read
+`database 127`, which is how you know you are not on a real project.
+
+Everything seeded uses the password `devdevdev`:
+
+| Sign in as | What it gets you |
+| --- | --- |
+| `wout@grensrock.be` | Admin: the whole team app |
+| `jonas@grensrock.be` | The `user` role, for comparing against "view as user" |
+| `nieuw@grensrock.be` | Registered but unapproved — the waiting screen |
+| `jan@vanhonsebrouck.be` | Sponsor portal, Dutch |
+| `marie@delacroix.be` | Sponsor portal, French |
+
+Team accounts sign in through the **sponsor** form on the landing page. That is
+not a workaround: the app routes on the session plus a `profiles` row, not on
+which provider produced it, so a team email typed there lands in the team app.
+The Google button needs OAuth credentials the local stack does not have.
+
+The seed is fixtures with a purpose rather than filler — a maximal agreement so
+the edit modal is as long as it ever gets, a French contact, a sponsor with no
+contacts, every settlement type and every acceptance state. See the header of
+[supabase/seed.sql](supabase/seed.sql). It only ever runs locally: `db push`
+ships migrations, not seeds.
+
 ## Environment variables
 
 Set these in `.env.local` for development, and in Vercel scoped to **Production**

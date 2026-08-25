@@ -254,7 +254,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
           </button>
         ))}
       </div>
-      <PickLogo size={150} />
+      <PickLogo size={84} />
       <span className="gr-brandsub" style={{ marginTop: 10 }}>
         {L("Sponsorbeheer", "Gestion des sponsors", "Sponsor management")}
       </span>

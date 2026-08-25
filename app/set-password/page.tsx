@@ -98,7 +98,7 @@ function SetPassword() {
           </button>
         ))}
       </div>
-      <PickLogo size={150} />
+      <PickLogo size={84} />
       <span className="gr-brandsub" style={{ marginTop: 10 }}>
         {L("Sponsorportaal", "Portail sponsors", "Sponsor portal")}
       </span>

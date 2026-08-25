@@ -64,6 +64,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "nav.invoicing": ["Facturatie", "Invoicing"],
   "nav.audit": ["Audit log", "Audit log"],
   "nav.team": ["Team", "Team"],
+  "nav.menu": ["Menu", "Menu"],
   "common.logout": ["Afmelden", "Log out"],
   "common.cancel": ["Annuleren", "Cancel"],
   "common.save": ["Opslaan", "Save"],
@@ -393,6 +394,26 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dup.checkfirst": ["Controleer of dit niet dezelfde sponsor is voordat u opslaat.", "Check this isn't the same sponsor before saving."],
   "hd.saveerr": ["Kon de laatste wijziging niet opslaan — controleer uw verbinding en probeer opnieuw.",
                  "Couldn't save the last change — check your connection and try again."],
+  // view as user
+  "vu.start": ["Bekijken als gebruiker", "View as user"],
+  "vu.starthint": [
+    "Toon de app zoals een teamlid met de rol Gebruiker ze ziet",
+    "Show the app as a team member with the User role sees it",
+  ],
+  "vu.banner": ["U bekijkt de app als gebruiker.", "You are viewing the app as a user."],
+  "vu.note": [
+    "Beheerfuncties zijn verborgen. U blijft aangemeld als beheerder, dus wat u hier wijzigt, wijzigt u echt.",
+    "Admin features are hidden. You are still signed in as an admin, so anything you change here really changes.",
+  ],
+  "vu.stop": ["Terug als beheerder", "Back as admin"],
+  "c.noname": ["geen naam", "no name"],
+  // preview a sponsor's portal
+  "pv.portal": ["Portaal bekijken", "View portal"],
+  "pv.portalshort": ["Portaal", "Portal"],
+  "pv.portalhint": [
+    "Toon het sponsorportaal zoals deze contactpersoon het ziet, in hun taal",
+    "Show the sponsor portal as this contact sees it, in their language",
+  ],
 
   /* ---------- dialogs: confirmations, warnings and notifications ----------
      Values may carry {placeholders}; see teamT below. */

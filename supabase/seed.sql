@@ -75,14 +75,14 @@ insert into editions (id, name, start_date, end_date, location, active) values
   ('ed000000-0000-0000-0000-000000000025', 'Grensrock 2025', '2025-08-08', '2025-08-09', 'Menen', false);
 
 insert into formulas (edition_id, name, cost, vip_friday, vip_saturday, vip_guests,
-                      drink_tickets, food_drink_value, base_food_drink,
+                      drink_value, food_drink_value, base_food_drink,
                       folder_mention, website_mention, poster_mention, ledboarding,
                       barrier_covers, heras_covers) values
-  ('ed000000-0000-0000-0000-000000000026', 'Goud',   2500, 4, 4, 2, 20, 250, 250, 'full',    'logo', 'logo', '{vip,stage}', 4, 2),
-  ('ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 1, 10, 100, 100, 'half',    'logo', 'name', '{vip}',       2, 0),
-  ('ed000000-0000-0000-0000-000000000026', 'Brons',   500, 1, 1, 0,  4,   0,   0, 'quarter', 'name', 'none', '{}',          0, 0),
-  ('ed000000-0000-0000-0000-000000000025', 'Goud',   2400, 4, 4, 2, 20, 200, 200, 'full',    'logo', 'logo', '{vip}',       4, 2),
-  ('ed000000-0000-0000-0000-000000000025', 'Brons',   450, 1, 1, 0,  4,   0,   0, 'quarter', 'name', 'none', '{}',          0, 0);
+  ('ed000000-0000-0000-0000-000000000026', 'Goud',   2500, 4, 4, 2, 550, 250, 250, 'full',    'logo', 'logo', '{vip,stage}', 4, 2),
+  ('ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 1, 275, 100, 100, 'half',    'logo', 'name', '{vip}',       2, 0),
+  ('ed000000-0000-0000-0000-000000000026', 'Brons',   500, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0, 0),
+  ('ed000000-0000-0000-0000-000000000025', 'Goud',   2400, 4, 4, 2, 550, 200, 200, 'full',    'logo', 'logo', '{vip}',       4, 2),
+  ('ed000000-0000-0000-0000-000000000025', 'Brons',   450, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0, 0);
 
 -- ---------- sponsors ----------
 insert into sponsors (id, company_name, street, house_number, postal_code, city,
@@ -129,7 +129,7 @@ update sponsors set voucher_contact_id = 'c1000000-0000-0000-0000-000000000001'
 -- The first one is deliberately maximal: every benefit filled in, so the edit
 -- modal is as long as it ever gets. That length is the case that broke.
 insert into deals (id, sponsor_id, edition_id, formula_name, cost,
-                   vip_friday, vip_saturday, vip_guests, drink_tickets, drink_vouchers,
+                   vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers,
                    food_drink_value, base_food_drink, food_drink_vouchers,
                    folder_mention, website_mention, poster_mention, ledboarding,
                    barrier_covers, heras_covers, notes, settlement,
@@ -137,7 +137,7 @@ insert into deals (id, sponsor_id, edition_id, formula_name, cost,
                    invoice_created, invoice_number, confirmed_at, acceptance) values
   ('dea10000-0000-0000-0000-000000000001', '59000000-0000-0000-0000-000000000001',
    'ed000000-0000-0000-0000-000000000026', 'Goud', 2500,
-   4, 4, 2, 20, '[{"value":27.5,"qty":20}]',
+   4, 4, 2, 550, '[{"value":25,"qty":22}]',
    250, 250, '[{"value":25,"qty":10}]',
    'full', 'logo', 'logo', '{vip,stage}', 4, 2,
    'Levert ook de tapinstallatie voor de VIP-tent.', 'invoice',
@@ -150,10 +150,10 @@ insert into deals (id, sponsor_id, edition_id, formula_name, cost,
 
 -- Accepted last year, so the portal has history to show.
 insert into deals (id, sponsor_id, edition_id, formula_name, cost, vip_friday, vip_saturday,
-                   drink_tickets, folder_mention, website_mention, settlement,
+                   drink_value, folder_mention, website_mention, settlement,
                    invoice_created, invoice_number, confirmed_at, acceptance) values
   ('dea10000-0000-0000-0000-000000000002', '59000000-0000-0000-0000-000000000001',
-   'ed000000-0000-0000-0000-000000000025', 'Goud', 2400, 4, 4, 20, 'full', 'logo', 'invoice',
+   'ed000000-0000-0000-0000-000000000025', 'Goud', 2400, 4, 4, 550, 'full', 'logo', 'invoice',
    true, 'F2025-0142', now() - interval '1 year',
    jsonb_build_object('acceptedAt', now() - interval '1 year', 'name', 'Jan Peeters',
                       'email', 'jan@vanhonsebrouck.be',
@@ -163,19 +163,19 @@ insert into deals (id, sponsor_id, edition_id, formula_name, cost, vip_friday, v
 -- Not yet accepted: the portal opens straight onto this, and the overview
 -- counts it as still to confirm.
 insert into deals (id, sponsor_id, edition_id, formula_name, cost, vip_friday, vip_saturday,
-                   drink_tickets, food_drink_value, base_food_drink,
+                   drink_value, food_drink_value, base_food_drink,
                    folder_mention, website_mention, settlement, confirmed_at) values
   ('dea10000-0000-0000-0000-000000000003', '59000000-0000-0000-0000-000000000002',
-   'ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 10, 100, 100,
+   'ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 275, 100, 100,
    'half', 'logo', 'invoice', now());
 
 -- Mixed settlement with a required reference still missing, which is what
 -- blocks the invoicing screen.
-insert into deals (id, sponsor_id, edition_id, formula_name, cost, drink_tickets,
+insert into deals (id, sponsor_id, edition_id, formula_name, cost, drink_value,
                    folder_mention, settlement, in_kind_description, in_kind_value,
                    ref_required, invoice_reference, confirmed_at) values
   ('dea10000-0000-0000-0000-000000000004', '59000000-0000-0000-0000-000000000003',
-   'ed000000-0000-0000-0000-000000000026', 'Op maat', 1800, 8,
+   'ed000000-0000-0000-0000-000000000026', 'Op maat', 1800, 220,
    'quarter', 'mixed', 'Transport van het podiummateriaal', 800, true, '', now());
 
 -- Entirely in kind: never invoiced.
@@ -188,10 +188,10 @@ insert into deals (id, sponsor_id, edition_id, formula_name, cost,
 -- Chosen by the sponsor in the portal and awaiting the team's confirmation:
 -- requested_at set, confirmed_at null.
 insert into deals (id, sponsor_id, edition_id, formula_name, cost, vip_friday, vip_saturday,
-                   drink_tickets, folder_mention, website_mention, settlement,
+                   drink_value, folder_mention, website_mention, settlement,
                    requested_at, requested_by) values
   ('dea10000-0000-0000-0000-000000000006', '59000000-0000-0000-0000-000000000004',
-   'ed000000-0000-0000-0000-000000000026', 'Brons', 500, 1, 1, 4, 'quarter', 'name', 'invoice',
+   'ed000000-0000-0000-0000-000000000026', 'Brons', 500, 1, 1, 110, 'quarter', 'name', 'invoice',
    now() - interval '2 days', 'Café De Zwaan');
 
 -- ---------- vouchers ----------
@@ -200,7 +200,7 @@ insert into deals (id, sponsor_id, edition_id, formula_name, cost, vip_friday, v
 insert into vouchers (sponsor_id, edition_id, deal_id, type, value, status, code, sent_at, cancelled_at) values
   ('59000000-0000-0000-0000-000000000001','ed000000-0000-0000-0000-000000000026','dea10000-0000-0000-0000-000000000001','vipFriday',   0,'sent',     'GR26-VF-0001', now(), null),
   ('59000000-0000-0000-0000-000000000001','ed000000-0000-0000-0000-000000000026','dea10000-0000-0000-0000-000000000001','vipSaturday', 0,'sent',     'GR26-VS-0001', now(), null),
-  ('59000000-0000-0000-0000-000000000001','ed000000-0000-0000-0000-000000000026','dea10000-0000-0000-0000-000000000001','drink',    27.5,'pending',  '',             null, null),
+  ('59000000-0000-0000-0000-000000000001','ed000000-0000-0000-0000-000000000026','dea10000-0000-0000-0000-000000000001','drink',      25,'pending',  '',             null, null),
   ('59000000-0000-0000-0000-000000000001','ed000000-0000-0000-0000-000000000026','dea10000-0000-0000-0000-000000000001','food',       25,'cancelled','GR26-FD-0009', now() - interval '2 days', now());
 
 insert into app_settings (id) values (true) on conflict (id) do nothing;

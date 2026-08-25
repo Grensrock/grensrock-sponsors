@@ -2102,7 +2102,7 @@ export default function GrensrockApp() {
                                 <td className="gr-r">
                                   {f.vipFriday || 0} / {f.vipSaturday || 0} / {f.vipGuests || 0}
                                 </td>
-                                <td className="gr-r">{f.drinkTickets || 0}</td>
+                                <td className="gr-r">{Number(f.drinkValue) > 0 ? eur(f.drinkValue) : "—"}</td>
                                 <td className="gr-r">{Number(f.foodDrinkValue) > 0 ? eur(f.foodDrinkValue) : "—"}</td>
                                 <td>
                                   {normFolder(f.folderMention) !== "none"
@@ -2693,7 +2693,7 @@ export default function GrensrockApp() {
                 [t("inv.toinvoice")]: invoiceAmount(d),
                 [t("ag.settlement")]: t("set." + (d.settlement || "invoice")),
                 [t("xl.vipfrsagu")]: `${d.vipFriday || 0}/${d.vipSaturday || 0}/${d.vipGuests || 0}`,
-                [t("th.drinks")]: d.drinkTickets || 0,
+                [t("th.drinks")]: Number(d.drinkValue) || 0,
                 [t("th.fooddrink")]: Number(d.foodDrinkValue) || 0,
                 [t("c.accepted")]: isAccepted(d) ? fmtDateTime(d.acceptance!.acceptedAt) : "",
                 [t("th.invoice")]: d.invoiceCreated ? d.invoiceNumber || t("xl.yes") : "",

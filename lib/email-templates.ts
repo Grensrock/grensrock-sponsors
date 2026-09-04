@@ -1,4 +1,4 @@
-import { LED_ZONES } from "@/lib/constants";
+import { LED_ZONES, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
@@ -48,12 +48,28 @@ export function buildEmail(
   deal: Deal,
   sponsor: Sponsor,
   edition: Edition,
-  contact?: Contact | null,
+  contact?: Contact | Contact[] | null,
+  acceptUrl?: string,
 ): { subject: string; body: string } {
-  const c = contact || primaryContact(sponsor) || ({} as Partial<Contact>);
+  /* One text goes to everyone it is addressed to, so the recipients are taken
+     as a list: the language and the "your address" line follow the first, and
+     the greeting names all of them. "Beste Jan" arriving in Piet's inbox reads
+     as a mail meant for someone else, which is the wrong first impression for
+     something that serves as the contract. */
+  const people = (Array.isArray(contact) ? contact : contact ? [contact] : []).filter(Boolean) as Contact[];
+  const c = people[0] || primaryContact(sponsor) || ({} as Partial<Contact>);
   const lang: Language = c.language || "nl";
   const benefits: string[] = [];
   const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+  const names = people.map((x) => contactName(x)).filter(Boolean);
+  const addressee = names.length
+    ? names.length > 1
+      ? `${names.slice(0, -1).join(", ")}${B(" en ", " et ", " and ")}${names[names.length - 1]}`
+      : names[0]
+    : contactName(c) || sponsor.companyName;
+  /* Naming the address only makes sense when there is exactly one reader —
+     with several, whose address it is becomes ambiguous and unhelpful. */
+  const own = people.length === 1 && c.email ? ` (${c.email})` : "";
 
   if (Number(deal.vipFriday) > 0)
     benefits.push(
@@ -153,7 +169,7 @@ export function buildEmail(
     );
   const zones = normLed(deal.ledboarding);
   if (zones.length > 0) {
-    const zoneList = zones.map((z) => LED_ZONES[z]).join(" + ");
+    const zoneList = zones.map((z) => label(LED_ZONES, z, lang)).join(" + ");
     benefits.push(
       B(
         `Vermelding op ledboarding (${zoneList})`,
@@ -220,11 +236,30 @@ Amount to be invoiced: ${eur(toInvoice)}. Invoicing will follow via e-invoicing 
     );
   }
 
-  const confirm = B(
-    'Dit overzicht geldt als contract. Gelieve dit ter bevestiging te beantwoorden met "akkoord".',
-    "Cet aperçu fait office de contrat. Veuillez répondre « accord » pour confirmation.",
-    'This overview serves as the contract. Please reply "agreed" to confirm.',
-  );
+  /* Accepting in the portal records who accepted, when, and a frozen copy of
+     the terms (accept_deal, 0004_rpc.sql). A replied "akkoord" records none of
+     that, so it stays the wording only when there is no link to offer — a
+     deployment with no portal URL to point at, or a preview of the text. */
+  const confirm = acceptUrl
+    ? B(
+        `Dit overzicht geldt als contract. U bevestigt het in het sponsorportaal:
+${acceptUrl}
+
+Meld u aan met uw e-mailadres${own} en kies bij "Sponsoring" voor "Lezen en aanvaarden". Lukt aanmelden niet, vraag dan op de aanmeldpagina een nieuwe link aan.`,
+        `Cet aperçu fait office de contrat. Vous le confirmez dans le portail sponsors :
+${acceptUrl}
+
+Connectez-vous avec votre adresse e-mail${own} et choisissez « Lire et accepter » sous « Sponsoring ». Si la connexion échoue, demandez un nouveau lien sur la page de connexion.`,
+        `This overview serves as the contract. You confirm it in the sponsor portal:
+${acceptUrl}
+
+Sign in with your email address${own} and choose "Read and accept" under "Sponsoring". If you can't sign in, request a new link from the sign-in page.`,
+      )
+    : B(
+        'Dit overzicht geldt als contract. Gelieve dit ter bevestiging te beantwoorden met "akkoord".',
+        "Cet aperçu fait office de contrat. Veuillez répondre « accord » pour confirmation.",
+        'This overview serves as the contract. Please reply "agreed" to confirm.',
+      );
 
   const subject = B(
     `Bevestiging sponsorovereenkomst ${edition.name}`,
@@ -233,7 +268,7 @@ Amount to be invoiced: ${eur(toInvoice)}. Invoicing will follow via e-invoicing 
   );
 
   const body = B(
-    `Beste ${contactName(c) || sponsor.companyName},
+    `Beste ${addressee},
 
 Hartelijk dank voor uw steun aan ${edition.name}${dates}. Hieronder vindt u een overzicht van de afgesproken sponsorformule${deal.formulaName ? ` "${deal.formulaName}"` : ""}.
 
@@ -251,7 +286,7 @@ ${confirm}
 Met vriendelijke groeten,
 ${deal.responsible || "Het Grensrock-team"}
 Grensrock`,
-    `Cher/Chère ${contactName(c) || sponsor.companyName},
+    `Cher/Chère ${addressee},
 
 Merci beaucoup pour votre soutien à ${edition.name}${dates}. Vous trouverez ci-dessous un aperçu de la formule de sponsoring convenue${deal.formulaName ? ` « ${deal.formulaName} »` : ""}.
 
@@ -269,7 +304,7 @@ ${confirm}
 Cordialement,
 ${deal.responsible || "L'équipe Grensrock"}
 Grensrock`,
-    `Dear ${contactName(c) || sponsor.companyName},
+    `Dear ${addressee},
 
 Thank you very much for supporting ${edition.name}${dates}. Below you will find an overview of the agreed sponsorship formula${deal.formulaName ? ` "${deal.formulaName}"` : ""}.
 

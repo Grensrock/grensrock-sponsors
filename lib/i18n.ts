@@ -650,6 +650,44 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "tw.apikey": ["API-sleutel (enkel zonder proxy)", "API key (only without proxy)"],
   "tw.eventid": ["Event-ID in Tickoweb", "Event ID in Tickoweb"],
   "tw.productid": ["Tickoweb-product-id", "Tickoweb product id"],
+  /* ---------- sending an agreement (components/modals/EmailModal.tsx) ---------- */
+  "em.recipients": ["Versturen naar", "Send to"],
+  "em.pickone": ["Kies minstens één contactpersoon.", "Pick at least one contact person."],
+  "em.nocontactsyet": [
+    "Deze sponsor heeft nog geen contactpersoon met een e-mailadres. Voeg er een toe om de overeenkomst te kunnen versturen.",
+    "This sponsor has no contact person with an email address yet. Add one to be able to send the agreement.",
+  ],
+  "em.addcontact": ["+ Contactpersoon toevoegen", "+ Add a contact person"],
+  "em.noportal": ["nog geen portaaltoegang", "no portal access yet"],
+  "em.willinvite": [
+    "Contactpersonen zonder portaaltoegang krijgen die bij het versturen, samen met een aparte e-mail om een wachtwoord te kiezen — anders kunnen zij de link in dit bericht niet gebruiken.",
+    "Contacts without portal access are given it when you send, along with a separate email to choose a password — otherwise the link in this message is a dead end for them.",
+  ],
+  "em.mixedlangs": [
+    "Deze contactpersonen verkiezen verschillende talen — er vertrekt één tekst, in het {lang}.",
+    "These contacts prefer different languages — one text is sent to all of them, in {lang}.",
+  ],
+  "em.subject": ["Onderwerp", "Subject"],
+  "em.body": ["Bericht", "Message"],
+  "em.edit": ["Tekst aanpassen", "Edit the text"],
+  "em.preview": ["Voorbeeld tonen", "Show the preview"],
+  "em.edited": [
+    "U hebt de tekst aangepast, dus hij volgt de overeenkomst niet meer automatisch.",
+    "You edited the text, so it no longer follows the agreement automatically.",
+  ],
+  "em.rebuild": ["Tekst opnieuw opbouwen", "Rebuild the text"],
+  "em.send": ["Versturen", "Send"],
+  "em.sending": ["Bezig met versturen…", "Sending…"],
+  "em.sentto": ["Verzonden naar {to}.", "Sent to {to}."],
+  "em.invitedtoo": [
+    "Een link om een wachtwoord te kiezen ging naar: {to}.",
+    "A link to choose a password went to: {to}.",
+  ],
+  "em.sendfailed": ["Versturen mislukt", "Sending failed"],
+  "em.marksenthint": [
+    "Gebruik dit als u de mail zelf al buiten deze tool verstuurde.",
+    "Use this if you already sent the mail yourself, outside this tool.",
+  ],
   "em.writelang": ["Schrijven in de taal van", "Write in the language of"],
 
   /* ---------- sponsor detail ---------- */

@@ -98,7 +98,8 @@ exposed to the browser.
 | `CBE_API_KEY` | [cbeapi.be](https://cbeapi.be/docs/api) key for the VAT check. Without it, `/api/vat/[vat]` reports the lookup as unavailable and VAT numbers are only validated offline. |
 | `GOOGLE_SMTP_USER` | Workspace account the app sends mail as, e.g. `wout@grensrock.be`. |
 | `GOOGLE_SMTP_PASSWORD` | A Google **App Password** for that account (not the login password) — [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), requires 2-Step Verification. |
-| `GOOGLE_SMTP_FROM` | Optional. Overrides the From header, e.g. `Grensrock <wout@grensrock.be>`. Must be the sending account or an alias it owns, or Gmail rejects the send. Defaults to `GOOGLE_SMTP_USER`. |
+| `GOOGLE_SMTP_FROM` | Optional. Overrides the From header. Must be the sending account or an alias it owns, or Gmail rejects the send. Defaults to `Grensrock <sponsors@grensrock.be>`, so replies to a contract reach the sponsor mailbox rather than one person's inbox — set up that address as a send-as alias of `GOOGLE_SMTP_USER`, or override this. |
+| `MAIL_REDIRECT_TO` | Optional. Where mail is diverted to when `VERCEL_ENV` is not `production`. Defaults to `wout@grensrock.be`. See below. |
 | `GOOGLE_DRIVE_CLIENT_EMAIL` | Service account address, e.g. `logos@grensrock-xxxx.iam.gserviceaccount.com`. Add it as a **Content Manager** on the Shared Drive. |
 | `GOOGLE_DRIVE_PRIVATE_KEY` | That service account's private key, the whole PEM. Vercel stores it on one line, so `\n` arrives escaped — the code un-escapes it. |
 | `GOOGLE_DRIVE_FOLDER_ID` | The folder the logos are written into: the last path segment of its Drive URL. |
@@ -113,6 +114,8 @@ It must be a **Shared Drive**, not a folder in someone's My Drive. A Shared Driv
 
 Without these three variables the app is unaffected — the button reports that the export isn't configured, and nothing else changes.
 
+### Sending mail
+
 Mail goes out through Google Workspace rather than a transactional provider
 because `grensrock.be` already sends via Google (MX `smtp.google.com`, SPF
 `include:_spf.google.com`), so it inherits the domain's existing SPF and DKIM.
@@ -120,6 +123,16 @@ The SPF record ends in `-all`, so adding a third-party sender would mean editing
 it — and getting that wrong fails silently into spam folders. Without the two
 required variables, granting access still works; only the notification email is
 skipped, and the admin is told it didn't go.
+
+**Only production mails real people.** Staging runs against its own database,
+but the addresses in it are real sponsors'. So the redirect in
+[`lib/email/send.ts`](lib/email/send.ts) is opt-*out*: unless `VERCEL_ENV` is
+exactly `production`, every message — contracts, portal invites, team
+notifications alike — is re-addressed to `MAIL_REDIRECT_TO`
+(default `wout@grensrock.be`), with the intended recipients moved into the
+subject and the first line of the body. A preview deployment and a local dev
+server both count as not-production, so the way to get this wrong is to send a
+test to Wout, not to send a contract to a sponsor from staging.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

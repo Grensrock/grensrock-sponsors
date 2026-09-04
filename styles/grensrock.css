@@ -302,7 +302,17 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   background:#fff; padding:8px 14px; font:500 13.5px 'IBM Plex Sans',sans-serif; cursor:pointer; }
 .gr-check:hover { border-color:var(--ink); }
 .gr-check.on { border-color:var(--pink-deep); background:#FAE7F0; }
-.gr-check input { accent-color:var(--pink-deep); }
+.gr-check input { accent-color:var(--pink-deep); width:auto; flex:none; padding:0; }
+/* Recipient chips (EmailModal) carry a name, a language and sometimes a tag.
+   The name holds together — left to itself it broke across three lines and the
+   chip read as a paragraph — but the chip as a whole wraps, so on a phone the
+   tag drops under a long name instead of running off the screen. */
+.gr-check-recipient { flex-wrap:wrap; max-width:100%; }
+.gr-check-who { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+/* On a phone there is no room for several chips side by side, and a chip sized
+   to a long name wraps its own checkbox onto a line of its own. Full width
+   instead: the list reads down the screen, box and name always on one line. */
+@media (max-width:640px){ .gr-check-recipient { width:100%; } }
 
 .gr-picker { position:relative; }
 .gr-picker input { width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:8px;
@@ -325,6 +335,14 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
 .gr-email-subject { font-weight:600; padding:10px 14px; border-bottom:1px solid var(--line); }
 .gr-emailpreview pre { margin:0; padding:14px; font:13px/1.55 'IBM Plex Sans',sans-serif;
   white-space:pre-wrap; max-height:340px; overflow-y:auto; }
+
+/* The message is edited in place rather than previewed beside a form: it is
+   plain text, so the textarea already shows exactly what will be sent. Same
+   type as .gr-emailpreview pre above, so switching to it changes nothing but
+   the caret. */
+.gr-emailedit { font:13px/1.55 'IBM Plex Sans',sans-serif; resize:vertical; min-height:220px; }
+.gr-inlineform { border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:8px;
+  background:#fff; padding:12px 14px 2px; margin:0 0 12px; }
 
 @media (prefers-reduced-motion: no-preference) {
   .gr-modal { animation:grpop .18s ease-out; }

@@ -954,7 +954,10 @@ export default function GrensrockApp() {
     setModal(null);
     return true;
   };
-  const commitContact = async (sponsorId: string, contact: Contact) => {
+  /* Returns the saved contact (with the id the database assigned) so a caller
+     that has to keep working with it — EmailModal adding a recipient mid-send —
+     doesn't have to go looking for it in state. null means the save failed. */
+  const commitContact = async (sponsorId: string, contact: Contact): Promise<Contact | null> => {
     try {
       const sponsor = sponsors.find((s) => s.id === sponsorId);
       const known = sponsorContacts(sponsor).some((c) => c.id === contact.id);
@@ -986,8 +989,10 @@ export default function GrensrockApp() {
       if (saved.portalAccess && !hadAccess && saved.email) {
         await sendPortalLink(clean as Contact);
       }
+      return clean as Contact;
     } catch (e) {
       failWith(e);
+      return null;
     }
   };
   const importContacts = async (list: ContactImportRow[]) => {
@@ -1408,6 +1413,15 @@ export default function GrensrockApp() {
       failWith(e);
     }
   };
+  /* The send route marks the agreement itself, inside the same request that
+     sent the mail — so this only brings the screen into line with what the
+     server already recorded. Re-saving it here would be a pointless second
+     write, and one that could fail after the mail had gone. */
+  const noteEmailSent = (dealId: string, sentAt: string) =>
+    setData((d) => ({
+      ...d,
+      deals: d.deals.map((x) => (x.id === dealId ? { ...x, emailSentAt: sentAt } : x)),
+    }));
   const setInvoice = async (dealId: string, patch: Partial<Deal>) => {
     const current = deals.find((d) => d.id === dealId);
     if (!current) return;
@@ -3804,6 +3818,8 @@ export default function GrensrockApp() {
               edition={e}
               onClose={() => setModal(null)}
               onMarkSent={() => markEmailSent(d.id)}
+              onSent={(sentAt) => noteEmailSent(d.id, sentAt)}
+              onAddContact={commitContact}
             />
           );
         })()}

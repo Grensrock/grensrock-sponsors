@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { issuePortalInvite, toInviteContact } from "@/lib/auth/portal-invite";
+import { PORTAL_CONTACT_COLUMNS, toPortalContact } from "@/lib/auth/portal-account";
+import { issuePortalInvite } from "@/lib/auth/portal-invite";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /* ============================================================
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   const { data: row } = await supabase
     .from("contacts")
-    .select("id, first_name, last_name, email, phone, language, pref_info, pref_invoice, portal_access")
+    .select(PORTAL_CONTACT_COLUMNS)
     .eq("id", contactId)
     .maybeSingle();
   if (!row) return NextResponse.json({ error: "No such contact." }, { status: 404 });
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "This contact doesn't have portal access." }, { status: 409 });
   }
 
-  const contact = toInviteContact(row);
+  const contact = toPortalContact(row);
   const result = await issuePortalInvite(contact, request.nextUrl.origin);
   if (!result.sent) return NextResponse.json({ error: result.reason || "Could not send the link." }, { status: 502 });
   return NextResponse.json({ sent: true, to: contact.email });

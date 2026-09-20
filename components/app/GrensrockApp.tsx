@@ -141,7 +141,9 @@ const groupFormulas = (editions: Edition[], formulas: formulasApi.FormulaWithEdi
       .map(({ editionId: _editionId, ...f }) => f as Formula),
   }));
 
-export default function GrensrockApp() {
+/* `authError` is a code from app/auth/callback, read server-side in app/page.tsx
+   and passed straight through to Landing — the only screen that can act on it. */
+export default function GrensrockApp({ authError = "" }: { authError?: string }) {
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [loaded, setLoaded] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
@@ -1472,7 +1474,7 @@ export default function GrensrockApp() {
   if (mode.view === "landing") {
     return (
       <div className="gr-root">
-        <Landing onSignedIn={enterSession} />
+        <Landing onSignedIn={enterSession} authError={authError} />
       </div>
     );
   }

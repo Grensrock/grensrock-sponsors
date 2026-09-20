@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { issuePortalInvite, toInviteContact } from "@/lib/auth/portal-invite";
+import { PORTAL_CONTACT_COLUMNS, toPortalContact } from "@/lib/auth/portal-account";
+import { issuePortalInvite } from "@/lib/auth/portal-invite";
 import { MailNotConfiguredError, mailConfigured, sendMail } from "@/lib/email/send";
 import { validateEmail } from "@/lib/email-validate";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
      other company cannot be smuggled into the recipient list. */
   const { data: rows } = await supabase
     .from("contacts")
-    .select("id, first_name, last_name, email, phone, language, pref_info, pref_invoice, portal_access")
+    .select(PORTAL_CONTACT_COLUMNS)
     .eq("sponsor_id", deal.sponsor_id)
     .in("id", contactIds.filter(Boolean));
 
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
       warnings.push(`${who} could not be given portal access (${error.message}), so they can't accept online yet.`);
       continue;
     }
-    const result = await issuePortalInvite(toInviteContact(row), request.nextUrl.origin);
+    const result = await issuePortalInvite(toPortalContact(row), request.nextUrl.origin);
     if (result.sent) invited.push(String(row.email));
     else warnings.push(`${who} was given portal access, but the password link failed: ${result.reason}`);
   }

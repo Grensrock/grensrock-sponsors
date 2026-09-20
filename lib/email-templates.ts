@@ -456,3 +456,66 @@ Grensrock`,
 
   return { subject, body };
 }
+
+/* ---------- sponsor portal: sign in with a link ----------
+   The other way in, beside the password. Sent only when the contact asked
+   for it from the login form, so it opens with that rather than with a
+   greeting about access they already knew they had.
+
+   Short-lived on purpose, and said out loud: a link that quietly stopped
+   working would read as "the portal is broken" rather than "ask for
+   another one". The lifetime is Supabase's (see lib/auth/portal-magic-link),
+   so it arrives here as minutes rather than as a date we'd be inventing. */
+export function buildPortalSignInLink(
+  contact: Pick<Contact, "firstName" | "lastName" | "email" | "language">,
+  url: string,
+  minutes: number,
+) {
+  const lang: Language = contact.language || "nl";
+  const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+  const name = contactName(contact);
+
+  const subject = B(
+    "Uw aanmeldlink voor het Grensrock-sponsorportaal",
+    "Votre lien de connexion au portail sponsors de Grensrock",
+    "Your sign-in link for the Grensrock sponsor portal",
+  );
+
+  const body = B(
+    `Beste ${name || "sponsor"},
+
+U vroeg een aanmeldlink aan voor het Grensrock-sponsorportaal. Klik hieronder en u bent meteen binnen — een wachtwoord hebt u niet nodig.
+
+${url}
+
+De link blijft ${minutes} minuten geldig en werkt één keer. Is hij vervallen, vraag er dan gerust een nieuwe aan op de aanmeldpagina.
+
+Vroeg u niets aan? Dan hoeft u niets te doen. Zonder deze link verandert er niets aan uw account, en uw wachtwoord (als u er een hebt) blijft gewoon werken.
+
+Grensrock`,
+    `Cher/Chère ${name || "sponsor"},
+
+Vous avez demandé un lien de connexion au portail sponsors de Grensrock. Cliquez ci-dessous et vous y serez directement — aucun mot de passe n'est nécessaire.
+
+${url}
+
+Le lien reste valable ${minutes} minutes et ne fonctionne qu'une seule fois. S'il a expiré, demandez-en simplement un nouveau sur la page de connexion.
+
+Vous n'avez rien demandé ? Vous n'avez rien à faire. Sans ce lien, rien ne change à votre compte, et votre mot de passe (si vous en avez un) continue de fonctionner.
+
+Grensrock`,
+    `Dear ${name || "sponsor"},
+
+You asked for a sign-in link to the Grensrock sponsor portal. Follow the link below and you're straight in — no password needed.
+
+${url}
+
+The link stays valid for ${minutes} minutes and works once. If it has expired, just ask for a new one from the sign-in page.
+
+Didn't ask for this? Then there's nothing to do. Without the link nothing about your account changes, and your password (if you have one) keeps working.
+
+Grensrock`,
+  );
+
+  return { subject, body };
+}

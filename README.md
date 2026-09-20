@@ -37,9 +37,9 @@ System Environment Variables** switched on in the Vercel project so that
 
 Pointing a dev server at staging or production works, but it means every screen
 you open is a live one, and the screens worth testing are all behind a login —
-the team side through Google Workspace, the portal through a contact's password.
-Neither is something you can hand out. So there is a local stack instead, with
-data seeded to make those screens reachable.
+the team side through Google Workspace, the portal through a contact's password
+or a sign-in link mailed to them. Neither side is something you can hand out, so
+there is a local stack instead, with data seeded to make those screens reachable.
 
 ```bash
 npm run db:start          # first run pulls the images; needs Docker running
@@ -61,7 +61,9 @@ every machine, published in Supabase's own docs, and only good against a
 database listening on `127.0.0.1`. The band at the top of the page will read
 `database 127`, which is how you know you are not on a real project.
 
-Everything seeded uses the password `devdevdev`:
+Everything seeded uses the password `devdevdev`. Sponsors can also ask for a
+sign-in link instead, but that one needs `GOOGLE_SMTP_*` set to reach an inbox,
+so locally the password is the way in:
 
 | Sign in as | What it gets you |
 | --- | --- |

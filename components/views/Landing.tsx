@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PickLines from "@/components/ui/PickLines";
 import PickLogo from "@/components/ui/PickLogo";
 import { supabase } from "@/lib/supabase/client";
@@ -13,8 +13,13 @@ import type { Language } from "@/types";
      ensure_team_profile() (it requires a verified @grensrock.be address);
      the `hd` parameter below only pre-filters Google's account picker and
      is not a security boundary.
-   - Sponsor contacts get a magic link (no password): the link itself
-     drives the transition, via app/auth/callback/route.ts.
+   - Sponsor contacts have two ways in, and either works at any time:
+       * email + password, the password being one they set from an
+         emailed link (see app/api/portal/set-password);
+       * a sign-in link: type the address, follow the link that arrives,
+         and app/auth/callback puts them in the portal.
+     Neither replaces the other. A contact who only ever uses links never
+     needs a password, and one who has a password keeps it.
 */
 
 const TEAM_DOMAIN = "grensrock.be";
@@ -26,29 +31,88 @@ const MAIL_PLACEHOLDER: Record<Language, string> = {
   en: "you@company.com",
 };
 
-export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promise<void> }) {
-  const [side, setSide] = useState<null | "team" | "sponsor" | "forgot">(null);
+/* The codes app/auth/callback sends back when an emailed link didn't open a
+   session, as opposed to the raw provider messages it passes through for
+   everything else. These two are the ones this page can actually answer. */
+const LINK_CODES = ["linkexpired", "linkbroken"];
+
+export default function Landing({
+  onSignedIn,
+  authError = "",
+}: {
+  onSignedIn: () => void | Promise<void>;
+  /* Read out of the URL server-side (app/page.tsx), not here: as a prop it is
+     there for the first render, so a sponsor whose link died sees why straight
+     away rather than after a flash of an ordinary sign-in form. */
+  authError?: string;
+}) {
+  const linkFailed = LINK_CODES.includes(authError);
+  /* Land them on the form that fixes it: what someone holding a dead link
+     wants next is another one, not to be told to go and find the button. */
+  const [side, setSide] = useState<null | "team" | "sponsor" | "forgot" | "magic">(
+    linkFailed ? "magic" : null,
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  /* Held as a code, not as a sentence: the language buttons still work, so the
+     wording has to be chosen at render time rather than fixed on arrival. */
+  const [arrivedWith, setArrivedWith] = useState(authError);
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [lng, setLng] = useState<Language>("nl");
   const L = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lng];
 
+  /* Anything not in LINK_CODES is a raw Google/Supabase message — English, but
+     better shown than swallowed. */
+  const arrivalError = !arrivedWith
+    ? ""
+    : arrivedWith === "linkexpired"
+      ? L(
+          "Deze aanmeldlink werkt niet meer. Vraag hieronder een nieuwe aan.",
+          "Ce lien de connexion ne fonctionne plus. Demandez-en un nouveau ci-dessous.",
+          "That sign-in link no longer works. Ask for a new one below.",
+        )
+      : arrivedWith === "linkbroken"
+        ? L(
+            "Deze link is onvolledig. Vraag hieronder een nieuwe aan.",
+            "Ce lien est incomplet. Demandez-en un nouveau ci-dessous.",
+            "That link is incomplete. Ask for a new one below.",
+          )
+        : arrivedWith;
+
+  /* Tidy the address bar once the message is on screen, so a refresh doesn't
+     resurrect a complaint about a link that is long gone. Only the URL is
+     touched — the code lives in state from here on, which is what keeps this
+     out of the render path. */
+  useEffect(() => {
+    if (!authError) return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete("auth_error");
+    const rest = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+  }, [authError]);
+
+  /* One place, because there are now three of these: a stale "link expired"
+     sitting under a fresh "check your inbox" is how a working portal comes to
+     look broken. Anything that starts a new attempt wipes all three. */
+  const clearMessages = () => {
+    setErr("");
+    setInfo("");
+    setArrivedWith("");
+  };
+
   const reset = () => {
     setSide(null);
     setEmail("");
     setPassword("");
-    setErr("");
-    setInfo("");
+    clearMessages();
   };
 
   /* Team: Google Workspace */
   const teamLogin = async () => {
     if (busy) return;
-    setErr("");
-    setInfo("");
+    clearMessages();
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -70,13 +134,10 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     /* On success the browser navigates to Google, so `busy` stays true. */
   };
 
-  /* Sponsor: email + password. Magic links are gone — a contact is given a
-     link to set a password when the team switches their access on, and can
-     ask for a new one below (see app/api/portal/request-link). */
+  /* Sponsor, way one: email + password. */
   const sponsorLogin = async () => {
     if (busy) return;
-    setErr("");
-    setInfo("");
+    clearMessages();
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
@@ -97,24 +158,29 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       return;
     }
     /* No /auth/callback in a password sign-in, so the binding that the
-       callback used to do has to happen here. It is a no-op if already bound. */
+       callback does has to happen here. It is a no-op if already bound. */
     await supabase.rpc("claim_portal_contact");
     setBusy(false);
     await onSignedIn();
   };
 
-  /* "I can't get in": issues a fresh set-password link. Always reports the
-     same thing, whether or not the address matched anything. */
-  const requestLink = async () => {
+  /* ---------- the two "mail me something" forms ----------
+     They ask for the same thing and answer the same way, and only differ in
+     which route they post to and what they say afterwards, so they are one
+     function and one piece of markup rather than two that drift apart.
+
+     Both always report success. Whether the address matched a contact is not
+     something an unauthenticated caller gets to learn — see the route. */
+  const mailMe = async (kind: "magic" | "forgot") => {
     if (busy) return;
     if (!email.trim()) {
       setErr(L("Vul uw e-mailadres in.", "Saisissez votre adresse e-mail.", "Enter your email address."));
       return;
     }
-    setErr("");
+    clearMessages();
     setBusy(true);
     try {
-      await fetch("/api/portal/request-link", {
+      await fetch(kind === "magic" ? "/api/portal/magic-link" : "/api/portal/request-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -124,48 +190,63 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     }
     setBusy(false);
     setInfo(
-      L(
-        "Als dat adres bij een sponsorcontact met portaaltoegang hoort, is er een link onderweg. Die blijft 14 dagen geldig.",
-        "Si cette adresse correspond à un contact sponsor disposant d'un accès au portail, un lien est en route. Il reste valable 14 jours.",
-        "If that address belongs to a sponsor contact with portal access, a link is on its way. It stays valid for 14 days.",
-      ),
+      kind === "magic"
+        ? L(
+            "Als dat adres bij een sponsorcontact met portaaltoegang hoort, is er een aanmeldlink onderweg. Die blijft een uur geldig.",
+            "Si cette adresse correspond à un contact sponsor disposant d'un accès au portail, un lien de connexion est en route. Il reste valable une heure.",
+            "If that address belongs to a sponsor contact with portal access, a sign-in link is on its way. It stays valid for an hour.",
+          )
+        : L(
+            "Als dat adres bij een sponsorcontact met portaaltoegang hoort, is er een link onderweg. Die blijft 14 dagen geldig.",
+            "Si cette adresse correspond à un contact sponsor disposant d'un accès au portail, un lien est en route. Il reste valable 14 jours.",
+            "If that address belongs to a sponsor contact with portal access, a link is on its way. It stays valid for 14 days.",
+          ),
     );
   };
 
-  /* Its own screen rather than a second action on the sign-in card: the two
-     ask for different things, and a password box sitting under an email box
-     invites people to fill both in and wonder why nothing happened. The typed
-     address carries over, so arriving here after a failed sign-in costs nothing. */
-  const forgotForm = (
+  /* Each on its own screen rather than as extra buttons under the sign-in
+     card: the three ask for different things, and a password box sitting
+     under an email box invites people to fill both in and wonder why nothing
+     happened. The typed address carries over, so arriving here after a failed
+     sign-in costs nothing. */
+  const mailForm = (kind: "magic" | "forgot") => (
     <>
       <p className="gr-muted">
-        {L(
-          "Vul uw e-mailadres in. Als dat adres bij een sponsorcontact met portaaltoegang hoort, sturen we u een link om een wachtwoord te kiezen. Die link blijft 14 dagen geldig.",
-          "Saisissez votre adresse e-mail. Si elle correspond à un contact sponsor disposant d'un accès au portail, nous vous enverrons un lien pour choisir un mot de passe. Ce lien reste valable 14 jours.",
-          "Enter your email address. If it belongs to a sponsor contact with portal access, we'll send you a link to choose a password. The link stays valid for 14 days.",
-        )}
+        {kind === "magic"
+          ? L(
+              "Vul uw e-mailadres in. Als dat adres bij een sponsorcontact met portaaltoegang hoort, sturen we u een link waarmee u meteen binnen bent. Een wachtwoord hebt u dan niet nodig.",
+              "Saisissez votre adresse e-mail. Si elle correspond à un contact sponsor disposant d'un accès au portail, nous vous enverrons un lien qui vous connecte directement. Aucun mot de passe n'est nécessaire.",
+              "Enter your email address. If it belongs to a sponsor contact with portal access, we'll send you a link that signs you straight in. No password needed.",
+            )
+          : L(
+              "Vul uw e-mailadres in. Als dat adres bij een sponsorcontact met portaaltoegang hoort, sturen we u een link om een wachtwoord te kiezen. Die link blijft 14 dagen geldig.",
+              "Saisissez votre adresse e-mail. Si elle correspond à un contact sponsor disposant d'un accès au portail, nous vous enverrons un lien pour choisir un mot de passe. Ce lien reste valable 14 jours.",
+              "Enter your email address. If it belongs to a sponsor contact with portal access, we'll send you a link to choose a password. The link stays valid for 14 days.",
+            )}
       </p>
       <input
         type="email"
+        autoComplete="email"
         placeholder={MAIL_PLACEHOLDER[lng]}
         value={email}
         onChange={(e) => {
           setEmail(e.target.value);
-          setErr("");
+          clearMessages();
         }}
-        onKeyDown={(e) => e.key === "Enter" && requestLink()}
+        onKeyDown={(e) => e.key === "Enter" && mailMe(kind)}
         autoFocus
       />
-      <button className="gr-btn" disabled={busy} onClick={requestLink}>
+      <button className="gr-btn" disabled={busy} onClick={() => mailMe(kind)}>
         {busy
           ? L("Bezig…", "En cours…", "Working…")
-          : L("Stuur me een link", "Envoyez-moi un lien", "Send me a link")}
+          : kind === "magic"
+            ? L("Stuur me een aanmeldlink", "Envoyez-moi un lien de connexion", "Send me a sign-in link")
+            : L("Stuur me een link", "Envoyez-moi un lien", "Send me a link")}
       </button>
       <button
         className="gr-linkbtn"
         onClick={() => {
-          setErr("");
-          setInfo("");
+          clearMessages();
           setSide("sponsor");
         }}
       >
@@ -200,11 +281,12 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
     <>
       <input
         type="email"
+        autoComplete="email"
         placeholder={MAIL_PLACEHOLDER[lng]}
         value={email}
         onChange={(e) => {
           setEmail(e.target.value);
-          setErr("");
+          clearMessages();
         }}
         onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
         autoFocus
@@ -216,18 +298,33 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
         value={password}
         onChange={(e) => {
           setPassword(e.target.value);
-          setErr("");
+          clearMessages();
         }}
         onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
       />
       <button className="gr-btn" disabled={busy} onClick={sponsorLogin}>
         {L("Aanmelden", "Se connecter", "Sign in")}
       </button>
+      {/* Offered before "forgot your password", because for most people it is
+          the better answer to the same problem: it needs nothing remembered. */}
       <button
         className="gr-linkbtn"
         onClick={() => {
-          setErr("");
-          setInfo("");
+          clearMessages();
+          setPassword("");
+          setSide("magic");
+        }}
+      >
+        {L(
+          "Liever zonder wachtwoord? Stuur me een aanmeldlink",
+          "Plutôt sans mot de passe ? Envoyez-moi un lien de connexion",
+          "Rather not use a password? Send me a sign-in link",
+        )}
+      </button>
+      <button
+        className="gr-linkbtn"
+        onClick={() => {
+          clearMessages();
           setPassword("");
           setSide("forgot");
         }}
@@ -243,6 +340,8 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
       </button>
     </>
   );
+
+  const open = side === "sponsor" || side === "forgot" || side === "magic";
 
   return (
     <div className="gr-landing">
@@ -263,14 +362,16 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
           <h3 className="gr-h3">{L("Organisatie", "Organisation", "Organisation")}</h3>
           {teamCard}
         </div>
-        <div className={"gr-landcard" + (side === "sponsor" || side === "forgot" ? " on" : "")}>
+        <div className={"gr-landcard" + (open ? " on" : "")}>
           <h3 className="gr-h3">
             {side === "forgot"
               ? L("Wachtwoord vergeten", "Mot de passe oublié", "Forgot your password")
-              : "Sponsor"}
+              : side === "magic"
+                ? L("Aanmelden met een link", "Se connecter avec un lien", "Sign in with a link")
+                : "Sponsor"}
           </h3>
-          {side === "forgot" ? (
-            forgotForm
+          {side === "forgot" || side === "magic" ? (
+            mailForm(side)
           ) : side === "sponsor" ? (
             sponsorForm
           ) : (
@@ -285,8 +386,7 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
               <button
                 className="gr-btn-ghost"
                 onClick={() => {
-                  setErr("");
-                  setInfo("");
+                  clearMessages();
                   setSide("sponsor");
                 }}
               >
@@ -296,8 +396,12 @@ export default function Landing({ onSignedIn }: { onSignedIn: () => void | Promi
           )}
         </div>
       </div>
-      {err && <p style={{ color: "var(--red)", fontWeight: 600 }}>{err}</p>}
-      {info && !err && <p style={{ color: "#fff", fontWeight: 600 }}>{info}</p>}
+      {/* A message about the link they arrived on reads the same as any other
+          failure, so it shares the slot rather than adding a second red line. */}
+      {(err || arrivalError) && (
+        <p style={{ color: "var(--red)", fontWeight: 600 }}>{err || arrivalError}</p>
+      )}
+      {info && !err && !arrivalError && <p style={{ color: "#fff", fontWeight: 600 }}>{info}</p>}
     </div>
   );
 }

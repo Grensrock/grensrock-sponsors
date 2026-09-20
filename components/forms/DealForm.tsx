@@ -51,12 +51,18 @@ export default function DealForm({
   t?: TranslateFn;
   lang?: Language;
 }) {
-  const [d, setD] = useState<DealFormState>({ ...emptyDeal, ...initial });
+  const activeEditions = editions.filter((e) => e.active);
+  const [d, setD] = useState<DealFormState>(() => {
+    const start: DealFormState = { ...emptyDeal, ...initial };
+    /* One edition running means there is nothing to pick: start on it. */
+    if (!start.editionId && activeEditions.length === 1) start.editionId = activeEditions[0].id;
+    return start;
+  });
   const [newSponsorDraft, setNewSponsorDraft] = useState<Partial<Sponsor> | null>(null); // null | prefill object
   const set = (k: string, val: unknown) => setD((p) => ({ ...p, [k]: val }) as DealFormState);
-  const activeEditions = editions.filter((e) => e.active);
   const edition = editions.find((e) => e.id === d.editionId);
-  const formulas = edition ? edition.formulas || [] : [];
+  /* Cheapest formula first, so the picker reads as a ladder. */
+  const formulas = [...(edition?.formulas || [])].sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
 
   const applyFormula = (name: string) => {
     if (name === OP_MAAT) {

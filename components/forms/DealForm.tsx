@@ -61,7 +61,8 @@ export default function DealForm({
   const [newSponsorDraft, setNewSponsorDraft] = useState<Partial<Sponsor> | null>(null); // null | prefill object
   const set = (k: string, val: unknown) => setD((p) => ({ ...p, [k]: val }) as DealFormState);
   const edition = editions.find((e) => e.id === d.editionId);
-  const formulas = edition ? edition.formulas || [] : [];
+  /* Cheapest formula first, so the picker reads as a ladder. */
+  const formulas = [...(edition?.formulas || [])].sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
 
   const applyFormula = (name: string) => {
     if (name === OP_MAAT) {

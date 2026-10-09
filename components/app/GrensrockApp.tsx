@@ -2741,9 +2741,25 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                   <h2 className="gr-h2" style={{ margin: 0 }}>
                     {t("nav.agreements")}
                   </h2>
-                  <button className="gr-btn" onClick={exportAgreements}>
-                    {t("common.export")}
-                  </button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="gr-btn-ghost" onClick={exportAgreements}>
+                      {t("common.export")}
+                    </button>
+                    {/* Start on the edition the list is narrowed to, as long as it still takes agreements. */}
+                    <button
+                      className="gr-btn"
+                      onClick={() =>
+                        setModal({
+                          type: "deal",
+                          payload: editions.some((e) => e.id === agEdition && e.active)
+                            ? { editionId: agEdition }
+                            : undefined,
+                        })
+                      }
+                    >
+                      {t("ov.newagreement")}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="gr-toolbar">

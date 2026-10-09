@@ -29,18 +29,21 @@ export default function DealForm({
   initial,
   sponsors,
   editions,
+  deals = [],
   teamMembers = [],
   vatCfg = defaultVatLookup,
   onSave,
   onCancel,
   onDelete,
   onAddSponsor,
+  onOpenDeal,
   t = (k) => k,
   lang = "nl",
 }: {
   initial?: DealDraft | null;
   sponsors: Sponsor[];
   editions: Edition[];
+  deals?: Deal[];
   teamMembers?: User[];
   vatCfg?: VatLookupConfig;
   onSave: (d: DealFormState) => void;
@@ -48,6 +51,7 @@ export default function DealForm({
   onDelete?: (id: string) => void;
   /* Creating a sponsor is a round-trip to the database now, so this may be async. */
   onAddSponsor: (s: Sponsor) => Sponsor | Promise<Sponsor>;
+  onOpenDeal?: (d: Deal) => void;
   t?: TranslateFn;
   lang?: Language;
 }) {
@@ -95,7 +99,13 @@ export default function DealForm({
     }));
   };
 
-  const valid = d.sponsorId && d.editionId && d.cost !== "";
+  /* A sponsor has at most one agreement per edition (unique in the database),
+     so say so here instead of letting the save fail on it. */
+  const clash = d.sponsorId && d.editionId
+    ? deals.find((x) => x.sponsorId === d.sponsorId && x.editionId === d.editionId && x.id !== d.id)
+    : undefined;
+
+  const valid = d.sponsorId && d.editionId && d.cost !== "" && !clash;
 
   /* Inline "new sponsor" sub-form */
   if (newSponsorDraft !== null) {
@@ -148,6 +158,19 @@ export default function DealForm({
           ))}
         </select>
       </Field>
+      {clash && (
+        <p className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
+          {t("df.clash", {
+            sponsor: sponsors.find((x) => x.id === d.sponsorId)?.companyName || "",
+            edition: edition?.name || "",
+          })}{" "}
+          {onOpenDeal && (
+            <button className="gr-mini" onClick={() => onOpenDeal(clash)}>
+              {t("df.openclash")}
+            </button>
+          )}
+        </p>
+      )}
       {d.editionId && (
         <div className="gr-grid2">
           <Field

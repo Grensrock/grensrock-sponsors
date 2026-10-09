@@ -345,6 +345,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "pick.add": ["+ Nieuwe sponsor toevoegen", "+ Add new sponsor"],
   "df.newtitle": ["Nieuwe overeenkomst", "New agreement"],
   "df.edittitle": ["Overeenkomst bewerken", "Edit agreement"],
+  "df.clash": [
+    "{sponsor} heeft al een overeenkomst voor {edition}. Een sponsor heeft maar één overeenkomst per editie — pas die bestaande aan.",
+    "{sponsor} already has an agreement for {edition}. A sponsor has only one agreement per edition — change the existing one instead.",
+  ],
+  "df.openclash": ["Bestaande overeenkomst openen", "Open the existing agreement"],
   "ed.editionstitle": ["Festivaledities", "Festival editions"],
   "ov.addsponsor": ["Een sponsor toevoegen", "Add a sponsor"],
   "ov.addsponsors": ["Voeg uw sponsors toe", "Add your sponsors"],

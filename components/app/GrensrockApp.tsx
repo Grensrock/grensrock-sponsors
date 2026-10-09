@@ -1402,7 +1402,19 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         setModal({ type: "email", payload: created });
       }
     } catch (e) {
-      failWith(e);
+      /* DealForm already refuses a second agreement for the same sponsor and
+         edition; this is the one it couldn't see — added meanwhile by someone
+         else — and Postgres's own wording for it means nothing to the reader. */
+      if (/duplicate key/i.test(String((e as Error)?.message))) {
+        failWith(
+          new Error(
+            t("df.clash", {
+              sponsor: sponsors.find((x) => x.id === d.sponsorId)?.companyName || "",
+              edition: editions.find((x) => x.id === d.editionId)?.name || "",
+            }),
+          ),
+        );
+      } else failWith(e);
     }
   };
   const markEmailSent = async (dealId: string) => {
@@ -2741,9 +2753,25 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                   <h2 className="gr-h2" style={{ margin: 0 }}>
                     {t("nav.agreements")}
                   </h2>
-                  <button className="gr-btn" onClick={exportAgreements}>
-                    {t("common.export")}
-                  </button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="gr-btn-ghost" onClick={exportAgreements}>
+                      {t("common.export")}
+                    </button>
+                    {/* Start on the edition the list is narrowed to, as long as it still takes agreements. */}
+                    <button
+                      className="gr-btn"
+                      onClick={() =>
+                        setModal({
+                          type: "deal",
+                          payload: editions.some((e) => e.id === agEdition && e.active)
+                            ? { editionId: agEdition }
+                            : undefined,
+                        })
+                      }
+                    >
+                      {t("ov.newagreement")}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="gr-toolbar">
@@ -3618,7 +3646,6 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           />
         </Modal>
       )}
-      <ConfirmDialog dialog={dialog} onClose={() => setDialog(null)} t={t} lang={uiLang} />
       {modal?.type === "contact" && (
         <Modal
           title={t(modal.payload.contact ? "md.editcontact" : "md.newcontact")}
@@ -3792,13 +3819,16 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       {modal?.type === "deal" && (
         <Modal title={modal.payload?.id ? t("df.edittitle") : t("df.newtitle")} onClose={() => setModal(null)} wide>
           <DealForm
+            key={modal.payload?.id || "new"}
             initial={modal.payload}
             sponsors={sponsors}
             editions={editions}
+            deals={deals}
             teamMembers={users}
             onSave={saveDeal}
             onCancel={() => setModal(null)}
             onAddSponsor={addSponsorInline}
+            onOpenDeal={(d) => setModal({ type: "deal", payload: d })}
             vatCfg={data.settings?.vatLookup || defaultVatLookup}
             t={t}
             lang={uiLang}
@@ -3825,6 +3855,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             />
           );
         })()}
+      {/* Last, so a failed save shows on top of the modal it came from rather
+         than behind it — every .gr-overlay shares one z-index. */}
+      <ConfirmDialog dialog={dialog} onClose={() => setDialog(null)} t={t} lang={uiLang} />
     </div>
   );
 }

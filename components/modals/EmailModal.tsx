@@ -75,10 +75,21 @@ export default function EmailModal({
      what the hook is for. It never changes, hence the no-op subscribe. */
   const acceptUrl = useSyncExternalStore(subscribeNever, readOrigin, readNoOrigin);
 
+  /* The contact being added below is ticked the moment it is saved, so the
+     preview already counts them in: picking their language rewrites the mail
+     while the form is still open, instead of it staying in Dutch until then. */
+  const [pending, setPending] = useState<Contact | null>(null);
+
   /* Rebuilt every render rather than memoised: it is string concatenation over
      a handful of fields, and the cache key would have to be the recipient list,
      which is a fresh array each time anyway. */
-  const built = buildEmail(deal, sponsor, edition, recipients, acceptUrl || undefined);
+  const built = buildEmail(
+    deal,
+    sponsor,
+    edition,
+    pending ? [...recipients, pending] : recipients,
+    acceptUrl || undefined,
+  );
 
   /* null means "still following the agreement". Once the team types, their
      text stands — silently regenerating over an edit would be the modal
@@ -190,12 +201,21 @@ export default function EmailModal({
             <NewContactInline
               sponsor={sponsor}
               t={t}
-              onCancel={all.length === 0 ? undefined : () => setAdding(false)}
+              onChange={setPending}
+              onCancel={
+                all.length === 0
+                  ? undefined
+                  : () => {
+                      setAdding(false);
+                      setPending(null);
+                    }
+              }
               onSave={async (c) => {
                 const saved = await onAddContact(sponsor.id, c);
                 if (!saved) return false;
                 setPicked((p) => [...p, saved.id]);
                 setAdding(false);
+                setPending(null);
                 return true;
               }}
             />
@@ -260,19 +280,25 @@ export default function EmailModal({
 function NewContactInline({
   sponsor,
   onSave,
+  onChange,
   onCancel,
   t,
 }: {
   sponsor: Sponsor;
   onSave: (c: Contact) => Promise<boolean>;
+  /** Every edit, so the mail preview can follow the contact before it is saved. */
+  onChange: (c: Contact) => void;
   onCancel?: () => void;
   t: TranslateFn;
 }) {
   const [c, setC] = useState<Contact>({ id: "", ...emptyContact, prefs: { info: true, invoice: true } });
   const [busy, setBusy] = useState(false);
   const set =
-    (k: keyof Contact) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setC({ ...c, [k]: e.target.value } as Contact);
+    (k: keyof Contact) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const next = { ...c, [k]: e.target.value } as Contact;
+      setC(next);
+      onChange(next);
+    };
 
   const mail = validateEmail(c.email);
   const emailOk = !!c.email && !!mail && mail.valid;

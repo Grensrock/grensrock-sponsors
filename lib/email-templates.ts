@@ -67,9 +67,6 @@ export function buildEmail(
       ? `${names.slice(0, -1).join(", ")}${B(" en ", " et ", " and ")}${names[names.length - 1]}`
       : names[0]
     : contactName(c) || sponsor.companyName;
-  /* Naming the address only makes sense when there is exactly one reader —
-     with several, whose address it is becomes ambiguous and unhelpful. */
-  const own = people.length === 1 && c.email ? ` (${c.email})` : "";
 
   if (Number(deal.vipFriday) > 0)
     benefits.push(
@@ -242,18 +239,18 @@ Amount to be invoiced: ${eur(toInvoice)}. Invoicing will follow via e-invoicing 
      deployment with no portal URL to point at, or a preview of the text. */
   const confirm = acceptUrl
     ? B(
-        `Dit overzicht geldt als contract. U bevestigt het in het sponsorportaal:
+        `Dit overzicht geldt als contract. U bevestigt het via deze persoonlijke link, die u meteen aanmeldt in het sponsorportaal:
 ${acceptUrl}
 
-Meld u aan met uw e-mailadres${own} en kies bij "Sponsoring" voor "Lezen en aanvaarden". Lukt aanmelden niet, vraag dan op de aanmeldpagina een nieuwe link aan.`,
-        `Cet aperçu fait office de contrat. Vous le confirmez dans le portail sponsors :
+Kies daar bij "Sponsoring" voor "Lezen en aanvaarden". De link werkt 14 dagen en is enkel voor u bedoeld — stuur hem dus niet door. Is hij verlopen, vraag dan op de aanmeldpagina een nieuwe link aan.`,
+        `Cet aperçu fait office de contrat. Vous le confirmez via ce lien personnel, qui vous connecte directement au portail sponsors :
 ${acceptUrl}
 
-Connectez-vous avec votre adresse e-mail${own} et choisissez « Lire et accepter » sous « Sponsoring ». Si la connexion échoue, demandez un nouveau lien sur la page de connexion.`,
-        `This overview serves as the contract. You confirm it in the sponsor portal:
+Choisissez ensuite « Lire et accepter » sous « Sponsoring ». Le lien est valable 14 jours et vous est personnel — ne le transférez donc pas. S'il a expiré, demandez un nouveau lien sur la page de connexion.`,
+        `This overview serves as the contract. You confirm it through this personal link, which signs you straight into the sponsor portal:
 ${acceptUrl}
 
-Sign in with your email address${own} and choose "Read and accept" under "Sponsoring". If you can't sign in, request a new link from the sign-in page.`,
+There, choose "Read and accept" under "Sponsoring". The link works for 14 days and is meant for you only — please don't forward it. If it has expired, request a new link from the sign-in page.`,
       )
     : B(
         'Dit overzicht geldt als contract. Gelieve dit ter bevestiging te beantwoorden met "akkoord".',

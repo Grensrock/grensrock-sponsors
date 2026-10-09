@@ -665,8 +665,12 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "em.addcontact": ["+ Contactpersoon toevoegen", "+ Add a contact person"],
   "em.noportal": ["nog geen portaaltoegang", "no portal access yet"],
   "em.willinvite": [
-    "Contactpersonen zonder portaaltoegang krijgen die bij het versturen, samen met een aparte e-mail om een wachtwoord te kiezen — anders kunnen zij de link in dit bericht niet gebruiken.",
-    "Contacts without portal access are given it when you send, along with a separate email to choose a password — otherwise the link in this message is a dead end for them.",
+    "Contactpersonen zonder portaaltoegang krijgen die bij het versturen. Hun persoonlijke link meldt hen meteen aan.",
+    "Contacts without portal access are given it when you send. Their personal link signs them in straight away.",
+  ],
+  "em.personal": [
+    "Elke contactpersoon krijgt een eigen e-mail, met een persoonlijke link die hem of haar 14 dagen lang meteen aanmeldt.",
+    "Each contact gets their own email, with a personal link that signs them in directly for 14 days.",
   ],
   "em.mixedlangs": [
     "Deze contactpersonen verkiezen verschillende talen — er vertrekt één tekst, in het {lang}.",
@@ -684,10 +688,6 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "em.send": ["Versturen", "Send"],
   "em.sending": ["Bezig met versturen…", "Sending…"],
   "em.sentto": ["Verzonden naar {to}.", "Sent to {to}."],
-  "em.invitedtoo": [
-    "Een link om een wachtwoord te kiezen ging naar: {to}.",
-    "A link to choose a password went to: {to}.",
-  ],
   "em.sendfailed": ["Versturen mislukt", "Sending failed"],
   "em.marksenthint": [
     "Gebruik dit als u de mail zelf al buiten deze tool verstuurde.",

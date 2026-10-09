@@ -114,6 +114,10 @@ export const ROLES: LabelMap<Role> = {
 /* Team accounts use firstname@grensrock.be */
 export const TEAM_DOMAIN = "grensrock.be";
 
+/* Where the personal link in an agreement mail lands (app/auth/accept). The
+   mail preview shows it bare; the send route gives each recipient a token. */
+export const ACCEPT_PATH = "/auth/accept";
+
 /* ---------- empty records ---------- */
 export const emptySponsor: Omit<Sponsor, "id"> = {
   companyName: "",

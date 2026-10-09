@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createAcceptLink } from "@/lib/auth/portal-accept-link";
 import { PORTAL_CONTACT_COLUMNS, toPortalContact } from "@/lib/auth/portal-account";
-import { issuePortalInvite } from "@/lib/auth/portal-invite";
+import { ACCEPT_PATH } from "@/lib/constants";
 import { MailNotConfiguredError, mailConfigured, sendMail } from "@/lib/email/send";
 import { validateEmail } from "@/lib/email-validate";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -24,12 +25,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
    recipient no matter what is in the body, and the message can only
    reach people who are already contacts of that agreement's sponsor.
 
-   Recipients that cannot yet sign in are activated here rather than
-   being left for the team to notice. The message's whole purpose is a
-   link that says "accept this"; sending that to someone with no way in
-   is a dead end, so portal access is switched on and the set-password
-   link goes out alongside — the same act, and the same code, as the
-   team pressing "activate" on the contact.
+   The link in the message signs the reader in by itself
+   (lib/auth/portal-accept-link.ts), so it is personal: each recipient
+   gets their own copy of the approved text, with their own link where
+   the preview showed the bare one. Recipients that had no portal access
+   are given it here — the link is the way in, so no separate
+   set-password mail is needed to make it work.
    ============================================================ */
 
 export const runtime = "nodejs"; // nodemailer opens a TCP connection; not available on edge
@@ -111,35 +112,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  /* ---------- make sure the link in the message actually works ----------
-     Reported, never fatal: a contact whose address is already a portal login
-     under another sponsor trips the unique index in 0001_schema.sql. That is
-     worth telling the team about, but it is no reason to withhold a contract
-     from the other recipients. */
+  /* ---------- one personal mail per recipient ----------
+     Per-recipient problems are reported, never fatal: a contact whose address
+     is already a portal login under another sponsor trips the unique index in
+     0001_schema.sql. That is worth telling the team about, but no reason to
+     withhold the contract from the other recipients. */
   const warnings: string[] = [];
-  const invited: string[] = [];
+  const sentTo: string[] = [];
   const admin = createSupabaseAdminClient();
+  /* The preview was built on this same origin, so this is exactly the text the
+     link appears as in the approved body. */
+  const bareLink = `${request.nextUrl.origin}${ACCEPT_PATH}`;
+  const hasLink = text.includes(bareLink);
+
   for (const row of chosen) {
-    if (row.portal_access) continue;
     const who = [row.first_name, row.last_name].filter(Boolean).join(" ") || String(row.email);
-    const { error } = await admin.from("contacts").update({ portal_access: true }).eq("id", row.id);
-    if (error) {
-      warnings.push(`${who} could not be given portal access (${error.message}), so they can't accept online yet.`);
-      continue;
+    let personal = text;
+
+    if (hasLink) {
+      if (!row.portal_access) {
+        const { error } = await admin.from("contacts").update({ portal_access: true }).eq("id", row.id);
+        if (error) {
+          warnings.push(`${who} could not be given portal access (${error.message}), so the mail to them wasn't sent.`);
+          continue;
+        }
+      }
+      const link = await createAcceptLink(toPortalContact(row), dealId, request.nextUrl.origin);
+      if (!link.url) {
+        warnings.push(`No personal link could be made for ${who} (${link.reason}), so the mail to them wasn't sent.`);
+        continue;
+      }
+      personal = text.split(bareLink).join(link.url);
     }
-    const result = await issuePortalInvite(toPortalContact(row), request.nextUrl.origin);
-    if (result.sent) invited.push(String(row.email));
-    else warnings.push(`${who} was given portal access, but the password link failed: ${result.reason}`);
+
+    try {
+      await sendMail({ to: String(row.email), subject, text: personal });
+      sentTo.push(String(row.email));
+    } catch (ex) {
+      if (ex instanceof MailNotConfiguredError) {
+        return NextResponse.json({ error: ex.message }, { status: 503 });
+      }
+      warnings.push(`The mail to ${who} could not be sent: ${ex instanceof Error ? ex.message : "unknown error"}`);
+    }
   }
 
-  /* One message to all of them: the text was written and approved once, as
-     one text, and the recipients are colleagues at the same company — so a
-     single thread they can all reply into is what the team meant to send. */
-  try {
-    await sendMail({ to: chosen.map((r) => String(r.email)), subject, text });
-  } catch (ex) {
-    const status = ex instanceof MailNotConfiguredError ? 503 : 502;
-    return NextResponse.json({ error: ex instanceof Error ? ex.message : "Could not send the email." }, { status });
+  if (sentTo.length === 0) {
+    return NextResponse.json({ error: warnings.join("\n") || "Could not send the email." }, { status: 502 });
   }
 
   /* Through the caller's session on purpose: the audit trail (0005_audit.sql)
@@ -152,8 +170,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     sent: true,
     sentAt,
-    to: chosen.map((r) => String(r.email)),
-    invited,
+    to: sentTo,
     warnings,
   });
 }

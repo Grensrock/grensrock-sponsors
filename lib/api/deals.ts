@@ -176,8 +176,6 @@ export interface SendAgreementResult {
   sentAt: string;
   /** Addresses the message actually went to, as stored on the contacts. */
   to: string[];
-  /** Contacts that were activated for the portal, and so also got a password link. */
-  invited: string[];
   /** Non-fatal problems worth telling the team about; the mail still went. */
   warnings: string[];
 }
@@ -205,7 +203,6 @@ export async function sendAgreementEmail(
   return {
     sentAt: String(data.sentAt || new Date().toISOString()),
     to: Array.isArray(data.to) ? data.to.map(String) : [],
-    invited: Array.isArray(data.invited) ? data.invited.map(String) : [],
     warnings: Array.isArray(data.warnings) ? data.warnings.map(String) : [],
   };
 }

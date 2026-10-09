@@ -6,7 +6,7 @@ import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import Tag from "@/components/ui/Tag";
 import { sendAgreementEmail } from "@/lib/api/deals";
-import { LANGS, emptyContact, uid } from "@/lib/constants";
+import { ACCEPT_PATH, LANGS, emptyContact, uid } from "@/lib/constants";
 import { contactName, contactsFor, sponsorContacts } from "@/lib/contacts";
 import { buildEmail } from "@/lib/email-templates";
 import { emailToStore, sameEmail, validateEmail } from "@/lib/email-validate";
@@ -64,9 +64,9 @@ export default function EmailModal({
   });
   const recipients = all.filter((c) => picked.includes(c.id));
 
-  /* Where the sponsor lands to accept. The portal opens on "Sponsoring" with
-     the acceptance box whenever something is waiting, so the app root is the
-     right destination and needs no route of its own.
+  /* Where the sponsor lands to accept. Shown bare here: on sending, each
+     recipient's copy gets their own token on it, which signs them in and opens
+     the portal on "Sponsoring" with the acceptance box (app/auth/accept).
 
      Read through useSyncExternalStore rather than inline: window.location has
      no server-side counterpart, so reading it during render makes the first
@@ -88,7 +88,7 @@ export default function EmailModal({
     sponsor,
     edition,
     pending ? [...recipients, pending] : recipients,
-    acceptUrl || undefined,
+    acceptUrl ? acceptUrl + ACCEPT_PATH : undefined,
   );
 
   /* null means "still following the agreement". Once the team types, their
@@ -102,7 +102,7 @@ export default function EmailModal({
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState<{ to: string[]; invited: string[]; warnings: string[] } | null>(null);
+  const [done, setDone] = useState<{ to: string[]; warnings: string[] } | null>(null);
   const [copied, setCopied] = useState(false);
   const [adding, setAdding] = useState(all.length === 0);
 
@@ -127,7 +127,7 @@ export default function EmailModal({
     setErr("");
     try {
       const res = await sendAgreementEmail(deal.id, recipients.map((c) => c.id), subject, body);
-      setDone({ to: res.to, invited: res.invited, warnings: res.warnings });
+      setDone({ to: res.to, warnings: res.warnings });
       onSent(res.sentAt);
     } catch (e) {
       setErr((e as Error).message);
@@ -140,15 +140,11 @@ export default function EmailModal({
     <Modal title={t("em.title")} onClose={onClose} wide>
       {done ? (
         /* Sent. The agreement is already marked, so there is nothing left to
-           do here but say what happened — including the second mail, which
-           the team did not explicitly ask for and should not be surprised by. */
+           do here but say what happened. */
         <>
           <p className="gr-blockbanner" style={{ background: "#E7F4EC", color: "var(--green)" }}>
             {t("em.sentto", { to: done.to.join(", ") })}
           </p>
-          {done.invited.length > 0 && (
-            <p className="gr-muted">{t("em.invitedtoo", { to: done.invited.join(", ") })}</p>
-          )}
           {done.warnings.map((w, i) => (
             <p key={i} className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
               {w}
@@ -221,7 +217,12 @@ export default function EmailModal({
             />
           )}
 
-          {needInvite.length > 0 && <p className="gr-muted">{t("em.willinvite")}</p>}
+          {recipients.length > 0 && (
+            <p className="gr-muted">
+              {t("em.personal")}
+              {needInvite.length > 0 && <> {t("em.willinvite")}</>}
+            </p>
+          )}
           {recipients.length === 0 && all.length > 0 && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>
               {t("em.pickone")}

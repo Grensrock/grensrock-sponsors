@@ -618,8 +618,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
 
   /* ---------- roles & misc ---------- */
   "tm.roleadmin": [
-    "— alles: edities, formules, facturatie en teamaccounts.",
-    "— everything: editions, formulas, invoicing and team accounts.",
+    "— alles: edities, formules, bonnen, facturatie en teamaccounts.",
+    "— everything: editions, formulas, vouchers, invoicing and team accounts.",
   ],
   "tm.roleuser": [
     "— kan alle sponsors en hun overeenkomsten bekijken en aanpassen.",

@@ -336,8 +336,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const admin = realAdmin && !previewUser;
   // A non-admin should never sit on an admin-only tab (e.g. after losing admin, or stale state)
   useEffect(() => {
+    const adminOnly = ADMIN_TABS.includes(tab) || ["folder", "invoicing", "vouchers"].includes(tab);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- unchanged Stage-1 guard
-    if (!admin && (ADMIN_TABS.includes(tab) || tab === "folder" || tab === "invoicing")) setTab("overview");
+    if (!admin && adminOnly) setTab("overview");
   }, [admin, tab]);
   /* Escape closes the collapsed nav. It is a disclosure rather than a modal —
      it pushes the page down instead of covering it — so it does not trap focus;
@@ -1613,7 +1614,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             ["sponsors", t("nav.sponsors")],
             ["agreements", t("nav.agreements")],
             ["contacts", t("nav.contacts")],
-            ["vouchers", t("nav.vouchers")],
+            /* Issuing and sending vouchers is admin work, like invoicing. */
+            ...(admin ? ([["vouchers", t("nav.vouchers")]] as Array<[string, string]>) : []),
             ["analytics", t("nav.analytics")],
             ...(admin
               ? ([
@@ -2214,6 +2216,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
 
         {/* ---------- VOUCHERS ---------- */}
         {tab === "vouchers" &&
+          admin &&
           (() => {
             const ved = editions.find((e) => e.id === (voEdition || overviewEdition?.id));
             const all = ved ? vouchers.filter((v) => v.editionId === ved.id) : [];

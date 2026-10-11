@@ -4,7 +4,7 @@ import { useState } from "react";
 import CopyInviteButton from "@/components/views/CopyInviteButton";
 import LogoManager from "@/components/ui/LogoManager";
 import Tag from "@/components/ui/Tag";
-import { changedSinceAcceptance, isAccepted } from "@/lib/acceptance";
+import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
 import { formatAddress } from "@/lib/address";
 import {
   COMM_LABELS,
@@ -22,7 +22,18 @@ import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, needsInvoice, refMis
 import { ledLabel, normFolder, normLed } from "@/lib/normalize";
 import { responsibleName } from "@/lib/users";
 import { voucherText } from "@/lib/vouchers";
-import type { Contact, Deal, Edition, Language, Sponsor, SponsorLogo, TranslateFn, User, Voucher } from "@/types";
+import type {
+  Contact,
+  Deal,
+  Edition,
+  Language,
+  Sponsor,
+  SponsorDecline,
+  SponsorLogo,
+  TranslateFn,
+  User,
+  Voucher,
+} from "@/types";
 
 /* ---------- Sponsor detail (history) ---------- */
 
@@ -41,6 +52,9 @@ export default function SponsorDetail({
   onEdit,
   onDelete,
   onAddDeal,
+  declines = [],
+  onDecline,
+  onWithdrawDecline,
   onEditDeal,
   onDeleteDeal,
   onEditContact,
@@ -64,6 +78,10 @@ export default function SponsorDetail({
   onEdit: () => void;
   onDelete: () => void;
   onAddDeal: () => void;
+  declines?: SponsorDecline[];
+  /** Record that this sponsor won't sponsor an edition. */
+  onDecline?: () => void;
+  onWithdrawDecline?: (id: string) => void;
   onEditDeal: (d: Deal) => void;
   onDeleteDeal: (id: string) => void;
   onEditContact: (c: Contact | null) => void;
@@ -81,6 +99,10 @@ export default function SponsorDetail({
   const history: DealWithEdition[] = deals
     .filter((d) => d.sponsorId === sponsor.id)
     .map((d) => ({ ...d, edition: editions.find((e) => e.id === d.editionId) }))
+    .sort((a, b) => (b.edition?.startDate || "").localeCompare(a.edition?.startDate || ""));
+  const declined = declines
+    .filter((x) => x.sponsorId === sponsor.id)
+    .map((x) => ({ ...x, edition: editions.find((e) => e.id === x.editionId) }))
     .sort((a, b) => (b.edition?.startDate || "").localeCompare(a.edition?.startDate || ""));
   const totalCost = history.reduce((s, d) => s + dealTotalCost(d), 0);
   const myVouchers = vouchers.filter((v) => v.sponsorId === sponsor.id);
@@ -116,6 +138,11 @@ export default function SponsorDetail({
           {canDelete && (
             <button className="gr-btn-ghost gr-danger" onClick={onDelete}>
               {t("common.delete")}
+            </button>
+          )}
+          {onDecline && (
+            <button className="gr-btn-ghost" onClick={onDecline}>
+              {t("dc.button")}
             </button>
           )}
           <button className="gr-btn" onClick={onAddDeal}>
@@ -273,8 +300,36 @@ export default function SponsorDetail({
               {t("sd.totalcontributed")}
             </div>
           </div>
+          {declined.length > 0 && (
+            <div className="gr-tablewrap">
+              <table className="gr-table gr-compact">
+                <tbody>
+                  {declined.map((x) => (
+                    <tr key={x.id}>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {x.edition ? x.edition.name : "?"} <Tag tone="grey">{t("dc.declined")}</Tag>
+                      </td>
+                      <td>
+                        {x.reason || <span className="gr-muted">—</span>}
+                        <div className="gr-muted" style={{ fontSize: 11 }}>
+                          {t("dc.by", { name: x.recordedBy || "?", date: fmtDateTime(x.declinedAt) })}
+                        </div>
+                      </td>
+                      <td className="gr-rowbtns">
+                        {onWithdrawDecline && (
+                          <button className="gr-mini" onClick={() => onWithdrawDecline(x.id)}>
+                            {t("dc.withdraw")}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {history.length === 0 ? (
-            <p className="gr-empty">{t("sd.noagreements")}</p>
+            declined.length === 0 && <p className="gr-empty">{t("sd.noagreements")}</p>
           ) : (
             <div className="gr-tablewrap">
               <table className="gr-table gr-clickable">

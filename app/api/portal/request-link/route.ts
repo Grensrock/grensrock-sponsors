@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { issuePortalInvite, toInviteContact } from "@/lib/auth/portal-invite";
+import { PORTAL_CONTACT_COLUMNS, toPortalContact } from "@/lib/auth/portal-account";
+import { issuePortalInvite } from "@/lib/auth/portal-invite";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /* ============================================================
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
        portal contact — is what makes that safe. */
     const { data: rows } = await admin
       .from("contacts")
-      .select("id, first_name, last_name, email, phone, language, pref_info, pref_invoice, portal_access")
+      .select(PORTAL_CONTACT_COLUMNS)
       .ilike("email", email)
       .eq("portal_access", true)
       .limit(1);
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     const last = recent?.[0]?.created_at ? new Date(recent[0].created_at as string).getTime() : 0;
     if (Date.now() - last < RESEND_GAP_MS) return always();
 
-    await issuePortalInvite(toInviteContact(row), request.nextUrl.origin);
+    await issuePortalInvite(toPortalContact(row), request.nextUrl.origin);
   } catch {
     /* Swallowed on purpose: an error here would be a side channel telling the
        caller their address matched something. It is logged nowhere the caller

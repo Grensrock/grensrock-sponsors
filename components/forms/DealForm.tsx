@@ -29,18 +29,21 @@ export default function DealForm({
   initial,
   sponsors,
   editions,
+  deals = [],
   teamMembers = [],
   vatCfg = defaultVatLookup,
   onSave,
   onCancel,
   onDelete,
   onAddSponsor,
+  onOpenDeal,
   t = (k) => k,
   lang = "nl",
 }: {
   initial?: DealDraft | null;
   sponsors: Sponsor[];
   editions: Edition[];
+  deals?: Deal[];
   teamMembers?: User[];
   vatCfg?: VatLookupConfig;
   onSave: (d: DealFormState) => void;
@@ -48,15 +51,22 @@ export default function DealForm({
   onDelete?: (id: string) => void;
   /* Creating a sponsor is a round-trip to the database now, so this may be async. */
   onAddSponsor: (s: Sponsor) => Sponsor | Promise<Sponsor>;
+  onOpenDeal?: (d: Deal) => void;
   t?: TranslateFn;
   lang?: Language;
 }) {
-  const [d, setD] = useState<DealFormState>({ ...emptyDeal, ...initial });
+  const activeEditions = editions.filter((e) => e.active);
+  const [d, setD] = useState<DealFormState>(() => {
+    const start: DealFormState = { ...emptyDeal, ...initial };
+    /* One edition running means there is nothing to pick: start on it. */
+    if (!start.editionId && activeEditions.length === 1) start.editionId = activeEditions[0].id;
+    return start;
+  });
   const [newSponsorDraft, setNewSponsorDraft] = useState<Partial<Sponsor> | null>(null); // null | prefill object
   const set = (k: string, val: unknown) => setD((p) => ({ ...p, [k]: val }) as DealFormState);
-  const activeEditions = editions.filter((e) => e.active);
   const edition = editions.find((e) => e.id === d.editionId);
-  const formulas = edition ? edition.formulas || [] : [];
+  /* Cheapest formula first, so the picker reads as a ladder. */
+  const formulas = [...(edition?.formulas || [])].sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
 
   const applyFormula = (name: string) => {
     if (name === OP_MAAT) {
@@ -89,7 +99,13 @@ export default function DealForm({
     }));
   };
 
-  const valid = d.sponsorId && d.editionId && d.cost !== "";
+  /* A sponsor has at most one agreement per edition (unique in the database),
+     so say so here instead of letting the save fail on it. */
+  const clash = d.sponsorId && d.editionId
+    ? deals.find((x) => x.sponsorId === d.sponsorId && x.editionId === d.editionId && x.id !== d.id)
+    : undefined;
+
+  const valid = d.sponsorId && d.editionId && d.cost !== "" && !clash;
 
   /* Inline "new sponsor" sub-form */
   if (newSponsorDraft !== null) {
@@ -142,6 +158,19 @@ export default function DealForm({
           ))}
         </select>
       </Field>
+      {clash && (
+        <p className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
+          {t("df.clash", {
+            sponsor: sponsors.find((x) => x.id === d.sponsorId)?.companyName || "",
+            edition: edition?.name || "",
+          })}{" "}
+          {onOpenDeal && (
+            <button className="gr-mini" onClick={() => onOpenDeal(clash)}>
+              {t("df.openclash")}
+            </button>
+          )}
+        </p>
+      )}
       {d.editionId && (
         <div className="gr-grid2">
           <Field

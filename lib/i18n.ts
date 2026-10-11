@@ -345,6 +345,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "pick.add": ["+ Nieuwe sponsor toevoegen", "+ Add new sponsor"],
   "df.newtitle": ["Nieuwe overeenkomst", "New agreement"],
   "df.edittitle": ["Overeenkomst bewerken", "Edit agreement"],
+  "df.clash": [
+    "{sponsor} heeft al een overeenkomst voor {edition}. Een sponsor heeft maar één overeenkomst per editie — pas die bestaande aan.",
+    "{sponsor} already has an agreement for {edition}. A sponsor has only one agreement per edition — change the existing one instead.",
+  ],
+  "df.openclash": ["Bestaande overeenkomst openen", "Open the existing agreement"],
   "ed.editionstitle": ["Festivaledities", "Festival editions"],
   "ov.addsponsor": ["Een sponsor toevoegen", "Add a sponsor"],
   "ov.addsponsors": ["Voeg uw sponsors toe", "Add your sponsors"],
@@ -456,6 +461,14 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Ask the sponsor to accept again? The current acceptance is cleared.",
   ],
   "dlg.resetaccepttitle": ["Aanvaarding opnieuw vragen", "Reset acceptance"],
+  "dlg.teamacceptask": [
+    "Deze overeenkomst aanvaarden in naam van {sponsor}? Doe dit enkel als de sponsor op een andere manier akkoord gaf (per mail, telefoon of op papier). Ze wordt geregistreerd als aanvaard door u, namens de sponsor.",
+    "Accept this agreement on behalf of {sponsor}? Only do this when the sponsor agreed some other way (by email, phone or on paper). It is recorded as accepted by you, on the sponsor's behalf.",
+  ],
+  "dlg.teamaccepttitle": ["Aanvaarden namens de sponsor", "Accept on the sponsor's behalf"],
+  "dlg.teamaccept": ["Aanvaarden", "Accept"],
+  "sd.acceptforsponsor": ["Aanvaarden…", "Accept…"],
+  "ac.byteam": ["namens de sponsor, door het team", "on the sponsor's behalf, by the team"],
   "dlg.reset": ["Opnieuw", "Reset"],
   // vouchers
   "dlg.allgenerated": ["Alles is al gegenereerd voor deze editie.", "Everything is already generated for this edition."],
@@ -650,6 +663,44 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "tw.apikey": ["API-sleutel (enkel zonder proxy)", "API key (only without proxy)"],
   "tw.eventid": ["Event-ID in Tickoweb", "Event ID in Tickoweb"],
   "tw.productid": ["Tickoweb-product-id", "Tickoweb product id"],
+  /* ---------- sending an agreement (components/modals/EmailModal.tsx) ---------- */
+  "em.recipients": ["Versturen naar", "Send to"],
+  "em.pickone": ["Kies minstens één contactpersoon.", "Pick at least one contact person."],
+  "em.nocontactsyet": [
+    "Deze sponsor heeft nog geen contactpersoon met een e-mailadres. Voeg er een toe om de overeenkomst te kunnen versturen.",
+    "This sponsor has no contact person with an email address yet. Add one to be able to send the agreement.",
+  ],
+  "em.addcontact": ["+ Contactpersoon toevoegen", "+ Add a contact person"],
+  "em.noportal": ["nog geen portaaltoegang", "no portal access yet"],
+  "em.willinvite": [
+    "Contactpersonen zonder portaaltoegang krijgen die bij het versturen. Hun persoonlijke link meldt hen meteen aan.",
+    "Contacts without portal access are given it when you send. Their personal link signs them in straight away.",
+  ],
+  "em.personal": [
+    "Elke contactpersoon krijgt een eigen e-mail, met een persoonlijke link die hem of haar 14 dagen lang meteen aanmeldt.",
+    "Each contact gets their own email, with a personal link that signs them in directly for 14 days.",
+  ],
+  "em.mixedlangs": [
+    "Deze contactpersonen verkiezen verschillende talen — er vertrekt één tekst, in het {lang}.",
+    "These contacts prefer different languages — one text is sent to all of them, in {lang}.",
+  ],
+  "em.subject": ["Onderwerp", "Subject"],
+  "em.body": ["Bericht", "Message"],
+  "em.edit": ["Tekst aanpassen", "Edit the text"],
+  "em.preview": ["Voorbeeld tonen", "Show the preview"],
+  "em.edited": [
+    "U hebt de tekst aangepast, dus hij volgt de overeenkomst niet meer automatisch.",
+    "You edited the text, so it no longer follows the agreement automatically.",
+  ],
+  "em.rebuild": ["Tekst opnieuw opbouwen", "Rebuild the text"],
+  "em.send": ["Versturen", "Send"],
+  "em.sending": ["Bezig met versturen…", "Sending…"],
+  "em.sentto": ["Verzonden naar {to}.", "Sent to {to}."],
+  "em.sendfailed": ["Versturen mislukt", "Sending failed"],
+  "em.marksenthint": [
+    "Gebruik dit als u de mail zelf al buiten deze tool verstuurde.",
+    "Use this if you already sent the mail yourself, outside this tool.",
+  ],
   "em.writelang": ["Schrijven in de taal van", "Write in the language of"],
 
   /* ---------- sponsor detail ---------- */

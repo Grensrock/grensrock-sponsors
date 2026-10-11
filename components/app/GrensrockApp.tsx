@@ -141,7 +141,9 @@ const groupFormulas = (editions: Edition[], formulas: formulasApi.FormulaWithEdi
       .map(({ editionId: _editionId, ...f }) => f as Formula),
   }));
 
-export default function GrensrockApp() {
+/* `authError` is a code from app/auth/callback, read server-side in app/page.tsx
+   and passed straight through to Landing — the only screen that can act on it. */
+export default function GrensrockApp({ authError = "" }: { authError?: string }) {
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [loaded, setLoaded] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
@@ -633,6 +635,25 @@ export default function GrensrockApp() {
     }
   };
 
+  /* An admin recording an acceptance the sponsor gave outside the portal (by
+     mail, phone, on paper). The RPC checks the role and marks it byTeam, in
+     the admin's name, so it never passes for the sponsor's own click. */
+  const acceptForSponsor = (d: Deal) =>
+    ask(
+      t("dlg.teamacceptask", { sponsor: sponsors.find((s) => s.id === d.sponsorId)?.companyName || "" }),
+      async () => {
+        try {
+          await dealsApi.teamAcceptDeal(d.id);
+          const fresh = await dealsApi.getDeal(d.id);
+          if (fresh) setData((prev) => ({ ...prev, deals: prev.deals.map((x) => (x.id === d.id ? fresh : x)) }));
+          setSaveErr(false);
+        } catch (e) {
+          failWith(e);
+        }
+      },
+      { title: t("dlg.teamaccepttitle"), confirmLabel: t("dlg.teamaccept"), danger: false },
+    );
+
   /* Sponsor tops up their food & drink value. Allowed until the food vouchers are created.
      Changing the total drops the pending food split + any pending food voucher records so they
      regenerate for the new amount. */
@@ -954,7 +975,10 @@ export default function GrensrockApp() {
     setModal(null);
     return true;
   };
-  const commitContact = async (sponsorId: string, contact: Contact) => {
+  /* Returns the saved contact (with the id the database assigned) so a caller
+     that has to keep working with it — EmailModal adding a recipient mid-send —
+     doesn't have to go looking for it in state. null means the save failed. */
+  const commitContact = async (sponsorId: string, contact: Contact): Promise<Contact | null> => {
     try {
       const sponsor = sponsors.find((s) => s.id === sponsorId);
       const known = sponsorContacts(sponsor).some((c) => c.id === contact.id);
@@ -986,8 +1010,10 @@ export default function GrensrockApp() {
       if (saved.portalAccess && !hadAccess && saved.email) {
         await sendPortalLink(clean as Contact);
       }
+      return clean as Contact;
     } catch (e) {
       failWith(e);
+      return null;
     }
   };
   const importContacts = async (list: ContactImportRow[]) => {
@@ -1395,7 +1421,19 @@ export default function GrensrockApp() {
         setModal({ type: "email", payload: created });
       }
     } catch (e) {
-      failWith(e);
+      /* DealForm already refuses a second agreement for the same sponsor and
+         edition; this is the one it couldn't see — added meanwhile by someone
+         else — and Postgres's own wording for it means nothing to the reader. */
+      if (/duplicate key/i.test(String((e as Error)?.message))) {
+        failWith(
+          new Error(
+            t("df.clash", {
+              sponsor: sponsors.find((x) => x.id === d.sponsorId)?.companyName || "",
+              edition: editions.find((x) => x.id === d.editionId)?.name || "",
+            }),
+          ),
+        );
+      } else failWith(e);
     }
   };
   const markEmailSent = async (dealId: string) => {
@@ -1408,6 +1446,15 @@ export default function GrensrockApp() {
       failWith(e);
     }
   };
+  /* The send route marks the agreement itself, inside the same request that
+     sent the mail — so this only brings the screen into line with what the
+     server already recorded. Re-saving it here would be a pointless second
+     write, and one that could fail after the mail had gone. */
+  const noteEmailSent = (dealId: string, sentAt: string) =>
+    setData((d) => ({
+      ...d,
+      deals: d.deals.map((x) => (x.id === dealId ? { ...x, emailSentAt: sentAt } : x)),
+    }));
   const setInvoice = async (dealId: string, patch: Partial<Deal>) => {
     const current = deals.find((d) => d.id === dealId);
     if (!current) return;
@@ -1458,7 +1505,7 @@ export default function GrensrockApp() {
   if (mode.view === "landing") {
     return (
       <div className="gr-root">
-        <Landing onSignedIn={enterSession} />
+        <Landing onSignedIn={enterSession} authError={authError} />
       </div>
     );
   }
@@ -1980,6 +2027,7 @@ export default function GrensrockApp() {
             onDeleteDeal={deleteDeal}
             onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
             onShowAcceptance={(d) => setModal({ type: "acceptance", payload: d })}
+            onAcceptForSponsor={admin ? acceptForSponsor : undefined}
             onActivateContact={(c) => saveContact(openSponsor.id, { ...c, portalAccess: true })}
             /* No contact given (the sponsor has none, or none was picked) still
                previews: the portal falls back to the primary contact's language
@@ -2725,9 +2773,25 @@ export default function GrensrockApp() {
                   <h2 className="gr-h2" style={{ margin: 0 }}>
                     {t("nav.agreements")}
                   </h2>
-                  <button className="gr-btn" onClick={exportAgreements}>
-                    {t("common.export")}
-                  </button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="gr-btn-ghost" onClick={exportAgreements}>
+                      {t("common.export")}
+                    </button>
+                    {/* Start on the edition the list is narrowed to, as long as it still takes agreements. */}
+                    <button
+                      className="gr-btn"
+                      onClick={() =>
+                        setModal({
+                          type: "deal",
+                          payload: editions.some((e) => e.id === agEdition && e.active)
+                            ? { editionId: agEdition }
+                            : undefined,
+                        })
+                      }
+                    >
+                      {t("ov.newagreement")}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="gr-toolbar">
@@ -2885,7 +2949,21 @@ export default function GrensrockApp() {
                                   <Tag tone="green">{t("c.accepted")}</Tag>
                                 )
                               ) : (
-                                <Tag tone="amber">{t("sd.notyet")}</Tag>
+                                <>
+                                  <Tag tone="amber">{t("sd.notyet")}</Tag>
+                                  {admin && (
+                                    <button
+                                      className="gr-mini"
+                                      style={{ marginLeft: 6 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        acceptForSponsor(d);
+                                      }}
+                                    >
+                                      {t("sd.acceptforsponsor")}
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </td>
                             <td>
@@ -3602,7 +3680,6 @@ export default function GrensrockApp() {
           />
         </Modal>
       )}
-      <ConfirmDialog dialog={dialog} onClose={() => setDialog(null)} t={t} lang={uiLang} />
       {modal?.type === "contact" && (
         <Modal
           title={t(modal.payload.contact ? "md.editcontact" : "md.newcontact")}
@@ -3648,6 +3725,7 @@ export default function GrensrockApp() {
                 <dd>
                   <strong>{a.name || "—"}</strong>
                   {a.email ? ` · ${a.email}` : ""}
+                  {a.byTeam && <div className="gr-muted">{t("ac.byteam")}</div>}
                 </dd>
                 <dt>{t("xl.datetime")}</dt>
                 <dd>{fmtDateTime(a.acceptedAt)}</dd>
@@ -3776,13 +3854,16 @@ export default function GrensrockApp() {
       {modal?.type === "deal" && (
         <Modal title={modal.payload?.id ? t("df.edittitle") : t("df.newtitle")} onClose={() => setModal(null)} wide>
           <DealForm
+            key={modal.payload?.id || "new"}
             initial={modal.payload}
             sponsors={sponsors}
             editions={editions}
+            deals={deals}
             teamMembers={users}
             onSave={saveDeal}
             onCancel={() => setModal(null)}
             onAddSponsor={addSponsorInline}
+            onOpenDeal={(d) => setModal({ type: "deal", payload: d })}
             vatCfg={data.settings?.vatLookup || defaultVatLookup}
             t={t}
             lang={uiLang}
@@ -3804,9 +3885,14 @@ export default function GrensrockApp() {
               edition={e}
               onClose={() => setModal(null)}
               onMarkSent={() => markEmailSent(d.id)}
+              onSent={(sentAt) => noteEmailSent(d.id, sentAt)}
+              onAddContact={commitContact}
             />
           );
         })()}
+      {/* Last, so a failed save shows on top of the modal it came from rather
+         than behind it — every .gr-overlay shares one z-index. */}
+      <ConfirmDialog dialog={dialog} onClose={() => setDialog(null)} t={t} lang={uiLang} />
     </div>
   );
 }

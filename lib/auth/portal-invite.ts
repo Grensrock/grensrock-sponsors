@@ -1,17 +1,22 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
+import { ensurePortalAuthUser, type IssueResult, type PortalContact } from "@/lib/auth/portal-account";
 import { buildPortalPasswordLink } from "@/lib/email-templates";
 import { mailConfigured, sendMail } from "@/lib/email/send";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { Language } from "@/types";
 
 /* ============================================================
    Set-password invites for sponsor contacts — SERVER ONLY
    ============================================================
-   Shared by the two routes that issue a link: the team activating a
+   Shared by the routes that issue a link: the team activating a
    contact, and a contact asking for a new one from the login form. Both
    end in exactly the same email, which is the point — "forgot my
    password" is the same operation as "here is your access", so it is
    the same code rather than a second flow to keep in step.
+
+   A sign-in link (lib/auth/portal-magic-link.ts) is the other way in,
+   and a different thing: it opens the portal once and changes nothing.
+   This one hands over a password, so it is our own token with its own
+   long lifetime.
 
    The token is returned to the caller once, to put in the email, and
    only its SHA-256 is written down.
@@ -31,32 +36,6 @@ export function hashesMatch(a: string, b: string) {
 
 export const tokenHash = hash;
 
-/* Deliberately not the Contact type: lib/api/contacts.ts (where rowToContact
-   lives) imports the browser Supabase client, so a route handler must not pull
-   it in. These five fields are all an invite needs. */
-export interface InviteContact {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  language: Language;
-}
-
-/** Maps a raw contacts row without going through the client-side API module. */
-export const toInviteContact = (row: Record<string, unknown>): InviteContact => ({
-  id: String(row.id),
-  email: String(row.email || ""),
-  firstName: String(row.first_name || ""),
-  lastName: String(row.last_name || ""),
-  language: (row.language || "nl") as Language,
-});
-
-export interface IssueResult {
-  sent: boolean;
-  /** Set when nothing was sent and the caller may care why (team-facing routes only). */
-  reason?: string;
-}
-
 /**
  * Makes sure the contact has an auth user, invalidates any link sent
  * earlier, stores a fresh one and emails it.
@@ -64,7 +43,7 @@ export interface IssueResult {
  * Callers must have established that this contact may be invited — this
  * function does not check permissions.
  */
-export async function issuePortalInvite(contact: InviteContact, origin: string): Promise<IssueResult> {
+export async function issuePortalInvite(contact: PortalContact, origin: string): Promise<IssueResult> {
   const email = (contact.email || "").trim().toLowerCase();
   if (!email) return { sent: false, reason: "This contact has no email address." };
 
@@ -79,39 +58,14 @@ export async function issuePortalInvite(contact: InviteContact, origin: string):
     };
   }
 
+  const { userId, reason } = await ensurePortalAuthUser(contact, email);
+  if (!userId) return { sent: false, reason };
+
   const admin = createSupabaseAdminClient();
 
-  /* 1. The auth user. It may already exist — anyone who used a magic link
-        before this change has one — so look before creating. auth_user_id is
-        not on the Contact type (the client has no business with it), so it is
-        read here rather than passed in. */
-  const { data: row } = await admin.from("contacts").select("auth_user_id").eq("id", contact.id).maybeSingle();
-  let userId = (row?.auth_user_id as string | null) || null;
-  if (!userId) {
-    const { data: found } = await admin.rpc("auth_user_id_for_email", { p_email: email });
-    userId = (found as string | null) || null;
-  }
-  if (!userId) {
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email,
-      /* Confirmed on creation: the address is one the team entered and the
-         link we are about to send is itself the proof of control. Without
-         this the contact would have to confirm by email as well as set a
-         password, for no added assurance. */
-      email_confirm: true,
-    });
-    if (error || !created?.user) {
-      return { sent: false, reason: error?.message || "Could not create the login for this contact." };
-    }
-    userId = created.user.id;
-  }
-
-  /* Bind it, so claim_portal_contact() has nothing left to guess at. */
-  await admin.from("contacts").update({ auth_user_id: userId }).eq("id", contact.id);
-
-  /* 2. Earlier links stop working. Issuing a new one is either an activation
-        or a "I can't get in" — in both cases the old link should not still
-        open the account. */
+  /* Earlier links stop working. Issuing a new one is either an activation
+     or a "I can't get in" — in both cases the old link should not still
+     open the account. */
   await admin
     .from("portal_invites")
     .update({ used_at: new Date().toISOString() })

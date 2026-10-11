@@ -45,6 +45,7 @@ export default function SponsorDetail({
   onDeleteDeal,
   onEditContact,
   onShowAcceptance,
+  onAcceptForSponsor,
   onActivateContact,
   onPreviewPortal,
   logos = [],
@@ -67,6 +68,8 @@ export default function SponsorDetail({
   onDeleteDeal: (id: string) => void;
   onEditContact: (c: Contact | null) => void;
   onShowAcceptance: (d: Deal) => void;
+  /** Admins only: record an acceptance the sponsor gave outside the portal. */
+  onAcceptForSponsor?: (d: Deal) => void;
   onActivateContact: (c: Contact) => void;
   /** Open this sponsor's portal as one of their contacts sees it, read-only. */
   onPreviewPortal?: (contact?: Contact | null) => void;
@@ -381,7 +384,21 @@ export default function SponsorDetail({
                             )}
                           </button>
                         ) : (
-                          <Tag tone="amber">{t("sd.notyet")}</Tag>
+                          <>
+                            <Tag tone="amber">{t("sd.notyet")}</Tag>
+                            {onAcceptForSponsor && (
+                              <button
+                                className="gr-mini"
+                                style={{ marginLeft: 6 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAcceptForSponsor(d);
+                                }}
+                              >
+                                {t("sd.acceptforsponsor")}
+                              </button>
+                            )}
+                          </>
                         )}
                       </td>
                       <td>

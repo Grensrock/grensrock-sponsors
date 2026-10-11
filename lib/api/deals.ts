@@ -169,3 +169,47 @@ export async function portalAcceptDeal(dealId: string): Promise<void> {
   const { error } = await supabase.rpc("accept_deal", { p_deal_id: dealId });
   if (error) throw new Error(error.message);
 }
+
+/** Admin only (checked in the RPC): records the acceptance in the sponsor's
+ *  place, flagged byTeam and in the admin's name. */
+export async function teamAcceptDeal(dealId: string): Promise<void> {
+  const { error } = await supabase.rpc("accept_deal_for_sponsor", { p_deal_id: dealId });
+  if (error) throw new Error(error.message);
+}
+
+/* ----- sending the confirmation email ----- */
+
+export interface SendAgreementResult {
+  sentAt: string;
+  /** Addresses the message actually went to, as stored on the contacts. */
+  to: string[];
+  /** Non-fatal problems worth telling the team about; the mail still went. */
+  warnings: string[];
+}
+
+/**
+ * Emails an agreement's confirmation to the chosen contacts and marks it sent.
+ *
+ * Only the ids of the recipients travel — the route reads their addresses from
+ * the contacts rows, so an edited body can never redirect the message. Throws
+ * on failure; the caller decides how loudly to say so.
+ */
+export async function sendAgreementEmail(
+  dealId: string,
+  contactIds: string[],
+  subject: string,
+  body: string,
+): Promise<SendAgreementResult> {
+  const res = await fetch("/api/deals/send-agreement", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dealId, contactIds, subject, body }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Could not send the email.");
+  return {
+    sentAt: String(data.sentAt || new Date().toISOString()),
+    to: Array.isArray(data.to) ? data.to.map(String) : [],
+    warnings: Array.isArray(data.warnings) ? data.warnings.map(String) : [],
+  };
+}

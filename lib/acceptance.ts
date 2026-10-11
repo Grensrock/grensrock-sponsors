@@ -33,9 +33,30 @@ export const termsSnapshot = (d: Partial<Deal>): Partial<Deal> =>
 
 export const isAccepted = (d?: Partial<Deal> | null) => !!d?.acceptance?.acceptedAt;
 
+/* The snapshot is written by accept_deal() in SQL, the agreement is read
+   through rowToDeal — so the same terms arrive in two shapes. jsonb stores
+   keys in its own order (shortest first), an empty text column is null there
+   and "" here, and numbers can come back as numeric strings. Comparing the
+   two as raw JSON therefore saw every accepted agreement as changed. Each
+   field is brought to one form first, objects with their keys sorted. */
+const sameForm = (v: unknown): unknown => {
+  if (v === null || v === undefined || v === "") return "";
+  if (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) return Number(v);
+  if (Array.isArray(v)) return v.map(sameForm);
+  if (typeof v === "object") {
+    return Object.keys(v as object)
+      .sort()
+      .reduce((a, k) => ({ ...a, [k]: sameForm((v as Record<string, unknown>)[k]) }), {});
+  }
+  return v;
+};
+
 /* Have the terms been altered since the sponsor accepted them? */
-export const changedSinceAcceptance = (d?: Partial<Deal> | null) =>
-  isAccepted(d) && JSON.stringify(termsSnapshot(d as Deal)) !== JSON.stringify(d?.acceptance?.snapshot);
+export const changedSinceAcceptance = (d?: Partial<Deal> | null) => {
+  if (!isAccepted(d)) return false;
+  const snap = (d?.acceptance?.snapshot || {}) as Partial<Deal>;
+  return SNAPSHOT_FIELDS.some((k) => JSON.stringify(sameForm(d?.[k])) !== JSON.stringify(sameForm(snap[k])));
+};
 
 export const fmtDateTime = (iso?: string | null) => {
   if (!iso) return "";

@@ -7,6 +7,9 @@ export interface VatLookupConfig {
   mode: VatLookupMode;
 }
 
+/** A Tickoweb product: a voucher type with its amount ("drink:27.50"), or the type alone. */
+export type ProductKey = VoucherType | `${VoucherType}:${string}`;
+
 export type TickowebMode = "manual" | "live";
 
 export interface TickowebConfig {
@@ -16,8 +19,9 @@ export interface TickowebConfig {
   proxyUrl: string;
   apiKey: string;
   eventId: string;
-  /** Voucher type -> Tickoweb product/ticket-type id. */
-  productIds: Partial<Record<VoucherType, string>>;
+  /** Tickoweb product/ticket-type id, keyed by voucher type and amount ("drink:27.50"),
+      or by type alone as the fallback for every amount of that type. */
+  productIds: Partial<Record<ProductKey, string>>;
 }
 
 export interface Settings {

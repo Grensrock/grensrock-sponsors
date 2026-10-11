@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase/client";
 import { orEmpty, unwrap, type Row } from "@/lib/api/util";
 import { defaultTickoweb } from "@/lib/integrations/tickoweb";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
-import type { Settings, TickowebMode, VatLookupMode, VoucherType } from "@/types";
+import type { Settings, TickowebConfig, TickowebMode, VatLookupMode } from "@/types";
 
 /* ============================================================
    app_settings (singleton row, id = true)
@@ -29,7 +29,7 @@ export function rowToSettings(row: Row): Settings {
       proxyUrl: orEmpty(row.tickoweb_proxy_url),
       apiKey: "", // never leaves the server — see the note above
       eventId: orEmpty(row.tickoweb_event_id),
-      productIds: (row.tickoweb_product_ids || {}) as Partial<Record<VoucherType, string>>,
+      productIds: (row.tickoweb_product_ids || {}) as TickowebConfig["productIds"],
     },
   };
 }

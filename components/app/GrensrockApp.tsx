@@ -71,7 +71,7 @@ import {
 import { ledLabel, normFolder, normLed, normNameKey, normVatKey } from "@/lib/normalize";
 import { isAdmin, responsibleName, userName } from "@/lib/users";
 import { teamT } from "@/lib/i18n";
-import { expectedVouchers, ticketLines, visibilityLines } from "@/lib/vouchers";
+import { expectedVouchers, ticketLines, visibilityLines, voucherProducts } from "@/lib/vouchers";
 import type {
   AppData,
   AuditEntity,
@@ -2229,6 +2229,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             );
             const selectable = shown.filter((v) => v.status !== "cancelled");
             const cfg: TickowebConfig = data.settings?.tickoweb || defaultTickoweb;
+            const products = ved
+              ? voucherProducts(
+                  deals.filter((d) => d.editionId === ved.id),
+                  all,
+                )
+              : [];
 
             return (
               <section>
@@ -2311,6 +2317,59 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     </div>
                   ))}
                 </div>
+
+                {products.length > 0 && (
+                  <>
+                    <h4 className="gr-subhead">{t("vo.products")}</h4>
+                    <p className="gr-muted">{t("vo.products2")}</p>
+                    <div className="gr-tablewrap" style={{ marginBottom: 24 }}>
+                      <table className="gr-table">
+                        <thead>
+                          <tr>
+                            <th>{t("vo.product")}</th>
+                            <th className="gr-r">{t("c.value")}</th>
+                            <th className="gr-r">{t("vo.fromagreements")}</th>
+                            <th className="gr-r">{t("vo.generated")}</th>
+                            <th className="gr-r">{t("vo.sponsorcount")}</th>
+                            <th>{t("tw.productid")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {products.map((p) => {
+                            const own = cfg.productIds?.[p.key] || "";
+                            const fallback = cfg.productIds?.[p.type] || "";
+                            return (
+                              <tr key={p.key}>
+                                <td>{voucherLabel(VOUCHER_TYPES[p.type], uiLang, p.type)}</td>
+                                <td className="gr-r">{p.value > 0 ? eur(p.value) : "—"}</td>
+                                <td className="gr-r">{p.expected}</td>
+                                <td className="gr-r">{p.generated}</td>
+                                <td className="gr-r">{p.sponsors}</td>
+                                <td>
+                                  {/* Saved when the field is left, not on every keystroke. */}
+                                  <input
+                                    key={`${p.key}|${own}`}
+                                    className="gr-inline-input"
+                                    defaultValue={own}
+                                    placeholder={fallback || t("tw.productid")}
+                                    onBlur={(e) => {
+                                      const next = e.target.value.trim();
+                                      if (next === own) return;
+                                      const ids = { ...(cfg.productIds || {}) };
+                                      if (next) ids[p.key] = next;
+                                      else delete ids[p.key];
+                                      saveSettings({ tickoweb: { ...cfg, productIds: ids } });
+                                    }}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
 
                 {shown.length === 0 ? (
                   <p className="gr-empty">
@@ -2923,10 +2982,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                           <tr
                             key={d.id}
                             title={t("sd.clicktoedit")}
-                            onClick={() => {
-                              setTab("sponsors");
-                              setOpenSponsorId(sponsor?.id ?? null);
-                            }}
+                            onClick={() => setModal({ type: "deal", payload: d })}
                           >
                             <td>
                               {edition?.name || "?"}
@@ -2938,7 +2994,22 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               )}
                             </td>
                             <td>
-                              <strong>{sponsor?.companyName || "?"}</strong>
+                              {/* The row opens the agreement; the name is the way to the sponsor. */}
+                              {sponsor ? (
+                                <button
+                                  className="gr-celllink"
+                                  title={t("tt.opensponsor")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTab("sponsors");
+                                    setOpenSponsorId(sponsor.id);
+                                  }}
+                                >
+                                  {sponsor.companyName}
+                                </button>
+                              ) : (
+                                <strong>?</strong>
+                              )}
                             </td>
                             <td>
                               {d.formulaName || <span className="gr-muted">{t("th.custom")}</span>}

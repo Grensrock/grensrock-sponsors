@@ -15,6 +15,7 @@
      in the settings screen about the API key and CORS.
    ============================================================ */
 
+import { productKey } from "@/lib/vouchers";
 import type { Edition, Sponsor, TickowebConfig, Voucher } from "@/types";
 
 export const defaultTickoweb: TickowebConfig = {
@@ -23,7 +24,7 @@ export const defaultTickoweb: TickowebConfig = {
   proxyUrl: "", // your own server that holds the API key
   apiKey: "",
   eventId: "",
-  productIds: {}, // voucher type -> Tickoweb product/ticket-type id
+  productIds: {}, // "drink:27.50" (or just the type, as fallback) -> Tickoweb product/ticket-type id
 };
 
 export interface VoucherRecipient {
@@ -79,7 +80,8 @@ export const tickoweb = {
     }
     const data: TickowebVoucherResponse = await this._call(cfg, "/vouchers", "POST", {
       eventId: cfg.eventId || undefined,
-      productId: cfg.productIds?.[voucher.type] || undefined,
+      productId:
+        cfg.productIds?.[productKey(voucher.type, voucher.value)] || cfg.productIds?.[voucher.type] || undefined,
       value: voucher.value || undefined,
       reference: `${edition?.name || ""} · ${sponsor?.companyName || ""}`.trim(),
       recipient: recipient?.email ? { name: recipient.name, email: recipient.email } : undefined,

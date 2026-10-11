@@ -23,6 +23,7 @@ export type {
   VatLookupConfig,
   TickowebMode,
   TickowebConfig,
+  ProductKey,
   Settings,
 } from "./settings";
 export type { VatCompany, VatLookupStatus, VatLookupResult } from "./vat";

@@ -925,13 +925,14 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   /* Switching portal access on is what sends a contact their set-password
      link, so the two are one action from the team's point of view. Resending
      uses the same route — a new link, the previous one dead. */
-  const sendPortalLink = async (contact: Contact) => {
+  const sendPortalLink = async (contact: Contact): Promise<boolean> => {
     try {
       /* Deliberately silent on success. Sending the link is a consequence of
          granting access, not a separate thing the team asked for, and a dialog
          per contact turns activating a handful of people into a clicking
          exercise. Failure still speaks up — that one needs acting on. */
       await contactsApi.sendPortalLink(contact.id);
+      return true;
     } catch (e) {
       /* The access itself is already saved; only the email failed. Saying so
          beats rolling back a permission the team meant to grant. */
@@ -942,7 +943,22 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         }),
         t("dlg.mailnotsent"),
       );
+      return false;
     }
+  };
+
+  /* Resending IS something the team asked for, and it mails a sponsor and
+     voids the link they already had — so it is confirmed first, and says
+     afterwards that it went. */
+  const resendPortalLink = (contact: Contact) => {
+    const name = contactName(contact) || contact.email;
+    ask(
+      t("dlg.resendlinkask", { name, email: contact.email }),
+      async () => {
+        if (await sendPortalLink(contact)) notify(t("dlg.resendlinkdone", { email: contact.email }));
+      },
+      { title: t("dlg.resendlinktitle"), confirmLabel: t("dlg.resendlink"), danger: false },
+    );
   };
 
   const saveContact = async (
@@ -2643,7 +2659,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   <button
                                     className="gr-mini"
                                     title={t("tt.resendlink")}
-                                    onClick={() => sendPortalLink(c)}
+                                    onClick={() => resendPortalLink(c)}
                                   >
                                     {t("ct.resendlink")}
                                   </button>

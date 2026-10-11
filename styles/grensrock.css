@@ -67,8 +67,10 @@
 .gr-btn-ghost:hover { border-color:var(--ink); }
 .gr-mini { background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px 10px;
   font:600 12px 'IBM Plex Sans',sans-serif; cursor:pointer; }
-.gr-mini:hover { border-color:var(--ink); }
+.gr-mini:hover:not(:disabled) { border-color:var(--pink); color:var(--pink-deep); background:#fff; box-shadow:0 1px 2px rgba(28,26,28,.12); }
+.gr-mini:disabled { opacity:.4; cursor:not-allowed; }
 .gr-danger { color:var(--red); }
+.gr-mini.gr-danger:hover:not(:disabled) { border-color:var(--red); color:var(--red); }
 .gr-back { background:none; border:none; color:var(--mut); font:600 13px 'IBM Plex Sans',sans-serif;
   cursor:pointer; padding:0; margin-bottom:12px; }
 .gr-back:hover { color:var(--ink); }
@@ -82,7 +84,11 @@
 .gr-table .gr-r { text-align:right; }
 .gr-clickable tbody tr { cursor:pointer; }
 .gr-clickable tbody tr:hover { background:#FBF3F7; }
-.gr-clickable input, .gr-clickable button { cursor:auto; }
+/* Text inputs inside a clickable row keep their own cursor; buttons and
+   checkboxes are clickable in their own right and say so. */
+.gr-clickable input { cursor:auto; }
+.gr-clickable input[type="checkbox"], .gr-clickable button { cursor:pointer; }
+.gr-clickable button:disabled { cursor:not-allowed; }
 .gr-compact th, .gr-compact td { padding:7px 10px; }
 .gr-rowbtns { white-space:nowrap; } .gr-rowbtns .gr-mini { margin-left:4px; }
 .gr-inline-input { border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:13px 'IBM Plex Sans',sans-serif; width:130px; }

@@ -425,6 +425,13 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.done": ["Klaar", "Done"],
   "dlg.savefail": ["Kon niet opslaan", "Couldn't save"],
   // team accounts
+  "dlg.resendlinktitle": ["Nieuwe link sturen", "Resend link"],
+  "dlg.resendlink": ["Versturen", "Send"],
+  "dlg.resendlinkask": [
+    "{name} ({email}) een nieuwe link sturen om een wachtwoord in te stellen? De link die ze eerder kregen, werkt daarna niet meer.",
+    "Send {name} ({email}) a new link to set a password? The link they were sent before stops working.",
+  ],
+  "dlg.resendlinkdone": ["Een nieuwe link is verstuurd naar {email}.", "A new link has been sent to {email}."],
   "dlg.mailnotsent": ["Toegang gegeven, e-mail niet verzonden", "Access granted, email not sent"],
   "dlg.usermailfail": [
     "{name} heeft nu toegang, maar de verwittigingsmail kon niet verzonden worden: {error}\n\nLaat het hen op een andere manier weten — ze kunnen zich meteen aanmelden.",

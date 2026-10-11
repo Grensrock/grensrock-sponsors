@@ -2982,10 +2982,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                           <tr
                             key={d.id}
                             title={t("sd.clicktoedit")}
-                            onClick={() => {
-                              setTab("sponsors");
-                              setOpenSponsorId(sponsor?.id ?? null);
-                            }}
+                            onClick={() => setModal({ type: "deal", payload: d })}
                           >
                             <td>
                               {edition?.name || "?"}
@@ -2997,7 +2994,22 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               )}
                             </td>
                             <td>
-                              <strong>{sponsor?.companyName || "?"}</strong>
+                              {/* The row opens the agreement; the name is the way to the sponsor. */}
+                              {sponsor ? (
+                                <button
+                                  className="gr-celllink"
+                                  title={t("tt.opensponsor")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTab("sponsors");
+                                    setOpenSponsorId(sponsor.id);
+                                  }}
+                                >
+                                  {sponsor.companyName}
+                                </button>
+                              ) : (
+                                <strong>?</strong>
+                              )}
                             </td>
                             <td>
                               {d.formulaName || <span className="gr-muted">{t("th.custom")}</span>}

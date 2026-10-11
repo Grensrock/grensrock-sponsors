@@ -1,6 +1,7 @@
 export type { Language, TeamLanguage, ContactPrefs, Contact } from "./contact";
 export type { EntityType, Sponsor, StoredSponsor } from "./sponsor";
 export type { SponsorLogo } from "./sponsorLogo";
+export type { SponsorDecline } from "./decline";
 export type {
   NumLike,
   Settlement,

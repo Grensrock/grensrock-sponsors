@@ -23,6 +23,7 @@ import CopyUserInvite from "@/components/views/CopyUserInvite";
 import FolderOverview from "@/components/views/FolderOverview";
 import Landing from "@/components/views/Landing";
 import SponsorDetail from "@/components/views/SponsorDetail";
+import DeclineForm from "@/components/forms/DeclineForm";
 import PendingAccess from "@/components/views/PendingAccess";
 import SponsorPortal from "@/components/views/SponsorPortal";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
@@ -32,6 +33,7 @@ import * as auditApi from "@/lib/api/audit";
 import * as contactsApi from "@/lib/api/contacts";
 import * as logosApi from "@/lib/api/logos";
 import * as dealsApi from "@/lib/api/deals";
+import * as declinesApi from "@/lib/api/declines";
 import * as editionsApi from "@/lib/api/editions";
 import * as formulasApi from "@/lib/api/formulas";
 import * as settingsApi from "@/lib/api/settings";
@@ -84,6 +86,7 @@ import type {
   Role,
   Settings,
   Sponsor,
+  SponsorDecline,
   SponsorLogo,
   TeamLanguage,
   TickowebConfig,
@@ -111,7 +114,8 @@ type ModalState =
   | { type: "edition"; payload?: Edition }
   | { type: "formula"; payload: { editionId: string; formula?: Formula } }
   | { type: "deal"; payload?: DealDraft }
-  | { type: "email"; payload: Deal };
+  | { type: "email"; payload: Deal }
+  | { type: "decline"; payload: { sponsorId: string } };
 
 type ViewMode =
   | { view: "landing" }
@@ -196,7 +200,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
      their contacts receives it. Read-only — see the lock in SponsorPortal. */
   const [previewPortal, setPreviewPortal] = useState<{ sponsorId: string; contactId: string } | null>(null);
   const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "companyName", dir: 1 });
-  const [fEdition, setFEdition] = useState(""); // "" = all editions
+  /* "" = all editions, else "<kind>:<editionId>": with an agreement (agr),
+     declined (decl), or neither yet (open). */
+  const [fEdition, setFEdition] = useState("");
   const [fResponsible, setFResponsible] = useState(""); // "" = everyone, "me", "none", or a user id
   const toggleSort = (key: string) => setSort((p) => (p.key === key ? { key, dir: -p.dir } : { key, dir: 1 }));
   const ask = (message: string, onConfirm: () => void, opts: Partial<DialogSpec> = {}) =>
@@ -228,6 +234,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       pendingRows,
       settings,
       auditRows,
+      declineRows,
     ] =
       await Promise.all([
         sponsorsApi.listSponsors(),
@@ -241,6 +248,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         scope === "team" ? usersApi.listPendingUsers() : Promise.resolve([] as User[]),
         scope === "team" ? settingsApi.getSettings() : Promise.resolve({} as Settings),
         scope === "team" && asAdmin ? auditApi.listAudit() : Promise.resolve([] as AuditEntry[]),
+        scope === "team" ? declinesApi.listDeclines() : Promise.resolve([] as SponsorDecline[]),
       ]);
     setData({
       sponsors: groupContacts(sponsorRows, contactRows),
@@ -248,6 +256,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       deals: dealRows,
       vouchers: voucherRows,
       logos: logoRows,
+      declines: declineRows,
       users: userRows,
       pendingUsers: pendingRows,
       audit: auditRows,
@@ -331,6 +340,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const { sponsors, editions, deals } = data;
   const users = data.users || [];
   const vouchers = data.vouchers || [];
+  const declines = useMemo(() => data.declines || [], [data.declines]);
   const me = users.find((u) => u.id === userId) || null;
   const realAdmin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
   const admin = realAdmin && !previewUser;
@@ -372,8 +382,15 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
     const q = query.trim().toLowerCase();
     let list = [...sponsors];
 
-    /* Only sponsors with an agreement for this edition */
-    if (fEdition) list = list.filter((s) => deals.some((d) => d.sponsorId === s.id && d.editionId === fEdition));
+    /* Where each sponsor stands for one edition */
+    if (fEdition) {
+      const [kind, edId] = fEdition.split(":");
+      const agreed = (s: Sponsor) => deals.some((d) => d.sponsorId === s.id && d.editionId === edId);
+      const declined = (s: Sponsor) => declines.some((x) => x.sponsorId === s.id && x.editionId === edId);
+      list = list.filter((s) =>
+        kind === "agr" ? agreed(s) : kind === "decl" ? declined(s) : !agreed(s) && !declined(s),
+      );
+    }
 
     /* Responsible team member */
     if (fResponsible === "me") list = list.filter((s) => s.responsibleId === userId);
@@ -424,7 +441,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       if (String(vb) === "" && String(va) !== "") return -1;
       return cmp * sort.dir;
     });
-  }, [sponsors, query, deals, users, sort, fEdition, fResponsible, userId]);
+  }, [sponsors, query, deals, declines, users, sort, fEdition, fResponsible, userId]);
 
   /* The selection intersected with what the filters actually show. Derived
      rather than pruned on change, so nothing has to watch the filters — and a
@@ -494,8 +511,11 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
     else if (fResponsible === "none") parts.push("unassigned");
     else if (fResponsible)
       parts.push((userName(users.find((u) => u.id === fResponsible)) || "resp").toLowerCase().replace(/\s+/g, "-"));
-    if (fEdition)
-      parts.push((editions.find((e) => e.id === fEdition)?.name || "edition").toLowerCase().replace(/\s+/g, "-"));
+    if (fEdition) {
+      const [kind, edId] = fEdition.split(":");
+      parts.push((editions.find((e) => e.id === edId)?.name || "edition").toLowerCase().replace(/\s+/g, "-"));
+      if (kind !== "agr") parts.push(kind === "decl" ? "declined" : "open");
+    }
     XLSX.writeFile(wb, parts.join("-") + ".xlsx");
   };
 
@@ -1432,7 +1452,14 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         setModal(null);
       } else {
         const created = await dealsApi.createDeal({ ...d, responsible: d.responsible || userName(me) || "" });
-        setData((prev) => ({ ...prev, deals: [...prev.deals, created] }));
+        /* The database drops a decline for this sponsor and edition (0022); mirror it. */
+        setData((prev) => ({
+          ...prev,
+          deals: [...prev.deals, created],
+          declines: (prev.declines || []).filter(
+            (x) => !(x.sponsorId === created.sponsorId && x.editionId === created.editionId),
+          ),
+        }));
         setSaveErr(false);
         // Offer the email right after creating a new agreement
         setModal({ type: "email", payload: created });
@@ -1452,6 +1479,32 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         );
       } else failWith(e);
     }
+  };
+  const saveDecline = async (sponsorId: string, editionId: string, reason: string) => {
+    try {
+      const created = await declinesApi.createDecline({ sponsorId, editionId, reason, recordedBy: userName(me) || "" });
+      setData((prev) => ({ ...prev, declines: [...(prev.declines || []), created] }));
+      setSaveErr(false);
+      setModal(null);
+    } catch (e) {
+      failWith(e);
+    }
+  };
+  const withdrawDecline = (id: string) => {
+    const x = declines.find((d) => d.id === id);
+    ask(
+      t("dlg.withdrawdecline", { edition: editions.find((e) => e.id === x?.editionId)?.name || "" }),
+      async () => {
+        try {
+          await declinesApi.deleteDecline(id);
+          setData((prev) => ({ ...prev, declines: (prev.declines || []).filter((d) => d.id !== id) }));
+          setSaveErr(false);
+        } catch (e) {
+          failWith(e);
+        }
+      },
+      { title: t("dlg.withdrawdeclinetitle"), confirmLabel: t("dlg.withdraw") },
+    );
   };
   const markEmailSent = async (dealId: string) => {
     try {
@@ -1882,9 +1935,17 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               >
                 <option value="">{t("sp.alleditions")}</option>
                 {sortedEditions.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {t("sp.withagr")} {e.name}
-                  </option>
+                  <optgroup key={e.id} label={e.name}>
+                    <option value={`agr:${e.id}`}>
+                      {t("sp.withagr")} {e.name}
+                    </option>
+                    <option value={`decl:${e.id}`}>
+                      {t("sp.declined")} {e.name}
+                    </option>
+                    <option value={`open:${e.id}`}>
+                      {t("sp.undecided")} {e.name}
+                    </option>
+                  </optgroup>
                 ))}
               </select>
               {(fEdition || fResponsible || query) && (
@@ -2041,6 +2102,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             canDelete={admin}
             onDelete={() => deleteSponsor(openSponsor.id)}
             onAddDeal={() => setModal({ type: "deal", payload: { sponsorId: openSponsor.id, lockSponsor: true } })}
+            declines={declines}
+            onDecline={() => setModal({ type: "decline", payload: { sponsorId: openSponsor.id } })}
+            onWithdrawDecline={withdrawDecline}
             onEditDeal={(d) => setModal({ type: "deal", payload: d })}
             onDeleteDeal={deleteDeal}
             onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
@@ -3956,6 +4020,21 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             t={t}
             lang={uiLang}
             onDelete={admin ? deleteDeal : undefined}
+          />
+        </Modal>
+      )}
+      {modal?.type === "decline" && (
+        <Modal title={t("dc.title")} onClose={() => setModal(null)} lang={uiLang}>
+          <DeclineForm
+            sponsor={sponsors.find((x) => x.id === modal.payload.sponsorId)}
+            editions={sortedEditions.filter(
+              (e) =>
+                !deals.some((d) => d.sponsorId === modal.payload.sponsorId && d.editionId === e.id) &&
+                !declines.some((x) => x.sponsorId === modal.payload.sponsorId && x.editionId === e.id),
+            )}
+            t={t}
+            onSave={(editionId, reason) => saveDecline(modal.payload.sponsorId, editionId, reason)}
+            onCancel={() => setModal(null)}
           />
         </Modal>
       )}

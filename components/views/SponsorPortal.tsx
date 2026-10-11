@@ -872,7 +872,9 @@ export default function SponsorPortal({
                                     <div className="gr-muted" style={{ fontSize: 11 }}>
                                       {fmtDateTime(d.acceptance!.acceptedAt)}
                                       <br />
-                                      {d.acceptance!.name}
+                                      {d.acceptance!.byTeam
+                                        ? T("via Grensrock", "via Grensrock", "via Grensrock")
+                                        : d.acceptance!.name}
                                     </div>
                                   </>
                                 ) : (

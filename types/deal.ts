@@ -43,7 +43,10 @@ export interface Acceptance {
   acceptedAt: string;
   name: string;
   email: string;
-  contactId: string;
+  /** Null when an admin recorded it on the sponsor's behalf. */
+  contactId: string | null;
+  /** Set when an admin accepted in the sponsor's place; name and email are then the admin's. */
+  byTeam?: boolean;
   /** Frozen terms at the moment of acceptance. */
   snapshot: Partial<Deal>;
 }

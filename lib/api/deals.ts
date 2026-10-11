@@ -170,6 +170,13 @@ export async function portalAcceptDeal(dealId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Admin only (checked in the RPC): records the acceptance in the sponsor's
+ *  place, flagged byTeam and in the admin's name. */
+export async function teamAcceptDeal(dealId: string): Promise<void> {
+  const { error } = await supabase.rpc("accept_deal_for_sponsor", { p_deal_id: dealId });
+  if (error) throw new Error(error.message);
+}
+
 /* ----- sending the confirmation email ----- */
 
 export interface SendAgreementResult {

@@ -461,6 +461,14 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Ask the sponsor to accept again? The current acceptance is cleared.",
   ],
   "dlg.resetaccepttitle": ["Aanvaarding opnieuw vragen", "Reset acceptance"],
+  "dlg.teamacceptask": [
+    "Deze overeenkomst aanvaarden in naam van {sponsor}? Doe dit enkel als de sponsor op een andere manier akkoord gaf (per mail, telefoon of op papier). Ze wordt geregistreerd als aanvaard door u, namens de sponsor.",
+    "Accept this agreement on behalf of {sponsor}? Only do this when the sponsor agreed some other way (by email, phone or on paper). It is recorded as accepted by you, on the sponsor's behalf.",
+  ],
+  "dlg.teamaccepttitle": ["Aanvaarden namens de sponsor", "Accept on the sponsor's behalf"],
+  "dlg.teamaccept": ["Aanvaarden", "Accept"],
+  "sd.acceptforsponsor": ["Aanvaarden…", "Accept…"],
+  "ac.byteam": ["namens de sponsor, door het team", "on the sponsor's behalf, by the team"],
   "dlg.reset": ["Opnieuw", "Reset"],
   // vouchers
   "dlg.allgenerated": ["Alles is al gegenereerd voor deze editie.", "Everything is already generated for this edition."],

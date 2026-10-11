@@ -635,6 +635,25 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
     }
   };
 
+  /* An admin recording an acceptance the sponsor gave outside the portal (by
+     mail, phone, on paper). The RPC checks the role and marks it byTeam, in
+     the admin's name, so it never passes for the sponsor's own click. */
+  const acceptForSponsor = (d: Deal) =>
+    ask(
+      t("dlg.teamacceptask", { sponsor: sponsors.find((s) => s.id === d.sponsorId)?.companyName || "" }),
+      async () => {
+        try {
+          await dealsApi.teamAcceptDeal(d.id);
+          const fresh = await dealsApi.getDeal(d.id);
+          if (fresh) setData((prev) => ({ ...prev, deals: prev.deals.map((x) => (x.id === d.id ? fresh : x)) }));
+          setSaveErr(false);
+        } catch (e) {
+          failWith(e);
+        }
+      },
+      { title: t("dlg.teamaccepttitle"), confirmLabel: t("dlg.teamaccept"), danger: false },
+    );
+
   /* Sponsor tops up their food & drink value. Allowed until the food vouchers are created.
      Changing the total drops the pending food split + any pending food voucher records so they
      regenerate for the new amount. */
@@ -2008,6 +2027,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             onDeleteDeal={deleteDeal}
             onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
             onShowAcceptance={(d) => setModal({ type: "acceptance", payload: d })}
+            onAcceptForSponsor={admin ? acceptForSponsor : undefined}
             onActivateContact={(c) => saveContact(openSponsor.id, { ...c, portalAccess: true })}
             /* No contact given (the sponsor has none, or none was picked) still
                previews: the portal falls back to the primary contact's language
@@ -2929,7 +2949,21 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   <Tag tone="green">{t("c.accepted")}</Tag>
                                 )
                               ) : (
-                                <Tag tone="amber">{t("sd.notyet")}</Tag>
+                                <>
+                                  <Tag tone="amber">{t("sd.notyet")}</Tag>
+                                  {admin && (
+                                    <button
+                                      className="gr-mini"
+                                      style={{ marginLeft: 6 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        acceptForSponsor(d);
+                                      }}
+                                    >
+                                      {t("sd.acceptforsponsor")}
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </td>
                             <td>
@@ -3691,6 +3725,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 <dd>
                   <strong>{a.name || "—"}</strong>
                   {a.email ? ` · ${a.email}` : ""}
+                  {a.byTeam && <div className="gr-muted">{t("ac.byteam")}</div>}
                 </dd>
                 <dt>{t("xl.datetime")}</dt>
                 <dd>{fmtDateTime(a.acceptedAt)}</dd>

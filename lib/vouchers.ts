@@ -1,6 +1,7 @@
 import {
   FOLDER_OPTS,
   POSTER_OPTS,
+  VOUCHER_TYPES,
   WEBSITE_OPTS,
   emptyDeal,
   label,
@@ -8,7 +9,7 @@ import {
 } from "@/lib/constants";
 import { eur } from "@/lib/money";
 import { ledLabel, normFolder, normLed } from "@/lib/normalize";
-import type { Deal, Formula, FormulaFields, Language, VoucherRow, VoucherType } from "@/types";
+import type { Deal, Formula, FormulaFields, Language, ProductKey, Voucher, VoucherRow, VoucherType } from "@/types";
 
 type BenefitSource = Partial<FormulaFields> | null | undefined;
 
@@ -130,4 +131,49 @@ export function returnTypesOf(v: BenefitSource): ReturnExampleType[] {
   /* One count for both kinds of fencing, so both example pictures apply. */
   if (Number(v.fenceCovers) > 0) types.push("barrier", "heras");
   return types;
+}
+
+/* Tickoweb needs its own product for every type and amount, e.g. "drink:27.50".
+   VIP tickets carry no amount, so their key is just the type. */
+export const productKey = (type: VoucherType, value: unknown): ProductKey =>
+  Number(value) > 0 ? `${type}:${Number(value).toFixed(2)}` : type;
+
+export interface VoucherProduct {
+  key: ProductKey;
+  type: VoucherType;
+  value: number;
+  /** Vouchers the agreements entitle to */
+  expected: number;
+  /** Voucher records already generated, cancelled ones left out */
+  generated: number;
+  sponsors: number;
+}
+
+/* Every distinct product an edition needs, from its agreements and its generated vouchers */
+export function voucherProducts(deals: Deal[], vouchers: Voucher[]): VoucherProduct[] {
+  const map = new Map<string, VoucherProduct & { sponsorIds: Set<string> }>();
+  const at = (type: VoucherType, value: number) => {
+    const key = productKey(type, value);
+    if (!map.has(key))
+      map.set(key, { key, type, value: Number(value) || 0, expected: 0, generated: 0, sponsors: 0, sponsorIds: new Set() });
+    return map.get(key)!;
+  };
+  deals.forEach((d) =>
+    expectedVouchers(d).forEach((w) => {
+      const p = at(w.type, w.value);
+      p.expected++;
+      p.sponsorIds.add(d.sponsorId);
+    }),
+  );
+  vouchers
+    .filter((v) => v.status !== "cancelled")
+    .forEach((v) => {
+      const p = at(v.type, v.value);
+      p.generated++;
+      p.sponsorIds.add(v.sponsorId);
+    });
+  const order = Object.keys(VOUCHER_TYPES);
+  return [...map.values()]
+    .map(({ sponsorIds, ...p }) => ({ ...p, sponsors: sponsorIds.size }))
+    .sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type) || a.value - b.value);
 }

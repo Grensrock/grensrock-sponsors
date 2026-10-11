@@ -253,6 +253,15 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "vo.createsend": ["Aanmaken & versturen", "Create & send"],
   "vo.resend": ["Opnieuw versturen", "Resend"],
   "vo.code": ["Bonnencode", "Voucher code"],
+  "vo.products": ["Producten in Tickoweb", "Products in Tickoweb"],
+  "vo.products2": [
+    "Elk type en bedrag is een apart product in Tickoweb. Vul per rij het product-id in; een leeg veld valt terug op het id per type uit de Tickoweb-instellingen.",
+    "Every type and amount is a separate product in Tickoweb. Fill in the product id per row; an empty field falls back to the id per type from the Tickoweb settings.",
+  ],
+  "vo.product": ["Product", "Product"],
+  "vo.fromagreements": ["Volgens overeenkomsten", "Per agreements"],
+  "vo.generated": ["Gegenereerd", "Generated"],
+  "vo.sponsorcount": ["Sponsors", "Sponsors"],
   "vo.tickoweb": ["Tickoweb-instellingen", "Tickoweb settings"],
   // team
   "tm.title": ["Teamaccounts", "Team accounts"],

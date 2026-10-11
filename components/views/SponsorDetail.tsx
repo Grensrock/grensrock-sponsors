@@ -363,9 +363,7 @@ export default function SponsorDetail({
                       <td>{d.posterMention && d.posterMention !== "none" ? label(POSTER_OPTS, d.posterMention, lang) : "—"}</td>
                       <td>{normLed(d.ledboarding).length > 0 ? ledLabel(d.ledboarding, lang) : "—"}</td>
                       <td className="gr-r">
-                        {(Number(d.barrierCovers) || 0) + (Number(d.herasCovers) || 0) > 0
-                          ? `${Number(d.barrierCovers) || 0} / ${Number(d.herasCovers) || 0}`
-                          : "—"}
+                        {Number(d.fenceCovers) > 0 ? Number(d.fenceCovers) : "—"}
                       </td>
                       <td>
                         {isAccepted(d) ? (

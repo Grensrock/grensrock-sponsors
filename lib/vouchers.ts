@@ -66,8 +66,7 @@ export function dealFromFormula(f: Formula, sponsorId: string, editionId: string
     websiteMention: f.websiteMention,
     posterMention: f.posterMention || "none",
     ledboarding: normLed(f.ledboarding),
-    barrierCovers: f.barrierCovers || 0,
-    herasCovers: f.herasCovers || 0,
+    fenceCovers: f.fenceCovers || 0,
   };
 }
 
@@ -109,9 +108,8 @@ export function visibilityLines(v: BenefitSource, lang: Language = "nl"): string
     out.push(`${B("Affiche", "Affiche", "Poster")}: ${label(POSTER_OPTS, v.posterMention, lang)}`);
   if (v.websiteMention !== "none") out.push(`Website: ${label(WEBSITE_OPTS, v.websiteMention || "none", lang)}`);
   if (normLed(v.ledboarding).length) out.push(`LED: ${ledLabel(v.ledboarding, lang)}`);
-  if (Number(v.barrierCovers) > 0)
-    out.push(`${v.barrierCovers} × ${B("nadarhoes", "housse Nadar", "barrier cover")}`);
-  if (Number(v.herasCovers) > 0) out.push(`${v.herasCovers} × ${B("Heras-hoes", "housse Heras", "Heras cover")}`);
+  if (Number(v.fenceCovers) > 0)
+    out.push(`${v.fenceCovers} × ${B("nadar-/herashoes", "housse Nadar/Heras", "Nadar/Heras fence cover")}`);
   return out;
 }
 
@@ -129,7 +127,7 @@ export function returnTypesOf(v: BenefitSource): ReturnExampleType[] {
   if (v.posterMention && v.posterMention !== "none") types.push("poster");
   if (normFolder(v.folderMention) !== "none") types.push("folder");
   if (normLed(v.ledboarding).length) types.push("ledboarding");
-  if (Number(v.barrierCovers) > 0) types.push("barrier");
-  if (Number(v.herasCovers) > 0) types.push("heras");
+  /* One count for both kinds of fencing, so both example pictures apply. */
+  if (Number(v.fenceCovers) > 0) types.push("barrier", "heras");
   return types;
 }

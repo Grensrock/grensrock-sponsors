@@ -216,8 +216,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "th.website": ["Website", "Website"],
   "th.poster": ["Affiche", "Poster"],
   "th.led": ["LED", "LED"],
-  "th.covers": ["Hoezen", "Covers"],
-  "th.coversnh": ["Hoezen nadar/heras", "Covers nadar/heras"],
+  "th.covers": ["Hoezen nadar/heras", "Covers nadar/heras"],
   "th.invoice": ["Factuur", "Invoice"],
   "th.archived": ["gearchiveerd", "archived"],
   "th.custom": ["op maat", "custom"],
@@ -335,8 +334,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "bf.folder": ["Festivalfolder", "Festival folder"],
   "bf.poster": ["Festivalaffiche", "Festival poster"],
   "bf.website": ["Website", "Website"],
-  "bf.barrier": ["Nadarhoezen", "Crowd control barrier covers (Nadar)"],
-  "bf.heras": ["Herashoezen", "Heras fence covers"],
+  "bf.fence": ["Nadar-/herashoezen", "Fence covers (Nadar/Heras)"],
   "bf.led": ["LED-boarding (selecteer alles wat van toepassing is)", "LED boarding (select all that apply)"],
   "df.refexample": ["bv. PO-2026-0481", "e.g. PO-2026-0481"],
   "pick.change": ["Wijzigen", "Change"],
@@ -425,6 +423,13 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.done": ["Klaar", "Done"],
   "dlg.savefail": ["Kon niet opslaan", "Couldn't save"],
   // team accounts
+  "dlg.resendlinktitle": ["Nieuwe link sturen", "Resend link"],
+  "dlg.resendlink": ["Versturen", "Send"],
+  "dlg.resendlinkask": [
+    "{name} ({email}) een nieuwe link sturen om een wachtwoord in te stellen? De link die ze eerder kregen, werkt daarna niet meer.",
+    "Send {name} ({email}) a new link to set a password? The link they were sent before stops working.",
+  ],
+  "dlg.resendlinkdone": ["Een nieuwe link is verstuurd naar {email}.", "A new link has been sent to {email}."],
   "dlg.mailnotsent": ["Toegang gegeven, e-mail niet verzonden", "Access granted, email not sent"],
   "dlg.usermailfail": [
     "{name} heeft nu toegang, maar de verwittigingsmail kon niet verzonden worden: {error}\n\nLaat het hen op een andere manier weten — ze kunnen zich meteen aanmelden.",
@@ -613,8 +618,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
 
   /* ---------- roles & misc ---------- */
   "tm.roleadmin": [
-    "— alles: edities, formules, facturatie en teamaccounts.",
-    "— everything: editions, formulas, invoicing and team accounts.",
+    "— alles: edities, formules, bonnen, facturatie en teamaccounts.",
+    "— everything: editions, formulas, vouchers, invoicing and team accounts.",
   ],
   "tm.roleuser": [
     "— kan alle sponsors en hun overeenkomsten bekijken en aanpassen.",

@@ -12,7 +12,7 @@ import type { Formula } from "@/types";
    ============================================================ */
 
 const COLUMNS =
-  "id, edition_id, name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, barrier_covers, heras_covers";
+  "id, edition_id, name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, fence_covers";
 
 export interface FormulaWithEdition extends Formula {
   editionId: string;

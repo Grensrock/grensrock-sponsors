@@ -94,8 +94,7 @@ export default function DealForm({
       websiteMention: f.websiteMention,
       posterMention: f.posterMention || "none",
       ledboarding: f.ledboarding,
-      barrierCovers: f.barrierCovers || 0,
-      herasCovers: f.herasCovers || 0,
+      fenceCovers: f.fenceCovers || 0,
     }));
   };
 
@@ -133,7 +132,7 @@ export default function DealForm({
 
   return (
     <div>
-      <Field label={t("df.sponsor")}>
+      <Field label={t("df.sponsor")} group>
         <SponsorPicker
           sponsors={sponsors}
           value={d.sponsorId}

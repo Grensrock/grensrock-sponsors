@@ -336,8 +336,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const admin = realAdmin && !previewUser;
   // A non-admin should never sit on an admin-only tab (e.g. after losing admin, or stale state)
   useEffect(() => {
+    const adminOnly = ADMIN_TABS.includes(tab) || ["folder", "invoicing", "vouchers"].includes(tab);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- unchanged Stage-1 guard
-    if (!admin && (ADMIN_TABS.includes(tab) || tab === "folder" || tab === "invoicing")) setTab("overview");
+    if (!admin && adminOnly) setTab("overview");
   }, [admin, tab]);
   /* Escape closes the collapsed nav. It is a disclosure rather than a modal —
      it pushes the page down instead of covering it — so it does not trap focus;
@@ -925,13 +926,14 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   /* Switching portal access on is what sends a contact their set-password
      link, so the two are one action from the team's point of view. Resending
      uses the same route — a new link, the previous one dead. */
-  const sendPortalLink = async (contact: Contact) => {
+  const sendPortalLink = async (contact: Contact): Promise<boolean> => {
     try {
       /* Deliberately silent on success. Sending the link is a consequence of
          granting access, not a separate thing the team asked for, and a dialog
          per contact turns activating a handful of people into a clicking
          exercise. Failure still speaks up — that one needs acting on. */
       await contactsApi.sendPortalLink(contact.id);
+      return true;
     } catch (e) {
       /* The access itself is already saved; only the email failed. Saying so
          beats rolling back a permission the team meant to grant. */
@@ -942,7 +944,22 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         }),
         t("dlg.mailnotsent"),
       );
+      return false;
     }
+  };
+
+  /* Resending IS something the team asked for, and it mails a sponsor and
+     voids the link they already had — so it is confirmed first, and says
+     afterwards that it went. */
+  const resendPortalLink = (contact: Contact) => {
+    const name = contactName(contact) || contact.email;
+    ask(
+      t("dlg.resendlinkask", { name, email: contact.email }),
+      async () => {
+        if (await sendPortalLink(contact)) notify(t("dlg.resendlinkdone", { email: contact.email }));
+      },
+      { title: t("dlg.resendlinktitle"), confirmLabel: t("dlg.resendlink"), danger: false },
+    );
   };
 
   const saveContact = async (
@@ -1597,7 +1614,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             ["sponsors", t("nav.sponsors")],
             ["agreements", t("nav.agreements")],
             ["contacts", t("nav.contacts")],
-            ["vouchers", t("nav.vouchers")],
+            /* Issuing and sending vouchers is admin work, like invoicing. */
+            ...(admin ? ([["vouchers", t("nav.vouchers")]] as Array<[string, string]>) : []),
             ["analytics", t("nav.analytics")],
             ...(admin
               ? ([
@@ -2167,9 +2185,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                 </td>
                                 <td>{normLed(f.ledboarding).length > 0 ? ledLabel(f.ledboarding, uiLang) : "—"}</td>
                                 <td className="gr-r">
-                                  {(Number(f.barrierCovers) || 0) + (Number(f.herasCovers) || 0) > 0
-                                    ? `${Number(f.barrierCovers) || 0} / ${Number(f.herasCovers) || 0}`
-                                    : "—"}
+                                  {Number(f.fenceCovers) > 0 ? Number(f.fenceCovers) : "—"}
                                 </td>
                                 <td className="gr-rowbtns">
                                   {admin && (
@@ -2200,6 +2216,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
 
         {/* ---------- VOUCHERS ---------- */}
         {tab === "vouchers" &&
+          admin &&
           (() => {
             const ved = editions.find((e) => e.id === (voEdition || overviewEdition?.id));
             const all = ved ? vouchers.filter((v) => v.editionId === ved.id) : [];
@@ -2643,7 +2660,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   <button
                                     className="gr-mini"
                                     title={t("tt.resendlink")}
-                                    onClick={() => sendPortalLink(c)}
+                                    onClick={() => resendPortalLink(c)}
                                   >
                                     {t("ct.resendlink")}
                                   </button>

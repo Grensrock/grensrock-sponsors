@@ -22,8 +22,7 @@ export const SNAPSHOT_FIELDS: Array<keyof Deal> = [
   "posterMention",
   "websiteMention",
   "ledboarding",
-  "barrierCovers",
-  "herasCovers",
+  "fenceCovers",
   "notes",
   "invoiceReference",
 ];

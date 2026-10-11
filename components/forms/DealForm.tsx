@@ -132,7 +132,7 @@ export default function DealForm({
 
   return (
     <div>
-      <Field label={t("df.sponsor")}>
+      <Field label={t("df.sponsor")} group>
         <SponsorPicker
           sponsors={sponsors}
           value={d.sponsorId}

@@ -206,6 +206,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "sd.changed": ["⚠ gewijzigd", "⚠ changed"],
   "sd.accepted": ["✓ aanvaard", "✓ accepted"],
   "sd.email": ["E-mail", "Email"],
+  "tt.opensponsor": ["Naar deze sponsor", "Go to this sponsor"],
   "sd.clicktoedit": ["Klik om deze overeenkomst te bekijken of te bewerken", "Click to view or edit this agreement"],
   "sd.contactcount": ["contactperso(o)n(en) — klik om te bewerken", "contact person(s) — click to edit"],
   // column headers agreement table

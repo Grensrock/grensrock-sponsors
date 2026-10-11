@@ -35,8 +35,8 @@ export interface FormulaFields {
   websiteMention: WebsiteMention;
   posterMention: PosterMention;
   ledboarding: LedZone[];
-  barrierCovers: NumLike;
-  herasCovers: NumLike;
+  /** Covers for the festival's fencing, Nadar or Heras — one count since 0020. */
+  fenceCovers: NumLike;
 }
 
 export interface Acceptance {

@@ -43,6 +43,8 @@ type BenefitInput = Partial<Deal> & {
   extraFoodDrink?: NumLike;
   extraFoodDrinkVouchers?: VoucherRow[];
   drinkTickets?: NumLike;
+  barrierCovers?: NumLike;
+  herasCovers?: NumLike;
 };
 
 export function normBenefits<T extends BenefitInput>(o: T): T {
@@ -57,8 +59,11 @@ export function normBenefits<T extends BenefitInput>(o: T): T {
         ? Number(o.drinkValue) || 0
         : (Number(o.drinkTickets) || 0) * LEGACY_DRINK_TICKET_VALUE,
     posterMention: POSTER_OPTS[o.posterMention as keyof typeof POSTER_OPTS] ? o.posterMention : "none",
-    barrierCovers: Number(o.barrierCovers) || 0,
-    herasCovers: Number(o.herasCovers) || 0,
+    // Nadar and Heras covers used to be counted apart; they are one count now.
+    fenceCovers:
+      o.fenceCovers !== undefined
+        ? Number(o.fenceCovers) || 0
+        : (Number(o.barrierCovers) || 0) + (Number(o.herasCovers) || 0),
     // Additional F&D used to be a separate field; it now lives inside foodDrinkValue.
     // baseFoodDrink records what the formula included, so we can still bill the top-up.
     foodDrinkValue: (Number(o.foodDrinkValue) || 0) + (Number(o.extraFoodDrink) || 0),

@@ -2183,9 +2183,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                 </td>
                                 <td>{normLed(f.ledboarding).length > 0 ? ledLabel(f.ledboarding, uiLang) : "—"}</td>
                                 <td className="gr-r">
-                                  {(Number(f.barrierCovers) || 0) + (Number(f.herasCovers) || 0) > 0
-                                    ? `${Number(f.barrierCovers) || 0} / ${Number(f.herasCovers) || 0}`
-                                    : "—"}
+                                  {Number(f.fenceCovers) > 0 ? Number(f.fenceCovers) : "—"}
                                 </td>
                                 <td className="gr-rowbtns">
                                   {admin && (

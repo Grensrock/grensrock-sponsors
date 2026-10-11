@@ -61,6 +61,11 @@ export default function SponsorPicker({
     );
   }
 
+  /* Pressing a suggestion must not take focus from the search box first. On a
+     phone that blur closes the keyboard, the screen resizes under the finger,
+     and the tap ends on whatever moved there instead of the sponsor. */
+  const keepFocus = (e: React.MouseEvent) => e.preventDefault();
+
   return (
     <div className="gr-picker">
       <input
@@ -77,7 +82,9 @@ export default function SponsorPicker({
           {matches.map((s) => (
             <button
               key={s.id}
+              type="button"
               className="gr-picker-item"
+              onMouseDown={keepFocus}
               onClick={() => {
                 onChange(s.id);
                 setOpen(false);
@@ -90,7 +97,7 @@ export default function SponsorPicker({
             </button>
           ))}
           {matches.length === 0 && <div className="gr-picker-none">{tr("pick.none")} &quot;{q}&quot;</div>}
-          <button className="gr-picker-item gr-picker-new" onClick={onCreateNew}>
+          <button type="button" className="gr-picker-item gr-picker-new" onMouseDown={keepFocus} onClick={onCreateNew}>
             {tr("pick.add")}
             {q.trim() ? ` "${q.trim()}"` : ""}
           </button>

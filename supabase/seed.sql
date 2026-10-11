@@ -77,12 +77,12 @@ insert into editions (id, name, start_date, end_date, location, active) values
 insert into formulas (edition_id, name, cost, vip_friday, vip_saturday, vip_guests,
                       drink_value, food_drink_value, base_food_drink,
                       folder_mention, website_mention, poster_mention, ledboarding,
-                      barrier_covers, heras_covers) values
-  ('ed000000-0000-0000-0000-000000000026', 'Goud',   2500, 4, 4, 2, 550, 250, 250, 'full',    'logo', 'logo', '{vip,stage}', 4, 2),
-  ('ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 1, 275, 100, 100, 'half',    'logo', 'name', '{vip}',       2, 0),
-  ('ed000000-0000-0000-0000-000000000026', 'Brons',   500, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0, 0),
-  ('ed000000-0000-0000-0000-000000000025', 'Goud',   2400, 4, 4, 2, 550, 200, 200, 'full',    'logo', 'logo', '{vip}',       4, 2),
-  ('ed000000-0000-0000-0000-000000000025', 'Brons',   450, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0, 0);
+                      fence_covers) values
+  ('ed000000-0000-0000-0000-000000000026', 'Goud',   2500, 4, 4, 2, 550, 250, 250, 'full',    'logo', 'logo', '{vip,stage}', 6),
+  ('ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 1, 275, 100, 100, 'half',    'logo', 'name', '{vip}',       2),
+  ('ed000000-0000-0000-0000-000000000026', 'Brons',   500, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0),
+  ('ed000000-0000-0000-0000-000000000025', 'Goud',   2400, 4, 4, 2, 550, 200, 200, 'full',    'logo', 'logo', '{vip}',       6),
+  ('ed000000-0000-0000-0000-000000000025', 'Brons',   450, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0);
 
 -- ---------- sponsors ----------
 insert into sponsors (id, company_name, street, house_number, postal_code, city,
@@ -132,14 +132,14 @@ insert into deals (id, sponsor_id, edition_id, formula_name, cost,
                    vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers,
                    food_drink_value, base_food_drink, food_drink_vouchers,
                    folder_mention, website_mention, poster_mention, ledboarding,
-                   barrier_covers, heras_covers, notes, settlement,
+                   fence_covers, notes, settlement,
                    in_kind_description, in_kind_value, invoice_reference,
                    invoice_created, invoice_number, confirmed_at, acceptance) values
   ('dea10000-0000-0000-0000-000000000001', '59000000-0000-0000-0000-000000000001',
    'ed000000-0000-0000-0000-000000000026', 'Goud', 2500,
    4, 4, 2, 550, '[{"value":25,"qty":22}]',
    250, 250, '[{"value":25,"qty":10}]',
-   'full', 'logo', 'logo', '{vip,stage}', 4, 2,
+   'full', 'logo', 'logo', '{vip,stage}', 6,
    'Levert ook de tapinstallatie voor de VIP-tent.', 'invoice',
    '', 0, '', false, '', now(),
    jsonb_build_object(

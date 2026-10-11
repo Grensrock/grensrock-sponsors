@@ -155,8 +155,7 @@ export const emptyFormula: Formula = {
   websiteMention: "none",
   posterMention: "none",
   ledboarding: [],
-  barrierCovers: 0,
-  herasCovers: 0,
+  fenceCovers: 0,
 };
 
 export const emptyDeal: Omit<Deal, "id"> = {
@@ -176,8 +175,7 @@ export const emptyDeal: Omit<Deal, "id"> = {
   websiteMention: "none",
   posterMention: "none",
   ledboarding: [],
-  barrierCovers: 0,
-  herasCovers: 0,
+  fenceCovers: 0,
   notes: "",
   settlement: "invoice",
   inKindDescription: "",

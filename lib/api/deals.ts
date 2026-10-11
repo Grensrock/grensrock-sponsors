@@ -23,7 +23,7 @@ import type { Acceptance, Deal, Settlement, VoucherRow } from "@/types";
    ============================================================ */
 
 const COLUMNS =
-  "id, sponsor_id, edition_id, formula_name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, barrier_covers, heras_covers, notes, settlement, in_kind_description, in_kind_value, ref_required, invoice_reference, invoice_created, invoice_number, email_sent_at, created_at, requested_at, requested_by, confirmed_at, responsible, acceptance";
+  "id, sponsor_id, edition_id, formula_name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, fence_covers, notes, settlement, in_kind_description, in_kind_value, ref_required, invoice_reference, invoice_created, invoice_number, email_sent_at, created_at, requested_at, requested_by, confirmed_at, responsible, acceptance";
 
 export function rowToDeal(row: Row): Deal {
   return {

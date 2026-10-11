@@ -100,14 +100,9 @@ export default function BenefitFields({
           </select>
         </Field>
       </div>
-      <div className="gr-grid2">
-        <Field label={t("bf.barrier")}>
-          <input type="number" min="0" value={v.barrierCovers || 0} onChange={num("barrierCovers")} />
-        </Field>
-        <Field label={t("bf.heras")}>
-          <input type="number" min="0" value={v.herasCovers || 0} onChange={num("herasCovers")} />
-        </Field>
-      </div>
+      <Field label={t("bf.fence")}>
+        <input type="number" min="0" value={v.fenceCovers || 0} onChange={num("fenceCovers")} />
+      </Field>
       <Field label={t("bf.led")}>
         <div className="gr-checkrow">
           {(Object.keys(LED_ZONES) as LedZone[]).map((k) => {

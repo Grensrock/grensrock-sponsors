@@ -94,8 +94,7 @@ export default function DealForm({
       websiteMention: f.websiteMention,
       posterMention: f.posterMention || "none",
       ledboarding: f.ledboarding,
-      barrierCovers: f.barrierCovers || 0,
-      herasCovers: f.herasCovers || 0,
+      fenceCovers: f.fenceCovers || 0,
     }));
   };
 

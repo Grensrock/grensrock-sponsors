@@ -148,20 +148,12 @@ export function buildEmail(
             "Name mention on the festival poster",
           ),
     );
-  if (Number(deal.barrierCovers) > 0)
+  if (Number(deal.fenceCovers) > 0)
     benefits.push(
       B(
-        `${deal.barrierCovers} hoes(sen) voor nadarhekken`,
-        `${deal.barrierCovers} housse(s) pour barrières Nadar`,
-        `${deal.barrierCovers} crowd control barrier cover(s)`,
-      ),
-    );
-  if (Number(deal.herasCovers) > 0)
-    benefits.push(
-      B(
-        `${deal.herasCovers} hoes(sen) voor Heras-hekken`,
-        `${deal.herasCovers} housse(s) pour clôtures Heras`,
-        `${deal.herasCovers} Heras fence cover(s)`,
+        `${deal.fenceCovers} hoes(sen) voor nadar- of Heras-hekken`,
+        `${deal.fenceCovers} housse(s) pour barrières Nadar ou clôtures Heras`,
+        `${deal.fenceCovers} cover(s) for Nadar barriers or Heras fences`,
       ),
     );
   const zones = normLed(deal.ledboarding);

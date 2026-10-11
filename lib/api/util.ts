@@ -62,8 +62,7 @@ export function rowToFormulaFields(row: Row): FormulaFields {
     websiteMention: (row.website_mention || "none") as WebsiteMention,
     posterMention: (row.poster_mention || "none") as PosterMention,
     ledboarding: (Array.isArray(row.ledboarding) ? row.ledboarding : []) as LedZone[],
-    barrierCovers: num(row.barrier_covers),
-    herasCovers: num(row.heras_covers),
+    fenceCovers: num(row.fence_covers),
   };
 }
 
@@ -83,7 +82,6 @@ export function formulaFieldsToRow(f: Partial<FormulaFields>): Row {
   if (f.websiteMention !== undefined) r.website_mention = f.websiteMention || "none";
   if (f.posterMention !== undefined) r.poster_mention = f.posterMention || "none";
   if (f.ledboarding !== undefined) r.ledboarding = Array.isArray(f.ledboarding) ? f.ledboarding : [];
-  if (f.barrierCovers !== undefined) r.barrier_covers = num(f.barrierCovers);
-  if (f.herasCovers !== undefined) r.heras_covers = num(f.herasCovers);
+  if (f.fenceCovers !== undefined) r.fence_covers = num(f.fenceCovers);
   return r;
 }

@@ -1,4 +1,5 @@
 import { RETURN_EXAMPLES, type ReturnExampleType } from "@/lib/constants";
+import { isNetworkError } from "@/lib/errors";
 import type { Language } from "@/types";
 
 /* ---------- Logo requirements ----------
@@ -71,6 +72,12 @@ export const LOGO_MSG: Record<string, (lang: Language, p: Record<string, string 
       fr: "Ceci ne semble pas être une image valide.",
       en: "This doesn't look like a valid image.",
     })[lang],
+  offline: (lang) =>
+    ({
+      nl: "Geen verbinding met de server — controleer uw internetverbinding en probeer het opnieuw.",
+      fr: "Pas de connexion au serveur — vérifiez votre connexion internet et réessayez.",
+      en: "No connection to the server — check your internet connection and try again.",
+    })[lang],
   toosmall: (lang, p) =>
     ({
       nl: `Deze afbeelding is ${p.got} px. Voor druk hebben we minstens ${p.min} px nodig — bezorg ons een grotere versie, bij voorkeur een vectorbestand.`,
@@ -92,7 +99,11 @@ export class LogoError extends Error {
 }
 
 export const logoMessage = (e: unknown, lang: Language = "nl"): string =>
-  e instanceof LogoError ? LOGO_MSG[e.code]?.(lang, e.params) || e.code : (e as Error)?.message || String(e);
+  e instanceof LogoError
+    ? LOGO_MSG[e.code]?.(lang, e.params) || e.code
+    : isNetworkError(e)
+      ? LOGO_MSG.offline(lang, {})
+      : (e as Error)?.message || String(e);
 
 /* Reads a logo file, checks the requirements and returns what we store */
 export async function readLogoFile(file: File): Promise<LogoRecord> {

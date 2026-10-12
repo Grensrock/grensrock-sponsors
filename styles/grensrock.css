@@ -82,6 +82,9 @@
 .gr-table td { padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
 .gr-table tr:last-child td { border-bottom:none; }
 .gr-table .gr-r { text-align:right; }
+/* A narrow column broke a tag into a two-line pill and an amount over two
+   lines. Both read as one word, so they hold together and the table scrolls. */
+.gr-table .gr-tag, .gr-table td.gr-r { white-space:nowrap; }
 .gr-clickable tbody tr { cursor:pointer; }
 .gr-clickable tbody tr:hover { background:#FBF3F7; }
 /* Text inputs inside a clickable row keep their own cursor; buttons and

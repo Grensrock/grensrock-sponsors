@@ -3052,8 +3052,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     <table className="gr-table gr-clickable">
                       <thead>
                         <tr>
-                          <th>{t("c.edition")}</th>
+                          {/* Company first: on a phone the first column is the one that
+                              stays put while the rest scrolls, and it should name the row. */}
                           <th>{t("sp.company")}</th>
+                          <th>{t("c.edition")}</th>
                           <th>{t("c.formula")}</th>
                           <th className="gr-r">{t("c.cost")}</th>
                           <th>{t("ag.settlement")}</th>
@@ -3070,15 +3072,6 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                             onClick={() => setModal({ type: "deal", payload: d })}
                           >
                             <td>
-                              {edition?.name || "?"}
-                              {edition && !edition.active && (
-                                <>
-                                  {" "}
-                                  <Tag>{t("th.archived")}</Tag>
-                                </>
-                              )}
-                            </td>
-                            <td>
                               {/* The row opens the agreement; the name is the way to the sponsor. */}
                               {sponsor ? (
                                 <button
@@ -3094,6 +3087,15 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                 </button>
                               ) : (
                                 <strong>?</strong>
+                              )}
+                            </td>
+                            <td>
+                              {edition?.name || "?"}
+                              {edition && !edition.active && (
+                                <>
+                                  {" "}
+                                  <Tag>{t("th.archived")}</Tag>
+                                </>
                               )}
                             </td>
                             <td>

@@ -207,8 +207,10 @@
 .gr-examplehead { font-family:'Montserrat',sans-serif; font-weight:800; font-size:14px;
   margin:18px 0 2px; padding-top:14px; border-top:1px dashed var(--line); }
 
+/* The banner scrolls to this; the margin keeps its heading clear of a sticky
+   bar above it (the team preview's, or the environment band on a desktop). */
 .gr-acceptbox { border:1px solid var(--line); border-top:4px solid var(--green); border-radius:12px;
-  padding:16px 18px; margin-bottom:20px; background:#fff; }
+  padding:16px 18px; margin-bottom:20px; background:#fff; scroll-margin-top:56px; }
 
 .gr-acceptbanner { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
   background:#E9F3EC; border:1px solid #BFE0CB; border-left:5px solid var(--green);

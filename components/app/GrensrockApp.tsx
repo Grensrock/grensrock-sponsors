@@ -4051,7 +4051,15 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               sponsor={s}
               edition={e}
               onClose={() => setModal(null)}
-              onMarkSent={() => markEmailSent(d.id)}
+              onMarkSent={(edited) =>
+                edited
+                  ? ask(t("dlg.marksentask"), () => markEmailSent(d.id), {
+                      title: t("dlg.marksenttitle"),
+                      confirmLabel: t("vo.marksent"),
+                      danger: false,
+                    })
+                  : markEmailSent(d.id)
+              }
               onSent={(sentAt) => noteEmailSent(d.id, sentAt)}
               onAddContact={commitContact}
             />

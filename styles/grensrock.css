@@ -295,6 +295,12 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   padding:22px 24px; width:290px; text-align:left; display:flex; flex-direction:column; gap:10px; }
 .gr-landcard input { padding:10px 12px; border:1px solid var(--line); border-radius:8px;
   font:14px 'IBM Plex Sans',sans-serif; }
+/* The sign-in fields are a real form (Landing.tsx); it lays out like the card. */
+.gr-landform { display:flex; flex-direction:column; gap:10px; }
+/* A sign-in's answer, under its button on the card's paper. */
+.gr-landcard .gr-landmsg { margin:0; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600;
+  line-height:1.45; background:#E9F3EC; color:var(--green); }
+.gr-landcard .gr-landmsg.err { background:#FBEAE7; color:var(--red); }
 .gr-landing > p { color:#F3B7B0; }
 
 .gr-logoblock { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }

@@ -289,19 +289,30 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         setMode({ view: "pending", profile });
         return;
       }
+      /* The mode is set once the data is in, not before. Switched first, the
+         screen rendered on empty data while it loaded: a portal with no sponsor
+         in it is the "not available" page with a sign-out button, and a team
+         view with no users takes everyone for the bootstrap admin. Set in a
+         finally, so a failed load still lands on the screen that reports it. */
       if (profile) {
         setUserId(profile.id);
-        setMode({ view: "team" });
         setTab("overview");
-        await loadAll("team", profile.role === "admin");
+        try {
+          await loadAll("team", profile.role === "admin");
+        } finally {
+          setMode({ view: "team" });
+        }
         return;
       }
 
       const contact = await contactsApi.getMyContact();
       if (contact) {
         setUserId(null);
-        setMode({ view: "portal", sponsorId: contact.sponsorId, contactId: contact.id });
-        await loadAll("portal", false);
+        try {
+          await loadAll("portal", false);
+        } finally {
+          setMode({ view: "portal", sponsorId: contact.sponsorId, contactId: contact.id });
+        }
         return;
       }
 
@@ -310,9 +321,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
          never given portal access. ensure_team_profile()/claim_portal_contact()
          both declined, so there is nothing to show and RLS blocks every write. */
       setUserId(null);
-      setMode({ view: "team" });
       setTab("overview");
-      await loadAll("team", false);
+      try {
+        await loadAll("team", false);
+      } finally {
+        setMode({ view: "team" });
+      }
     } catch (e) {
       console.error(e);
       setSaveErr(true);

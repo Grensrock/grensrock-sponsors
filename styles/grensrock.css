@@ -82,6 +82,9 @@
 .gr-table td { padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
 .gr-table tr:last-child td { border-bottom:none; }
 .gr-table .gr-r { text-align:right; }
+/* A narrow column broke a tag into a two-line pill and an amount over two
+   lines. Both read as one word, so they hold together and the table scrolls. */
+.gr-table .gr-tag, .gr-table td.gr-r { white-space:nowrap; }
 .gr-clickable tbody tr { cursor:pointer; }
 .gr-clickable tbody tr:hover { background:#FBF3F7; }
 /* Text inputs inside a clickable row keep their own cursor; buttons and
@@ -142,6 +145,12 @@
 .gr-celllink { background:none; border:none; padding:0; font:inherit; font-weight:700; color:inherit;
   text-align:left; cursor:pointer; }
 .gr-celllink:hover { color:var(--pink-deep); text-decoration:underline; }
+/* A contact's email or phone, mailing or dialling it (components/ui/ContactLink).
+   Underlined faintly so it reads as a link inside a row that is one itself. */
+.gr-contactlink { color:inherit; text-decoration:underline; text-decoration-color:#C9C4BC;
+  text-underline-offset:2px; }
+.gr-contactlink:hover { color:var(--pink-deep); text-decoration-color:currentColor; }
+.gr-phonelink { white-space:nowrap; }
 
 .gr-contactcard { border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:10px;
   background:#fff; padding:12px 14px 2px; margin-bottom:10px; }
@@ -207,8 +216,10 @@
 .gr-examplehead { font-family:'Montserrat',sans-serif; font-weight:800; font-size:14px;
   margin:18px 0 2px; padding-top:14px; border-top:1px dashed var(--line); }
 
+/* The banner scrolls to this; the margin keeps its heading clear of a sticky
+   bar above it (the team preview's, or the environment band on a desktop). */
 .gr-acceptbox { border:1px solid var(--line); border-top:4px solid var(--green); border-radius:12px;
-  padding:16px 18px; margin-bottom:20px; background:#fff; }
+  padding:16px 18px; margin-bottom:20px; background:#fff; scroll-margin-top:56px; }
 
 .gr-acceptbanner { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
   background:#E9F3EC; border:1px solid #BFE0CB; border-left:5px solid var(--green);
@@ -219,8 +230,14 @@
   @keyframes grpulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
 }
 
+/* A value with its unit in front and its button behind (the portal's food &
+   drink top-up). The input is dressed like every other field — it sat outside
+   a .gr-field, so it was a bare browser box — and it is what takes the room,
+   not the unit before it. */
 .gr-inline-field { display:flex; gap:8px; align-items:stretch; }
-.gr-inline-field > *:first-child { flex:1; }
+.gr-inline-field input { flex:1; min-width:0; padding:9px 12px; border:1px solid var(--line); border-radius:8px;
+  font:14px 'IBM Plex Sans',sans-serif; background:#fff; }
+.gr-inline-field > .gr-muted { align-self:center; }
 .gr-inline-field .gr-mini { white-space:nowrap; align-self:center; }
 
 .gr-langswitch { background:transparent; border:1px solid rgba(255,255,255,.25); color:#fff;
@@ -287,6 +304,12 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   padding:22px 24px; width:290px; text-align:left; display:flex; flex-direction:column; gap:10px; }
 .gr-landcard input { padding:10px 12px; border:1px solid var(--line); border-radius:8px;
   font:14px 'IBM Plex Sans',sans-serif; }
+/* The sign-in fields are a real form (Landing.tsx); it lays out like the card. */
+.gr-landform { display:flex; flex-direction:column; gap:10px; }
+/* A sign-in's answer, under its button on the card's paper. */
+.gr-landcard .gr-landmsg { margin:0; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600;
+  line-height:1.45; background:#E9F3EC; color:var(--green); }
+.gr-landcard .gr-landmsg.err { background:#FBEAE7; color:var(--red); }
 .gr-landing > p { color:#F3B7B0; }
 
 .gr-logoblock { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
@@ -353,6 +376,15 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
 .gr-emailedit { font:13px/1.55 'IBM Plex Sans',sans-serif; resize:vertical; min-height:220px; }
 .gr-inlineform { border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:8px;
   background:#fff; padding:12px 14px 2px; margin:0 0 12px; }
+/* The ways round Send — copy it, open it in a mail app, or record that it went
+   some other way. Small and set apart, so Send is the one button that looks
+   like it sends; the explanation sits beside "Mark as sent" because a tooltip
+   never shows on a phone. A link is a button here too, centred like one. */
+.gr-sendalt { display:flex; flex-direction:column; gap:8px; margin-top:14px; padding-top:12px;
+  border-top:1px dashed var(--line); }
+.gr-sendalt-row { display:flex; align-items:center; gap:6px 10px; flex-wrap:wrap; }
+.gr-sendalt-row .gr-muted { margin:0; }
+.gr-sendalt a.gr-mini { display:inline-flex; align-items:center; }
 
 @media (prefers-reduced-motion: no-preference) {
   .gr-modal { animation:grpop .18s ease-out; }
@@ -463,13 +495,27 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   .gr-rowbtns .gr-mini { margin-left:0; }
   .gr-subnav button { padding:11px 12px; min-height:44px; }
   .gr-x { min-width:44px; min-height:44px; font-size:18px; }
+  /* Text-only buttons have no box to aim at, so their height is the line of
+     text — 17px. The sign-in page stacks three of them, and a language button
+     sits alone in a corner. The height grows, not the look. */
+  .gr-linkbtn, .gr-back { display:inline-flex; align-items:center; min-height:44px; text-align:left; }
+  /* The back link's new height is empty space round its text, so it gives
+     back its margin and the page around it hardly moves. */
+  .gr-back { margin:-12px 0 0; }
+  .gr-landlang button { min-width:44px; min-height:44px; font-size:13px; }
+  /* A link in a table cell is one line of text tall. The padding reaches into
+     the cell's own and the margin takes it back, so the row is no taller but a
+     tap a little above or below the number still dials it. */
+  .gr-contactlink { display:inline-block; padding:9px 0; margin:-9px 0; }
 
   /* ---------- forms ----------
      16px is the threshold below which iOS Safari zooms the page in when a field
      takes focus, and it does not zoom back out — leaving the layout scrolled
-     sideways for every field after the first. */
+     sideways for every field after the first. A select counts as a field, so
+     the language switch in the menu is one too. */
   .gr-field input, .gr-field select, .gr-field textarea,
-  .gr-search, .gr-landcard input, .gr-inline-input { font-size:16px; }
+  .gr-search, .gr-landcard input, .gr-inline-input, .gr-inline-field input,
+  .gr-voucherrow input, .gr-splitrow input, .gr-langswitch { font-size:16px; }
   .gr-field input, .gr-field select, .gr-field textarea { padding:11px 12px; }
 
   /* ---------- tables ----------

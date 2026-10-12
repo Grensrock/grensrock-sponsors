@@ -16,6 +16,7 @@ import ExampleImagesManager from "@/components/modals/ExampleImagesManager";
 import ImportModal, { type SponsorImportRow } from "@/components/modals/ImportModal";
 import NewContactModal from "@/components/modals/NewContactModal";
 import ConfirmDialog, { type DialogSpec } from "@/components/ui/ConfirmDialog";
+import { MailLink, PhoneLink } from "@/components/ui/ContactLink";
 import Modal from "@/components/ui/Modal";
 import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
@@ -289,19 +290,30 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         setMode({ view: "pending", profile });
         return;
       }
+      /* The mode is set once the data is in, not before. Switched first, the
+         screen rendered on empty data while it loaded: a portal with no sponsor
+         in it is the "not available" page with a sign-out button, and a team
+         view with no users takes everyone for the bootstrap admin. Set in a
+         finally, so a failed load still lands on the screen that reports it. */
       if (profile) {
         setUserId(profile.id);
-        setMode({ view: "team" });
         setTab("overview");
-        await loadAll("team", profile.role === "admin");
+        try {
+          await loadAll("team", profile.role === "admin");
+        } finally {
+          setMode({ view: "team" });
+        }
         return;
       }
 
       const contact = await contactsApi.getMyContact();
       if (contact) {
         setUserId(null);
-        setMode({ view: "portal", sponsorId: contact.sponsorId, contactId: contact.id });
-        await loadAll("portal", false);
+        try {
+          await loadAll("portal", false);
+        } finally {
+          setMode({ view: "portal", sponsorId: contact.sponsorId, contactId: contact.id });
+        }
         return;
       }
 
@@ -310,9 +322,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
          never given portal access. ensure_team_profile()/claim_portal_contact()
          both declined, so there is nothing to show and RLS blocks every write. */
       setUserId(null);
-      setMode({ view: "team" });
       setTab("overview");
-      await loadAll("team", false);
+      try {
+        await loadAll("team", false);
+      } finally {
+        setMode({ view: "team" });
+      }
     } catch (e) {
       console.error(e);
       setSaveErr(true);
@@ -1964,7 +1979,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 {filteredSponsors.length} {t("common.of")} {sponsors.length} {t("sp.count")}
               </span>
             </div>
-            {spSelected.length > 0 && (
+            {/* Selecting is only there for the bulk delete, which is an admin's.
+                For anyone else the boxes ticked and led nowhere — and on a phone
+                the column cost 40px of a 375px screen. */}
+            {admin && spSelected.length > 0 && (
               <div className="gr-toolbar">
                 <div className="gr-detail-btns">
                   <span className="gr-muted">
@@ -1974,15 +1992,13 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     {t("common.clear")}
                   </button>
                 </div>
-                {admin && (
-                  <button
-                    className="gr-btn gr-danger"
-                    disabled={spBusy}
-                    onClick={() => deleteSponsors(spSelected)}
-                  >
-                    {spBusy ? "…" : `${t("sp.delsel")} (${spSelected.length})`}
-                  </button>
-                )}
+                <button
+                  className="gr-btn gr-danger"
+                  disabled={spBusy}
+                  onClick={() => deleteSponsors(spSelected)}
+                >
+                  {spBusy ? "…" : `${t("sp.delsel")} (${spSelected.length})`}
+                </button>
               </div>
             )}
             {filteredSponsors.length === 0 ? (
@@ -1994,19 +2010,21 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 <table className="gr-table gr-clickable">
                   <thead>
                     <tr>
-                      <th style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          aria-label={t("sp.selectall")}
-                          checked={allVisibleSelected}
-                          ref={(el) => {
-                            if (el) el.indeterminate = spSelected.length > 0 && !allVisibleSelected;
-                          }}
-                          onChange={(e) =>
-                            setSpSel(e.target.checked ? filteredSponsors.map((x) => x.id) : [])
-                          }
-                        />
-                      </th>
+                      {admin && (
+                        <th style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            aria-label={t("sp.selectall")}
+                            checked={allVisibleSelected}
+                            ref={(el) => {
+                              if (el) el.indeterminate = spSelected.length > 0 && !allVisibleSelected;
+                            }}
+                            onChange={(e) =>
+                              setSpSel(e.target.checked ? filteredSponsors.map((x) => x.id) : [])
+                            }
+                          />
+                        </th>
+                      )}
                       {(
                         [
                           ["companyName", t("sp.company"), ""],
@@ -2032,16 +2050,18 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       return (
                         <tr key={s.id} onClick={() => setOpenSponsorId(s.id)}>
                           {/* Stops the row's own click, or ticking a box would open the sponsor. */}
-                          <td onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              aria-label={`${t("sp.select")} ${s.companyName}`}
-                              checked={spSel.includes(s.id)}
-                              onChange={(e) =>
-                                setSpSel(e.target.checked ? [...spSel, s.id] : spSel.filter((x) => x !== s.id))
-                              }
-                            />
-                          </td>
+                          {admin && (
+                            <td onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                aria-label={`${t("sp.select")} ${s.companyName}`}
+                                checked={spSel.includes(s.id)}
+                                onChange={(e) =>
+                                  setSpSel(e.target.checked ? [...spSel, s.id] : spSel.filter((x) => x !== s.id))
+                                }
+                              />
+                            </td>
+                          )}
                           <td>
                             <strong>{s.companyName}</strong>
                             {s.vatNumber && <span className="gr-muted"> · {s.vatNumber}</span>}
@@ -2746,6 +2766,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                           <th>{t("c.name")}</th>
                           <th>{t("c.company")}</th>
                           <th>{t("c.email")}</th>
+                          <th>{t("c.phone")}</th>
                           <th>{t("sp.language")}</th>
                           <th>{t("c.portal")}</th>
                           <th>{t("c.receives")}</th>
@@ -2774,7 +2795,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               <strong>{contactName(c) || <span className="gr-muted">no name</span>}</strong>
                             </td>
                             <td>{sp.companyName}</td>
-                            <td>{c.email || <span className="gr-muted">—</span>}</td>
+                            <td>
+                              <MailLink email={c.email} />
+                            </td>
+                            <td>
+                              <PhoneLink phone={c.phone} />
+                            </td>
                             <td>{(c.language || "nl").toUpperCase()}</td>
                             <td onClick={(e) => e.stopPropagation()}>
                               {c.portalAccess ? (
@@ -3031,8 +3057,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     <table className="gr-table gr-clickable">
                       <thead>
                         <tr>
-                          <th>{t("c.edition")}</th>
+                          {/* Company first: on a phone the first column is the one that
+                              stays put while the rest scrolls, and it should name the row. */}
                           <th>{t("sp.company")}</th>
+                          <th>{t("c.edition")}</th>
                           <th>{t("c.formula")}</th>
                           <th className="gr-r">{t("c.cost")}</th>
                           <th>{t("ag.settlement")}</th>
@@ -3049,15 +3077,6 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                             onClick={() => setModal({ type: "deal", payload: d })}
                           >
                             <td>
-                              {edition?.name || "?"}
-                              {edition && !edition.active && (
-                                <>
-                                  {" "}
-                                  <Tag>{t("th.archived")}</Tag>
-                                </>
-                              )}
-                            </td>
-                            <td>
                               {/* The row opens the agreement; the name is the way to the sponsor. */}
                               {sponsor ? (
                                 <button
@@ -3073,6 +3092,15 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                 </button>
                               ) : (
                                 <strong>?</strong>
+                              )}
+                            </td>
+                            <td>
+                              {edition?.name || "?"}
+                              {edition && !edition.active && (
+                                <>
+                                  {" "}
+                                  <Tag>{t("th.archived")}</Tag>
+                                </>
                               )}
                             </td>
                             <td>
@@ -4051,7 +4079,15 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               sponsor={s}
               edition={e}
               onClose={() => setModal(null)}
-              onMarkSent={() => markEmailSent(d.id)}
+              onMarkSent={(edited) =>
+                edited
+                  ? ask(t("dlg.marksentask"), () => markEmailSent(d.id), {
+                      title: t("dlg.marksenttitle"),
+                      confirmLabel: t("vo.marksent"),
+                      danger: false,
+                    })
+                  : markEmailSent(d.id)
+              }
               onSent={(sentAt) => noteEmailSent(d.id, sentAt)}
               onAddContact={commitContact}
             />

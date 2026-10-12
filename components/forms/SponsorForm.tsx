@@ -54,7 +54,7 @@ export default function SponsorForm({
         <Field label={t("sf.companyname")}>
           <input value={s.companyName} onChange={set("companyName")} placeholder="Brouwerij Vanhonsebrouck" />
         </Field>
-        <Field label={t("c.vatnr")} hint={vatLookup.enabled(vatCfg) ? t("sf.fetchhint") : null}>
+        <Field group label={t("c.vatnr")} hint={vatLookup.enabled(vatCfg) ? t("sf.fetchhint") : null}>
           <VatInput
             value={s.vatNumber}
             onChange={set("vatNumber")}

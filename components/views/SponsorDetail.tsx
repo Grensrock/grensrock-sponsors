@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import CopyInviteButton from "@/components/views/CopyInviteButton";
+import { MailLink, PhoneLink } from "@/components/ui/ContactLink";
 import LogoManager from "@/components/ui/LogoManager";
 import Tag from "@/components/ui/Tag";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
@@ -236,8 +237,12 @@ export default function SponsorDetail({
                       <td>
                         <strong>{contactName(c) || <span className="gr-muted">{t("c.noname")}</span>}</strong>
                       </td>
-                      <td>{c.email || <span className="gr-muted">—</span>}</td>
-                      <td>{c.phone || <span className="gr-muted">—</span>}</td>
+                      <td>
+                        <MailLink email={c.email} />
+                      </td>
+                      <td>
+                        <PhoneLink phone={c.phone} />
+                      </td>
                       <td>{(c.language || "nl").toUpperCase()}</td>
                       <td onClick={(e) => e.stopPropagation()}>
                         {c.portalAccess ? (

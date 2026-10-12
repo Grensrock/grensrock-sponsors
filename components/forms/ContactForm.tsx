@@ -15,12 +15,15 @@ export default function ContactForm({
   onDelete,
   onCancel,
   lang = "en",
+  busy = null,
 }: {
   initial?: Contact | null;
   onSave: (c: Contact) => void;
   onDelete?: (id: string) => void;
   onCancel: () => void;
   lang?: Language;
+  /** A save or delete still on its way (the portal): both buttons wait for it. */
+  busy?: "save" | "delete" | null;
 }) {
   const T = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang] || en;
   const [c, setC] = useState<Contact>({
@@ -108,9 +111,10 @@ export default function ContactForm({
           <button
             className="gr-btn-ghost gr-danger"
             style={{ marginRight: "auto" }}
+            disabled={!!busy}
             onClick={() => onDelete(initial.id)}
           >
-            {T("Verwijderen", "Supprimer", "Delete contact")}
+            {busy === "delete" ? T("Bezig…", "En cours…", "Working…") : T("Verwijderen", "Supprimer", "Delete contact")}
           </button>
         )}
         <button className="gr-btn-ghost" onClick={onCancel}>
@@ -118,10 +122,10 @@ export default function ContactForm({
         </button>
         <button
           className="gr-btn"
-          disabled={!valid}
+          disabled={!valid || !!busy}
           onClick={() => onSave({ ...c, id: c.id || uid(), email: emailToStore(c.email) })}
         >
-          {T("Opslaan", "Enregistrer", "Save contact")}
+          {busy === "save" ? T("Bezig…", "En cours…", "Working…") : T("Opslaan", "Enregistrer", "Save contact")}
         </button>
       </div>
     </div>

@@ -74,7 +74,7 @@ import {
 } from "@/lib/money";
 import { ledLabel, normFolder, normLed, normNameKey, normVatKey } from "@/lib/normalize";
 import { isAdmin, responsibleName, userName } from "@/lib/users";
-import { teamT } from "@/lib/i18n";
+import { portalDialogT, teamT } from "@/lib/i18n";
 import { expectedVouchers, ticketLines, visibilityLines, voucherProducts } from "@/lib/vouchers";
 import type {
   AppData,
@@ -85,6 +85,7 @@ import type {
   DealDraft,
   Edition,
   Formula,
+  Language,
   Role,
   Settings,
   Sponsor,
@@ -668,16 +669,23 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
     );
   };
 
+  /* ----- sponsor portal writes -----
+     Each one says whether it worked. failWith has already told the sponsor
+     when it didn't; the answer is for the portal, which keeps a button busy
+     until it comes and leaves a form open when it is false. */
+
   /* Sponsor accepts the agreement: accept_deal() records who, when, and freezes
      the terms server-side from the caller's own contacts row. */
-  const acceptAgreement = async (dealId: string) => {
+  const acceptAgreement = async (dealId: string): Promise<boolean> => {
     try {
       await dealsApi.portalAcceptDeal(dealId);
       const fresh = await dealsApi.getDeal(dealId);
       if (fresh) setData((d) => ({ ...d, deals: d.deals.map((x) => (x.id === dealId ? fresh : x)) }));
       setSaveErr(false);
+      return true;
     } catch (e) {
       failWith(e);
+      return false;
     }
   };
 
@@ -703,25 +711,33 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   /* Sponsor tops up their food & drink value. Allowed until the food vouchers are created.
      Changing the total drops the pending food split + any pending food voucher records so they
      regenerate for the new amount. */
-  const updateDealExtra = async (dealId: string, patch: Partial<Deal>) => {
-    if (vouchers.some((v) => v.dealId === dealId && v.type === "food" && v.status !== "pending")) return;
+  const updateDealExtra = async (dealId: string, patch: Partial<Deal>): Promise<boolean> => {
+    if (vouchers.some((v) => v.dealId === dealId && v.type === "food" && v.status !== "pending")) return false;
     try {
       await dealsApi.portalUpdateFoodDrink(dealId, patch.foodDrinkValue);
       await refreshDealAndVouchers(dealId);
       setSaveErr(false);
+      return true;
     } catch (e) {
       failWith(e);
+      return false;
     }
   };
 
-  const updateDealSplit = async (dealId: string, pool: "drink" | "food", rows: Deal["drinkVouchers"]) => {
-    if (vouchers.some((v) => v.dealId === dealId && v.type === pool && v.status !== "pending")) return;
+  const updateDealSplit = async (
+    dealId: string,
+    pool: "drink" | "food",
+    rows: Deal["drinkVouchers"],
+  ): Promise<boolean> => {
+    if (vouchers.some((v) => v.dealId === dealId && v.type === pool && v.status !== "pending")) return false;
     try {
       await dealsApi.portalUpdateSplit(dealId, pool, rows);
       await refreshDealAndVouchers(dealId);
       setSaveErr(false);
+      return true;
     } catch (e) {
       failWith(e);
+      return false;
     }
   };
 
@@ -738,7 +754,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
 
   /* A sponsor picked a formula themselves: request_formula() builds the agreement
      from the formula's own columns, server-side. */
-  const requestFormula = async (editionId: string, formulaName: string, byName: string) => {
+  const requestFormula = async (editionId: string, formulaName: string, byName: string): Promise<boolean> => {
     try {
       const dealId = await dealsApi.portalRequestFormula(editionId, formulaName, byName);
       const fresh = await dealsApi.getDeal(dealId);
@@ -750,8 +766,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             : [...d.deals, fresh],
         }));
       setSaveErr(false);
+      return true;
     } catch (e) {
       failWith(e);
+      return false;
     }
   };
 
@@ -767,7 +785,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   };
 
   /* The portal may only ever change a voucher's recipient, and only via the RPC. */
-  const assignVoucherRecipient = async (id: string, patch: Partial<Voucher>) => {
+  const assignVoucherRecipient = async (id: string, patch: Partial<Voucher>): Promise<boolean> => {
     try {
       await vouchersApi.portalAssignRecipient(id, patch.recipientName || "", patch.recipientEmail || "");
       setData((d) => ({
@@ -777,8 +795,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         ),
       }));
       setSaveErr(false);
+      return true;
     } catch (e) {
       failWith(e);
+      return false;
     }
   };
 
@@ -1205,7 +1225,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
      details go through update_sponsor_info(), each contact through
      upsert_sponsor_contact()/delete_sponsor_contact() — all three re-derive
      the caller's sponsor server-side. */
-  const portalSaveSponsor = async (id: string, patch: Partial<Sponsor>) => {
+  const portalSaveSponsor = async (id: string, patch: Partial<Sponsor>): Promise<boolean> => {
     try {
       const { contacts, ...info } = patch;
       if (Object.keys(info).length) await sponsorsApi.portalUpdateSponsorInfo(info);
@@ -1232,7 +1252,21 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         for (const gone of before.filter((x) => !contacts.some((c) => c.id === x.id))) {
           await contactsApi.portalDeleteContact(gone.id);
         }
-        for (const c of toInvite) await sendPortalLink(c);
+        /* Not sendPortalLink: its message is the team's, in a team language,
+           about a button the portal doesn't have. The access stands either
+           way, so this is a notice and the save still counts as done. */
+        for (const c of toInvite) {
+          try {
+            await contactsApi.sendPortalLink(c.id);
+          } catch (mailErr) {
+            console.error(mailErr);
+            setDialog({
+              messageKey: "dlg.portalmailfail",
+              messageParams: { name: contactName(c) || c.email },
+              titleKey: "dlg.portalmailnotsent",
+            });
+          }
+        }
       }
 
       const [fresh, freshContacts] = await Promise.all([sponsorsApi.getSponsor(id), contactsApi.listContacts()]);
@@ -1248,8 +1282,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         ),
       }));
       setSaveErr(false);
+      return true;
     } catch (e) {
       failWith(e);
+      return false;
     }
   };
   const addSponsorInline = async (s: Sponsor): Promise<Sponsor> => {
@@ -1625,10 +1661,15 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         </div>
       );
     }
+    const asContact = sponsorContacts(ps).find((c) => c.id === mode.contactId);
+    /* The same rule SponsorPortal uses for its own text. The dialog is
+       passed in rather than living in the portal because failWith, here, is
+       what opens it; without it a failed save said nothing to a sponsor. */
+    const portalLang: Language = asContact?.language || primaryContact(ps)?.language || "nl";
     return (
       <SponsorPortal
         sponsor={ps}
-        asContact={sponsorContacts(ps).find((c) => c.id === mode.contactId)}
+        asContact={asContact}
         deals={deals}
         editions={editions}
         vouchers={vouchers}
@@ -1642,7 +1683,14 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         onUpdateExtra={updateDealExtra}
         onAcceptAgreement={acceptAgreement}
         onExit={signOut}
-      />
+      >
+        <ConfirmDialog
+          dialog={dialog}
+          onClose={() => setDialog(null)}
+          t={(key, params) => portalDialogT(key, portalLang, params)}
+          lang={portalLang}
+        />
+      </SponsorPortal>
     );
   }
 
@@ -1653,7 +1701,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   if (previewPortal) {
     const ps = sponsors.find((s) => s.id === previewPortal.sponsorId);
     if (ps) {
-      const noop = () => {};
+      const noop = async () => false;
       return (
         <SponsorPortal
           preview

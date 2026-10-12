@@ -862,6 +862,38 @@ export const teamT = (key: string, lang: TeamLanguage, params?: Record<string, s
   return params ? text.replace(/\{(\w+)\}/g, (m, k) => (k in params ? String(params[k]) : m)) : text;
 };
 
+/* ---------- Dialog text for the sponsor portal (NL / FR / EN) ----------
+   The portal shares the team app's ConfirmDialog, but a sponsor reads it in
+   their own language and FR is not a team language. Only the keys a dialog
+   can carry in the portal live here; anything else falls back to the team
+   table, so a key added later still shows text rather than its name. */
+export const PORTAL_DIALOG_TEXT: Record<string, [string, string, string]> = {
+  "dlg.savefail": ["Kon niet opslaan", "Enregistrement impossible", "Couldn't save"],
+  "dlg.offline": [
+    "Geen verbinding met de server — controleer uw internetverbinding en probeer het opnieuw.",
+    "Pas de connexion au serveur — vérifiez votre connexion internet et réessayez.",
+    "No connection to the server — check your internet connection and try again.",
+  ],
+  "dlg.confirm": ["Bevestigen", "Confirmer", "Please confirm"],
+  "dlg.ok": ["OK", "OK", "OK"],
+  "dlg.done": ["Klaar", "Terminé", "Done"],
+  "common.cancel": ["Annuleren", "Annuler", "Cancel"],
+  "common.confirm": ["Bevestigen", "Confirmer", "Confirm"],
+  "dlg.portalmailnotsent": ["E-mail niet verstuurd", "E-mail non envoyé", "Email not sent"],
+  "dlg.portalmailfail": [
+    "{name} heeft nu toegang tot het portaal, maar de e-mail met de aanmeldlink kon niet verstuurd worden.\n\n{name} kan op de aanmeldpagina zelf een aanmeldlink aanvragen met dit e-mailadres.",
+    "{name} a désormais accès au portail, mais l'e-mail avec le lien de connexion n'a pas pu être envoyé.\n\n{name} peut demander un lien de connexion sur la page de connexion avec cette adresse e-mail.",
+    "{name} now has access to the portal, but the email with the sign-in link couldn't be sent.\n\n{name} can request a sign-in link on the sign-in page with this email address.",
+  ],
+};
+
+export const portalDialogT = (key: string, lang: Language, params?: Record<string, string | number>): string => {
+  const row = PORTAL_DIALOG_TEXT[key];
+  if (!row) return teamT(key, lang === "nl" ? "nl" : "en", params);
+  const text = row[lang === "nl" ? 0 : lang === "fr" ? 1 : 2] || row[2];
+  return params ? text.replace(/\{(\w+)\}/g, (m, k) => (k in params ? String(params[k]) : m)) : text;
+};
+
 /* Option labels live with the options themselves, in lib/constants, so the
    sponsor portal and the team app read the same table. */
 export const settleLabel = (k: Settlement | string, lang: Language = "nl") => label(SETTLEMENTS, k, lang);

@@ -219,8 +219,14 @@
   @keyframes grpulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
 }
 
+/* A value with its unit in front and its button behind (the portal's food &
+   drink top-up). The input is dressed like every other field — it sat outside
+   a .gr-field, so it was a bare browser box — and it is what takes the room,
+   not the unit before it. */
 .gr-inline-field { display:flex; gap:8px; align-items:stretch; }
-.gr-inline-field > *:first-child { flex:1; }
+.gr-inline-field input { flex:1; min-width:0; padding:9px 12px; border:1px solid var(--line); border-radius:8px;
+  font:14px 'IBM Plex Sans',sans-serif; background:#fff; }
+.gr-inline-field > .gr-muted { align-self:center; }
 .gr-inline-field .gr-mini { white-space:nowrap; align-self:center; }
 
 .gr-langswitch { background:transparent; border:1px solid rgba(255,255,255,.25); color:#fff;
@@ -476,9 +482,11 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   /* ---------- forms ----------
      16px is the threshold below which iOS Safari zooms the page in when a field
      takes focus, and it does not zoom back out — leaving the layout scrolled
-     sideways for every field after the first. */
+     sideways for every field after the first. A select counts as a field, so
+     the language switch in the menu is one too. */
   .gr-field input, .gr-field select, .gr-field textarea,
-  .gr-search, .gr-landcard input, .gr-inline-input { font-size:16px; }
+  .gr-search, .gr-landcard input, .gr-inline-input, .gr-inline-field input,
+  .gr-voucherrow input, .gr-splitrow input, .gr-langswitch { font-size:16px; }
   .gr-field input, .gr-field select, .gr-field textarea { padding:11px 12px; }
 
   /* ---------- tables ----------

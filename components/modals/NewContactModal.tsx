@@ -120,7 +120,7 @@ export default function NewContactModal({
                 ))}
               </select>
             </Field>
-            <Field label={t("c.receives")}>
+            <Field group label={t("c.receives")}>
               <div className="gr-checkrow" style={{ paddingTop: 6 }}>
                 {(Object.keys(COMM_LABELS) as CommKey[]).map((k) => {
                   const on = !!contact.prefs && !!contact.prefs[k];

@@ -1,8 +1,10 @@
 import type { Deal, NumLike } from "@/types";
 
+/* A no-break space after the sign, so an amount never wraps into a lone "€"
+   on one line and the number on the next. */
 export const eur = (n?: NumLike | null) => {
   const v = Number(n) || 0;
-  return "€ " + v.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "€\u00a0" + v.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 /* The part of the F&D value the sponsor added on top of what the formula included */

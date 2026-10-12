@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import ContactForm from "@/components/forms/ContactForm";
 import VoucherEditor from "@/components/forms/VoucherEditor";
 import ReturnExamples from "@/components/modals/ReturnExamples";
@@ -96,6 +97,18 @@ export default function SponsorPortal({
     .filter((d) => d.edition?.active);
 
   const [sub, setSub] = useState(toAccept.length > 0 ? "sponsoring" : "info");
+  /* The banner's button. The portal already opens on this tab when something
+     waits for acceptance, so switching to it did nothing at all — and on a phone
+     the agreement sits screens further down, under the voucher editors. The tab
+     is rendered first (flushSync) so the box exists to scroll to. */
+  const acceptBoxId = (dealId: string) => `gr-accept-${dealId}`;
+  const goToAccept = () => {
+    flushSync(() => setSub("sponsoring"));
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document
+      .getElementById(acceptBoxId(toAccept[0].id))
+      ?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  };
   const [chosen, setChosen] = useState<{
     editionId: string;
     name: string;
@@ -288,7 +301,7 @@ export default function SponsorPortal({
                   .join(" · ")}
               </div>
             </div>
-            <button className="gr-btn" onClick={() => setSub("sponsoring")}>
+            <button className="gr-btn" onClick={goToAccept}>
               {T("Nakijken en bevestigen", "Consulter et confirmer", "Review and confirm")}
             </button>
           </div>
@@ -330,7 +343,7 @@ export default function SponsorPortal({
                 <Field label={T("Bedrijf / naam", "Société / nom", "Company / name")}>
                   <input value={s.companyName} onChange={set("companyName")} />
                 </Field>
-                <Field label={T("BTW-nummer", "Numéro de TVA", "VAT number")}>
+                <Field group label={T("BTW-nummer", "Numéro de TVA", "VAT number")}>
                   <VatInput
                     value={s.vatNumber}
                     onChange={set("vatNumber")}
@@ -712,8 +725,14 @@ export default function SponsorPortal({
                 </p>
               ))}
 
+              {/* Below the top-up and the voucher split on purpose, though on a
+                  phone that is a long way down (the banner scrolls here). Both
+                  are part of the terms being accepted (SNAPSHOT_FIELDS in
+                  lib/acceptance), so the page has the sponsor settle them first;
+                  changed afterwards, the agreement shows the team as changed
+                  since acceptance. */}
               {toAccept.map((d) => (
-                <div key={d.id} className="gr-acceptbox">
+                <div key={d.id} id={acceptBoxId(d.id)} className="gr-acceptbox">
                   <h4 className="gr-h3">
                     {T("Uw overeenkomst voor", "Votre accord pour", "Your agreement for")} {d.edition?.name}
                   </h4>

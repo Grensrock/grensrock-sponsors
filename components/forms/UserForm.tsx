@@ -50,6 +50,7 @@ export default function UserForm({
         </Field>
       </div>
       <Field
+        group
         label={t("uf.emaillogin")}
         hint={customEmail ? t("uf.customaddress") : t("uf.autoaddress", { domain: TEAM_DOMAIN })}
       >

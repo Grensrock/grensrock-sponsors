@@ -731,6 +731,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Gebruik dit als u de mail zelf al buiten deze tool verstuurde.",
     "Use this if you already sent the mail yourself, outside this tool.",
   ],
+  "dlg.marksenttitle": ["Als verzonden markeren", "Mark as sent"],
+  "dlg.marksentask": [
+    "U hebt de tekst aangepast, maar hij is niet vanuit deze tool verstuurd. Toch als verzonden markeren? Er vertrekt dan geen e-mail, en de aangepaste tekst wordt niet bewaard.",
+    "You edited the text, but it hasn't been sent from this tool. Mark it as sent anyway? No email goes out, and the edited text is not kept.",
+  ],
   "em.writelang": ["Schrijven in de taal van", "Write in the language of"],
 
   /* ---------- sponsor detail ---------- */

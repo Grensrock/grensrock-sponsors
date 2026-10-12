@@ -103,7 +103,7 @@ export default function BenefitFields({
       <Field label={t("bf.fence")}>
         <input type="number" min="0" value={v.fenceCovers || 0} onChange={num("fenceCovers")} />
       </Field>
-      <Field label={t("bf.led")}>
+      <Field group label={t("bf.led")}>
         <div className="gr-checkrow">
           {(Object.keys(LED_ZONES) as LedZone[]).map((k) => {
             const zones = normLed(v.ledboarding);

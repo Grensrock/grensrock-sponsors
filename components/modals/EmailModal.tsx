@@ -162,6 +162,7 @@ export default function EmailModal({
 
           {all.length > 0 && (
             <Field
+              group
               label={t("em.recipients")}
               hint={mixedLangs ? t("em.mixedlangs", { lang: LANGS[recipients[0]?.language || "nl"] }) : undefined}
             >

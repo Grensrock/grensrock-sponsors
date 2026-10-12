@@ -330,7 +330,7 @@ export default function SponsorPortal({
                 <Field label={T("Bedrijf / naam", "Société / nom", "Company / name")}>
                   <input value={s.companyName} onChange={set("companyName")} />
                 </Field>
-                <Field label={T("BTW-nummer", "Numéro de TVA", "VAT number")}>
+                <Field group label={T("BTW-nummer", "Numéro de TVA", "VAT number")}>
                   <VatInput
                     value={s.vatNumber}
                     onChange={set("vatNumber")}

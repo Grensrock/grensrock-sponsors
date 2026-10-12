@@ -68,7 +68,7 @@ export default function ContactForm({
           ))}
         </select>
       </Field>
-      <Field label={T("Wil communicatie ontvangen over", "Souhaite recevoir", "Wants to receive")}>
+      <Field group label={T("Wil communicatie ontvangen over", "Souhaite recevoir", "Wants to receive")}>
         <div className="gr-checkrow">
           {(Object.keys(COMM_LABELS) as CommKey[]).map((k) => {
             const on = !!c.prefs?.[k];

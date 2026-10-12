@@ -2548,11 +2548,23 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   )}
                                 </td>
                                 <td>
+                                  {/* Saved when the field is left, like the product ids
+                                      above: a save per keystroke reverted the field while
+                                      each round trip was out. */}
                                   <input
+                                    key={`${v.id}|${v.code || ""}`}
                                     className="gr-inline-input"
                                     placeholder={t("vo.codefrom")}
-                                    value={v.code || ""}
-                                    onChange={(e) => updateVoucher(v.id, { code: e.target.value })}
+                                    defaultValue={v.code || ""}
+                                    autoCapitalize="off"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    enterKeyHint="done"
+                                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                                    onBlur={(e) => {
+                                      const next = e.target.value.trim();
+                                      if (next !== (v.code || "")) updateVoucher(v.id, { code: next });
+                                    }}
                                   />
                                 </td>
                                 <td>
@@ -3777,12 +3789,25 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   <td>
                                     {refRequiredFor(d, s) ? (
                                       <>
+                                        {/* Saved when the field is left. "Invoice created"
+                                            reads the saved reference, so the box unlocks once
+                                            this save is back, not while the field is typed in. */}
                                         <input
+                                          key={`${d.id}|${d.invoiceReference || ""}`}
                                           className="gr-inline-input"
                                           placeholder={t("inv.reqref")}
-                                          value={d.invoiceReference || ""}
+                                          defaultValue={d.invoiceReference || ""}
                                           style={blocked ? { borderColor: "var(--red)" } : undefined}
-                                          onChange={(e) => setInvoice(d.id, { invoiceReference: e.target.value })}
+                                          autoCapitalize="off"
+                                          autoCorrect="off"
+                                          spellCheck={false}
+                                          enterKeyHint="done"
+                                          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                                          onBlur={(e) => {
+                                            const next = e.target.value.trim();
+                                            if (next !== (d.invoiceReference || ""))
+                                              setInvoice(d.id, { invoiceReference: next });
+                                          }}
                                         />
                                         {blocked && (
                                           <div className="gr-muted" style={{ color: "var(--red)", fontSize: 11 }}>
@@ -3804,11 +3829,21 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                     />
                                   </td>
                                   <td>
+                                    {/* Saved when the field is left, like the reference. */}
                                     <input
+                                      key={`${d.id}|${d.invoiceNumber || ""}`}
                                       className="gr-inline-input"
                                       placeholder="e.g. 2026-014"
-                                      value={d.invoiceNumber || ""}
-                                      onChange={(e) => setInvoice(d.id, { invoiceNumber: e.target.value })}
+                                      defaultValue={d.invoiceNumber || ""}
+                                      autoCapitalize="off"
+                                      autoCorrect="off"
+                                      spellCheck={false}
+                                      enterKeyHint="done"
+                                      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                                      onBlur={(e) => {
+                                        const next = e.target.value.trim();
+                                        if (next !== (d.invoiceNumber || "")) setInvoice(d.id, { invoiceNumber: next });
+                                      }}
                                     />
                                   </td>
                                 </tr>

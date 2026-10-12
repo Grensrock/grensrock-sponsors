@@ -60,6 +60,7 @@ import {
 } from "@/lib/constants";
 import { contactName, primaryContact, sponsorContacts, voucherContact } from "@/lib/contacts";
 import { sameEmail } from "@/lib/email-validate";
+import { isNetworkError } from "@/lib/errors";
 import { defaultTickoweb, tickoweb } from "@/lib/integrations/tickoweb";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import {
@@ -214,11 +215,17 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   /* The title is passed on as a key, not a sentence: the UI language is only
      known further down (it comes from the loaded user), while failWith has to
      keep a stable identity for the effects that depend on it. ConfirmDialog
-     translates it at the point it is drawn. */
+     translates it at the point it is drawn. A dropped connection gets a key
+     for its message too, so it reads as words rather than the browser's
+     "TypeError: Load failed". */
   const failWith = useCallback((e: unknown, title?: string) => {
     console.error(e);
     setSaveErr(true);
-    setDialog({ message: String((e as Error)?.message || e), title, titleKey: "dlg.savefail" });
+    setDialog(
+      isNetworkError(e)
+        ? { messageKey: "dlg.offline", title, titleKey: "dlg.savefail" }
+        : { message: String((e as Error)?.message || e), title, titleKey: "dlg.savefail" },
+    );
   }, []);
 
   /* ----- load: one parallel read per table, assembled into the shape the UI expects ----- */
@@ -390,6 +397,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const [langOverride, setLangOverride] = useState<TeamLanguage | null>(null); // header switcher, this session only
   const uiLang: TeamLanguage = langOverride || me?.language || "nl";
   const t: TranslateFn = (key, params) => teamT(key, uiLang, params);
+  /* For an error quoted inside a longer message (a mail that didn't go out, a
+     list of what failed); failWith does the same for a dialog of its own. */
+  const errText = (e: unknown) => (isNetworkError(e) ? t("dlg.offline") : String((e as Error)?.message || e));
   const activeEditions = editions.filter((e) => e.active);
   const sortedEditions = [...editions].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
 
@@ -579,7 +589,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       } catch (mailErr) {
         console.error(mailErr);
         notify(
-          t("dlg.usermailfail", { name: userName(saved), error: (mailErr as Error).message }),
+          t("dlg.usermailfail", { name: userName(saved), error: errText(mailErr) }),
           t("dlg.mailnotsent"),
         );
       }
@@ -975,7 +985,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       notify(
         t("dlg.contactmailfail", {
           name: contactName(contact) || contact.email,
-          error: (e as Error).message,
+          error: errText(e),
         }),
         t("dlg.mailnotsent"),
       );
@@ -1164,7 +1174,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             await contactsApi.deleteContact(x.contact.id);
             gone.push(x.contact.id);
           } catch (e) {
-            failed.push(`${contactName(x.contact) || x.contact.email} — ${(e as Error).message}`);
+            failed.push(`${contactName(x.contact) || x.contact.email} — ${errText(e)}`);
           }
         }
         setData((d) => ({
@@ -1329,7 +1339,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               /* nothing stored */
             });
           } catch (e) {
-            failed.push(`${s.companyName} — ${(e as Error).message}`);
+            failed.push(`${s.companyName} — ${errText(e)}`);
           }
         }
         /* Whatever succeeded is dropped from view even when some failed, so the

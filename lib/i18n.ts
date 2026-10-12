@@ -434,6 +434,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.ok": ["OK", "OK"],
   "dlg.done": ["Klaar", "Done"],
   "dlg.savefail": ["Kon niet opslaan", "Couldn't save"],
+  "dlg.offline": [
+    "Geen verbinding met de server — controleer uw internetverbinding en probeer het opnieuw.",
+    "No connection to the server — check your internet connection and try again.",
+  ],
   // team accounts
   "dlg.resendlinktitle": ["Nieuwe link sturen", "Resend link"],
   "dlg.resendlink": ["Versturen", "Send"],

@@ -142,6 +142,12 @@
 .gr-celllink { background:none; border:none; padding:0; font:inherit; font-weight:700; color:inherit;
   text-align:left; cursor:pointer; }
 .gr-celllink:hover { color:var(--pink-deep); text-decoration:underline; }
+/* A contact's email or phone, mailing or dialling it (components/ui/ContactLink).
+   Underlined faintly so it reads as a link inside a row that is one itself. */
+.gr-contactlink { color:inherit; text-decoration:underline; text-decoration-color:#C9C4BC;
+  text-underline-offset:2px; }
+.gr-contactlink:hover { color:var(--pink-deep); text-decoration-color:currentColor; }
+.gr-phonelink { white-space:nowrap; }
 
 .gr-contactcard { border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:10px;
   background:#fff; padding:12px 14px 2px; margin-bottom:10px; }
@@ -494,6 +500,10 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
      back its margin and the page around it hardly moves. */
   .gr-back { margin:-12px 0 0; }
   .gr-landlang button { min-width:44px; min-height:44px; font-size:13px; }
+  /* A link in a table cell is one line of text tall. The padding reaches into
+     the cell's own and the margin takes it back, so the row is no taller but a
+     tap a little above or below the number still dials it. */
+  .gr-contactlink { display:inline-block; padding:9px 0; margin:-9px 0; }
 
   /* ---------- forms ----------
      16px is the threshold below which iOS Safari zooms the page in when a field

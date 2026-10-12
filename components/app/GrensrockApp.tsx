@@ -16,6 +16,7 @@ import ExampleImagesManager from "@/components/modals/ExampleImagesManager";
 import ImportModal, { type SponsorImportRow } from "@/components/modals/ImportModal";
 import NewContactModal from "@/components/modals/NewContactModal";
 import ConfirmDialog, { type DialogSpec } from "@/components/ui/ConfirmDialog";
+import { MailLink, PhoneLink } from "@/components/ui/ContactLink";
 import Modal from "@/components/ui/Modal";
 import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
@@ -2760,6 +2761,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                           <th>{t("c.name")}</th>
                           <th>{t("c.company")}</th>
                           <th>{t("c.email")}</th>
+                          <th>{t("c.phone")}</th>
                           <th>{t("sp.language")}</th>
                           <th>{t("c.portal")}</th>
                           <th>{t("c.receives")}</th>
@@ -2788,7 +2790,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               <strong>{contactName(c) || <span className="gr-muted">no name</span>}</strong>
                             </td>
                             <td>{sp.companyName}</td>
-                            <td>{c.email || <span className="gr-muted">—</span>}</td>
+                            <td>
+                              <MailLink email={c.email} />
+                            </td>
+                            <td>
+                              <PhoneLink phone={c.phone} />
+                            </td>
                             <td>{(c.language || "nl").toUpperCase()}</td>
                             <td onClick={(e) => e.stopPropagation()}>
                               {c.portalAccess ? (

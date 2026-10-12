@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import ContactForm from "@/components/forms/ContactForm";
 import VoucherEditor from "@/components/forms/VoucherEditor";
@@ -52,6 +52,10 @@ import type { ReturnExampleType } from "@/lib/constants";
 
 type DealWithEdition = Deal & { edition?: Edition };
 
+/* Where the banner's button scrolls to, and where the thank-you lands once
+   the agreement is accepted. */
+const acceptBoxId = (dealId: string) => `gr-accept-${dealId}`;
+
 export default function SponsorPortal({
   sponsor,
   asContact,
@@ -69,6 +73,7 @@ export default function SponsorPortal({
   onAcceptAgreement,
   onExit,
   preview,
+  children,
 }: {
   sponsor: Sponsor;
   asContact?: Contact | null;
@@ -78,16 +83,21 @@ export default function SponsorPortal({
   vatCfg?: VatLookupConfig;
   logos?: SponsorLogo[];
   onLogosChange?: (logos: SponsorLogo[]) => void;
-  onSaveSponsor: (id: string, patch: Partial<Sponsor>) => void;
-  onAssignVoucher: (id: string, patch: Partial<Voucher>) => void;
-  onRequestFormula: (editionId: string, formulaName: string, byName: string) => void;
-  onUpdateSplit: (dealId: string, pool: "drink" | "food", rows: VoucherRow[]) => void;
-  onUpdateExtra: (dealId: string, patch: Partial<Deal>) => void;
-  onAcceptAgreement: (dealId: string) => void;
+  /* Each write resolves to whether it worked. The failure itself is shown by
+     the caller (GrensrockApp's dialog, in this sponsor's language). */
+  onSaveSponsor: (id: string, patch: Partial<Sponsor>) => Promise<boolean>;
+  onAssignVoucher: (id: string, patch: Partial<Voucher>) => Promise<boolean>;
+  onRequestFormula: (editionId: string, formulaName: string, byName: string) => Promise<boolean>;
+  onUpdateSplit: (dealId: string, pool: "drink" | "food", rows: VoucherRow[]) => Promise<boolean>;
+  onUpdateExtra: (dealId: string, patch: Partial<Deal>) => Promise<boolean>;
+  onAcceptAgreement: (dealId: string) => Promise<boolean>;
   onExit: () => void;
   /* Someone from the team looking at this portal, rather than the sponsor.
      The screen is browsable but inert: see the note above the lock below. */
   preview?: boolean;
+  /* Drawn inside the portal's root, where the colours are defined: this is
+     where GrensrockApp puts the dialog that reports a failed save. */
+  children?: ReactNode;
 }) {
   /* Agreements on active editions still waiting for the sponsor's acceptance.
      Computed before the state so the portal can open straight on them. */
@@ -101,7 +111,6 @@ export default function SponsorPortal({
      waits for acceptance, so switching to it did nothing at all — and on a phone
      the agreement sits screens further down, under the voucher editors. The tab
      is rendered first (flushSync) so the box exists to scroll to. */
-  const acceptBoxId = (dealId: string) => `gr-accept-${dealId}`;
   const goToAccept = () => {
     flushSync(() => setSub("sponsoring"));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -120,15 +129,31 @@ export default function SponsorPortal({
   const [topUpDraft, setTopUpDraft] = useState<Record<string, NumLike>>({});
   const [assigning, setAssigning] = useState<Voucher | null>(null);
   const [assignDraft, setAssignDraft] = useState({ name: "", email: "" });
+  const openAssign = (v: Voucher) => {
+    setAssigning(v);
+    setAssignDraft({ name: v.recipientName || "", email: v.recipientEmail || "" });
+  };
+  /* Agreements accepted while this page is open, for the thank-you that
+     takes the place of the accept box. */
+  const [acceptedNow, setAcceptedNow] = useState<string[]>([]);
+  /* The banner above goes once nothing is left to accept, which moves the
+     page up under a sponsor's thumb; this brings the thank-you back into view
+     (and focus, as the button that had it is gone). */
+  const lastAccepted = acceptedNow[acceptedNow.length - 1];
+  useEffect(() => {
+    if (!lastAccepted) return;
+    const el = document.getElementById(acceptBoxId(lastAccepted));
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+  }, [lastAccepted]);
   /* A sponsor only sees vouchers once they have actually been created and sent.
      Cancelled ones stay visible if they had been sent, so a disappearance is never silent. */
   const myVouchers = vouchers
     .filter((v) => v.sponsorId === sponsor.id)
     .filter((v) => v.status === "sent" || (v.status === "cancelled" && v.sentAt))
     .sort((a, b) => (a.type || "").localeCompare(b.type || ""));
-  useEffect(() => {
-    if (assigning) setAssignDraft({ name: assigning.recipientName || "", email: assigning.recipientEmail || "" });
-  }, [assigning]);
 
   const [s, setS] = useState<Sponsor>({ ...sponsor });
   /* Contacts come from the prop, not from `s`. They are saved the moment they
@@ -137,14 +162,47 @@ export default function SponsorPortal({
      RPC reads as "no id" and inserts a second time. `s` keeps only the fields
      behind the Save button. */
   const contacts = sponsorContacts(sponsor);
-  const [saved, setSaved] = useState(false);
-  const set = (k: keyof Sponsor) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* "Saved" is a fact about the fields, not about a click: it shows while
+     they still hold what the last save that came back OK sent. Typing on
+     during a slow save, the newer text is not called saved. */
+  const [savedAs, setSavedAs] = useState<string | null>(null);
+  const saved = savedAs === JSON.stringify(s);
+  const set = (k: keyof Sponsor) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setS({ ...s, [k]: e.target.value } as Sponsor);
-    setSaved(false);
-  };
   /* Portal language follows the contact who logged in */
   const lang: Language = asContact?.language || primaryContact(sponsor)?.language || "nl";
   const T = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+  const WORKING = T("Bezig…", "En cours…", "Working…");
+
+  /* ---- writes: busy while out, done only once they are back ----
+     On mobile data a save can take seconds or never arrive. A button stays
+     busy (and disabled, so a second tap isn't a second request) until the
+     answer is in, a form stays open when it is no, and nothing says "saved"
+     before the server has. Keyed, so two different things can be out at once. */
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const track = async (key: string, task: () => Promise<boolean>): Promise<boolean> => {
+    setBusy((b) => ({ ...b, [key]: true }));
+    try {
+      return await task();
+    } finally {
+      setBusy((b) => {
+        const next = { ...b };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+  /* The voucher splits, the top-up and the acceptance all rewrite the deal and
+     read it back, so they go out one at a time: side by side, on a slow line,
+     an older read could land last and put back a split already replaced. In
+     line, accepting also waits for a split saved just before it, so the terms
+     it freezes are the ones on screen. */
+  const dealWrites = useRef<Promise<unknown>>(Promise.resolve());
+  const inOrder = (task: () => Promise<boolean>): Promise<boolean> => {
+    const run = dealWrites.current.then(task);
+    dealWrites.current = run.catch(() => {});
+    return run;
+  };
 
   const history: DealWithEdition[] = deals
     .filter((d) => d.sponsorId === sponsor.id)
@@ -186,17 +244,20 @@ export default function SponsorPortal({
     const r = validateEmail(c.email);
     return !r || r.valid;
   });
-  const save = () => {
+  const save = async () => {
     if ((vatRes && !vatRes.valid) || !contactsOk) return; // button is disabled, extra guard
     // Sponsors can edit their own info, never team-side fields
     const { responsible: _responsible, id: _id, ...rest } = s;
-    onSaveSponsor(sponsor.id, {
-      ...rest,
-      vatNumber: vatToStore(s.vatNumber),
-      /* Deliberately no contacts: they have their own save path, and sending
-         them here re-upserted the whole list on every company-details save. */
-    });
-    setSaved(true);
+    const sent = JSON.stringify(s);
+    const ok = await track("info", () =>
+      onSaveSponsor(sponsor.id, {
+        ...rest,
+        vatNumber: vatToStore(s.vatNumber),
+        /* Deliberately no contacts: they have their own save path, and sending
+           them here re-upserted the whole list on every company-details save. */
+      }),
+    );
+    if (ok) setSavedAs(sent);
   };
 
   /* Contacts are saved straight away, not via the Save button */
@@ -205,11 +266,9 @@ export default function SponsorPortal({
      carries a client-generated id that the database has already replaced. */
   const saveContact = (c: Contact) => {
     const next = contacts.some((x) => x.id === c.id) ? contacts.map((x) => (x.id === c.id ? c : x)) : [...contacts, c];
-    onSaveSponsor(sponsor.id, { contacts: next });
+    return onSaveSponsor(sponsor.id, { contacts: next });
   };
-  const removeContact = (cid: string) => {
-    onSaveSponsor(sponsor.id, { contacts: contacts.filter((x) => x.id !== cid) });
-  };
+  const removeContact = (cid: string) => onSaveSponsor(sponsor.id, { contacts: contacts.filter((x) => x.id !== cid) });
 
   const TABS: Array<[string, string]> = [
     ["info", T("Gegevens", "Données", "Information")],
@@ -226,8 +285,12 @@ export default function SponsorPortal({
 
   const saveBar = (
     <div className="gr-actions" style={{ justifyContent: "flex-start" }}>
-      <button className="gr-btn" disabled={!!(vatRes && !vatRes.valid) || !contactsOk} onClick={save}>
-        {T("Gegevens opslaan", "Enregistrer", "Save details")}
+      <button
+        className="gr-btn"
+        disabled={!!(vatRes && !vatRes.valid) || !contactsOk || busy.info}
+        onClick={save}
+      >
+        {busy.info ? WORKING : T("Gegevens opslaan", "Enregistrer", "Save details")}
       </button>
       {saved && <Tag tone="green">{T("Opgeslagen ✓", "Enregistré ✓", "Saved ✓")}</Tag>}
     </div>
@@ -352,10 +415,7 @@ export default function SponsorPortal({
                     current={s}
                     /* entityType is deliberately left alone: the portal RPC can't
                        write it (see update_sponsor_info in 0004_rpc.sql). */
-                    onApply={(patch) => {
-                      setS((prev) => ({ ...prev, ...patch }));
-                      setSaved(false);
-                    }}
+                    onApply={(patch) => setS((prev) => ({ ...prev, ...patch }))}
                   />
                 </Field>
               </div>
@@ -389,10 +449,7 @@ export default function SponsorPortal({
               >
                 <select
                   value={s.voucherContactId || ""}
-                  onChange={(e) => {
-                    setS({ ...s, voucherContactId: e.target.value });
-                    setSaved(false);
-                  }}
+                  onChange={(e) => setS({ ...s, voucherContactId: e.target.value })}
                 >
                   <option value="">
                     {T("Automatisch (eerste contactpersoon)", "Automatique (premier contact)", "Automatic (first contact)")}
@@ -410,10 +467,7 @@ export default function SponsorPortal({
                 <input
                   type="checkbox"
                   checked={!!s.refRequired}
-                  onChange={(e) => {
-                    setS({ ...s, refRequired: e.target.checked });
-                    setSaved(false);
-                  }}
+                  onChange={(e) => setS({ ...s, refRequired: e.target.checked })}
                 />
                 {T(
                   "Wij hebben een referentie (bestelbon, PO-nummer, kostenplaats) nodig op de factuur",
@@ -491,8 +545,12 @@ export default function SponsorPortal({
                             {c.portalAccess ? (
                               <Tag tone="green">{T("actief", "actif", "active")}</Tag>
                             ) : c.email ? (
-                              <button className="gr-mini" onClick={() => saveContact({ ...c, portalAccess: true })}>
-                                {T("Uitnodigen", "Inviter", "Invite")}
+                              <button
+                                className="gr-mini"
+                                disabled={busy[`invite:${c.id}`]}
+                                onClick={() => void track(`invite:${c.id}`, () => saveContact({ ...c, portalAccess: true }))}
+                              >
+                                {busy[`invite:${c.id}`] ? WORKING : T("Uitnodigen", "Inviter", "Invite")}
                               </button>
                             ) : (
                               <span className="gr-muted">{T("geen e-mail", "pas d'e-mail", "no email")}</span>
@@ -526,16 +584,17 @@ export default function SponsorPortal({
               onClose={() => setEditingContact(null)}
               lang={lang}
             >
+              {/* Closes once the save is back, not before: a failed save leaves
+                  the form, and what was typed in it, open to try again. */}
               <ContactForm
                 initial={editingContact.id ? (editingContact as Contact) : undefined}
                 lang={lang}
-                onSave={(c) => {
-                  saveContact(c);
-                  setEditingContact(null);
+                busy={busy["contact:save"] ? "save" : busy["contact:delete"] ? "delete" : null}
+                onSave={async (c) => {
+                  if (await track("contact:save", () => saveContact(c))) setEditingContact(null);
                 }}
-                onDelete={(cid) => {
-                  removeContact(cid);
-                  setEditingContact(null);
+                onDelete={async (cid) => {
+                  if (await track("contact:delete", () => removeContact(cid))) setEditingContact(null);
                 }}
                 onCancel={() => setEditingContact(null)}
               />
@@ -645,6 +704,7 @@ export default function SponsorPortal({
                         <button
                           className="gr-btn"
                           disabled={
+                            busy[`topup:${d.id}`] ||
                             Number(topUpDraft[d.id] ?? d.foodDrinkValue) === Number(d.foodDrinkValue) ||
                             Number(topUpDraft[d.id] ?? d.foodDrinkValue) < Number(d.baseFoodDrink || 0)
                           }
@@ -653,10 +713,10 @@ export default function SponsorPortal({
                               Number(d.baseFoodDrink || 0),
                               Number(topUpDraft[d.id] ?? d.foodDrinkValue) || 0,
                             );
-                            onUpdateExtra(d.id, { foodDrinkValue: val });
+                            void track(`topup:${d.id}`, () => inOrder(() => onUpdateExtra(d.id, { foodDrinkValue: val })));
                           }}
                         >
-                          {T("Bijwerken", "Mettre à jour", "Update")}
+                          {busy[`topup:${d.id}`] ? WORKING : T("Bijwerken", "Mettre à jour", "Update")}
                         </button>
                       </div>
                       {foodDrinkExtra(d) > 0 && (
@@ -685,7 +745,8 @@ export default function SponsorPortal({
                             amount={drinkPoolValue(d)}
                             rows={d.drinkVouchers || []}
                             lang={lang}
-                            onChange={(rows) => onUpdateSplit(d.id, "drink", rows)}
+                            saveOnBlur
+                            onChange={(rows) => inOrder(() => onUpdateSplit(d.id, "drink", rows))}
                           />
                         </>
                       )}
@@ -704,7 +765,8 @@ export default function SponsorPortal({
                             amount={d.foodDrinkValue}
                             rows={d.foodDrinkVouchers || []}
                             lang={lang}
-                            onChange={(rows) => onUpdateSplit(d.id, "food", rows)}
+                            saveOnBlur
+                            onChange={(rows) => inOrder(() => onUpdateSplit(d.id, "food", rows))}
                           />
                         </>
                       )}
@@ -724,6 +786,29 @@ export default function SponsorPortal({
                   )}
                 </p>
               ))}
+
+              {/* The thank-you takes the accept box's place, and its id, so a
+                  sponsor who scrolled down to accept sees the answer right there. */}
+              {acceptedNow.map((id) => {
+                const d = history.find((h) => h.id === id);
+                if (!d?.acceptance) return null;
+                const when = fmtDateTime(d.acceptance.acceptedAt);
+                const ed = d.edition?.name || "";
+                return (
+                  <div key={id} id={acceptBoxId(id)} className="gr-acceptbox gr-accepted" role="status" tabIndex={-1}>
+                    <h4 className="gr-h3">
+                      ✓ {T("Bedankt, uw overeenkomst is aanvaard", "Merci, votre accord est accepté", "Thank you, your agreement is accepted")}
+                    </h4>
+                    <p className="gr-muted" style={{ margin: 0 }}>
+                      {T(
+                        `Uw akkoord voor ${ed} is genoteerd op ${when}. U vindt het terug in het overzicht hieronder.`,
+                        `Votre accord pour ${ed} a été enregistré le ${when}. Vous le retrouvez dans l'aperçu ci-dessous.`,
+                        `Your acceptance for ${ed} was recorded on ${when}. You'll find it in the overview below.`,
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
 
               {/* Below the top-up and the voucher split on purpose, though on a
                   phone that is a long way down (the banner scrolls here). Both
@@ -810,10 +895,13 @@ export default function SponsorPortal({
                   <div className="gr-actions" style={{ justifyContent: "flex-start" }}>
                     <button
                       className="gr-btn"
-                      disabled={!readTerms[d.id] || !asContact}
-                      onClick={() => onAcceptAgreement(d.id)}
+                      disabled={!readTerms[d.id] || !asContact || busy[`accept:${d.id}`]}
+                      onClick={async () => {
+                        const ok = await track(`accept:${d.id}`, () => inOrder(() => onAcceptAgreement(d.id)));
+                        if (ok) setAcceptedNow((ids) => [...ids, d.id]);
+                      }}
                     >
-                      {T("Lezen en aanvaarden", "Lire et accepter", "Read and accept")}
+                      {busy[`accept:${d.id}`] ? WORKING : T("Lezen en aanvaarden", "Lire et accepter", "Read and accept")}
                     </button>
                     {!asContact && (
                       <span className="gr-muted">
@@ -954,12 +1042,15 @@ export default function SponsorPortal({
                 </button>
                 <button
                   className="gr-btn"
-                  onClick={() => {
-                    onRequestFormula(chosen.editionId, chosen.name, contactName(asContact) || sponsor.companyName);
-                    setChosen(null);
+                  disabled={busy.formula}
+                  onClick={async () => {
+                    const ok = await track("formula", () =>
+                      onRequestFormula(chosen.editionId, chosen.name, contactName(asContact) || sponsor.companyName),
+                    );
+                    if (ok) setChosen(null);
                   }}
                 >
-                  {T("Bevestig mijn keuze", "Confirmer mon choix", "Confirm my choice")}
+                  {busy.formula ? WORKING : T("Bevestig mijn keuze", "Confirmer mon choix", "Confirm my choice")}
                 </button>
               </div>
             </Modal>
@@ -1027,7 +1118,7 @@ export default function SponsorPortal({
                                 </a>
                               )}
                               {v.status !== "cancelled" && (
-                                <button className="gr-mini" onClick={() => setAssigning(v)}>
+                                <button className="gr-mini" onClick={() => openAssign(v)}>
                                   {v.recipientEmail
                                     ? T("Wijzig", "Modifier", "Change")
                                     : T("Doorgeven", "Transmettre", "Pass on")}
@@ -1077,12 +1168,15 @@ export default function SponsorPortal({
                 {assigning.recipientEmail && (
                   <button
                     className="gr-btn-ghost gr-danger"
-                    onClick={() => {
-                      onAssignVoucher(assigning.id, { recipientName: "", recipientEmail: "" });
-                      setAssigning(null);
+                    disabled={busy.assign || busy.unassign}
+                    onClick={async () => {
+                      const ok = await track("unassign", () =>
+                        onAssignVoucher(assigning.id, { recipientName: "", recipientEmail: "" }),
+                      );
+                      if (ok) setAssigning(null);
                     }}
                   >
-                    {T("Terugnemen", "Reprendre", "Take back")}
+                    {busy.unassign ? WORKING : T("Terugnemen", "Reprendre", "Take back")}
                   </button>
                 )}
                 <button className="gr-btn-ghost" onClick={() => setAssigning(null)}>
@@ -1090,22 +1184,27 @@ export default function SponsorPortal({
                 </button>
                 <button
                   className="gr-btn"
-                  disabled={!validateEmail(assignDraft.email)?.valid || !assignDraft.name.trim()}
-                  onClick={() => {
-                    onAssignVoucher(assigning.id, {
-                      recipientName: assignDraft.name.trim(),
-                      recipientEmail: emailToStore(assignDraft.email),
-                    });
-                    setAssigning(null);
+                  disabled={
+                    !validateEmail(assignDraft.email)?.valid || !assignDraft.name.trim() || busy.assign || busy.unassign
+                  }
+                  onClick={async () => {
+                    const ok = await track("assign", () =>
+                      onAssignVoucher(assigning.id, {
+                        recipientName: assignDraft.name.trim(),
+                        recipientEmail: emailToStore(assignDraft.email),
+                      }),
+                    );
+                    if (ok) setAssigning(null);
                   }}
                 >
-                  {T("Doorgeven", "Transmettre", "Pass on")}
+                  {busy.assign ? WORKING : T("Doorgeven", "Transmettre", "Pass on")}
                 </button>
               </div>
             </Modal>
           )}
         </div>
       </main>
+      {children}
     </div>
   );
 }

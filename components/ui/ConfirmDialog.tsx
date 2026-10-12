@@ -8,7 +8,10 @@ export interface DialogSpec {
   title?: string;
   /** Translated by this component, for callers that have no `t` of their own. */
   titleKey?: string;
-  message: string;
+  message?: string;
+  /** Same idea for the body: wins over `message`, filled with `messageParams`. */
+  messageKey?: string;
+  messageParams?: Record<string, string | number>;
   confirmLabel?: string;
   danger?: boolean;
   onConfirm?: () => void;
@@ -26,10 +29,10 @@ export default function ConfirmDialog({
   lang?: Language;
 }) {
   if (!dialog) return null;
-  const { title, titleKey, message, confirmLabel, danger, onConfirm } = dialog;
+  const { title, titleKey, message, messageKey, messageParams, confirmLabel, danger, onConfirm } = dialog;
   return (
     <Modal title={title || t(titleKey || "dlg.confirm")} onClose={onClose} lang={lang}>
-      <p style={{ whiteSpace: "pre-line", margin: "0 0 8px" }}>{message}</p>
+      <p style={{ whiteSpace: "pre-line", margin: "0 0 8px" }}>{messageKey ? t(messageKey, messageParams) : message}</p>
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onClose}>
           {onConfirm ? t("common.cancel") : t("dlg.ok")}

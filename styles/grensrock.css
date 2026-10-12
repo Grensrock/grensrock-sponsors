@@ -486,6 +486,14 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   .gr-rowbtns .gr-mini { margin-left:0; }
   .gr-subnav button { padding:11px 12px; min-height:44px; }
   .gr-x { min-width:44px; min-height:44px; font-size:18px; }
+  /* Text-only buttons have no box to aim at, so their height is the line of
+     text — 17px. The sign-in page stacks three of them, and a language button
+     sits alone in a corner. The height grows, not the look. */
+  .gr-linkbtn, .gr-back { display:inline-flex; align-items:center; min-height:44px; text-align:left; }
+  /* The back link's new height is empty space round its text, so it gives
+     back its margin and the page around it hardly moves. */
+  .gr-back { margin:-12px 0 0; }
+  .gr-landlang button { min-width:44px; min-height:44px; font-size:13px; }
 
   /* ---------- forms ----------
      16px is the threshold below which iOS Safari zooms the page in when a field

@@ -274,7 +274,8 @@ export default function SponsorDetail({
                             {t("pv.portalshort")}
                           </button>
                         )}
-                        {c.email && (
+                        {/* The invitation points at the portal, which only lets in contacts with access. */}
+                        {c.email && c.portalAccess && (
                           <CopyInviteButton
                             sponsor={sponsor}
                             contact={c}

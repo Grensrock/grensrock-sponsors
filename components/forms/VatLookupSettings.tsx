@@ -27,18 +27,8 @@ export default function VatLookupSettings({
           <option value="manual">{t("vl.off")}</option>
         </select>
       </Field>
-      {c.mode === "cbe" && (
-        <p className="gr-blockbanner">
-          A VAT number that passes the format and check-digit test is looked up in the Crossroads Bank for Enterprises.
-          If the company is there, its official name and registered address are filled in — fields you already filled in
-          yourself are never overwritten without asking. The registry only covers Belgium; foreign VAT numbers are still
-          format-checked, but their details have to be typed in.
-        </p>
-      )}
-      <p className="gr-muted">
-        The VAT number itself is always validated locally, regardless of this setting. Lookups run through the server, so
-        the registry API key never reaches a browser.
-      </p>
+      {c.mode === "cbe" && <p className="gr-blockbanner">{t("vl.explain")}</p>}
+      <p className="gr-muted">{t("vl.local")}</p>
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onCancel}>
           {t("common.cancel")}

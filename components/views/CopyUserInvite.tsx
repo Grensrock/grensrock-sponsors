@@ -11,7 +11,7 @@ export default function CopyUserInvite({ user, t = (k) => k }: { user: User; t?:
       className="gr-mini"
       onClick={async () => {
         try {
-          await navigator.clipboard.writeText(buildUserInvite(user));
+          await navigator.clipboard.writeText(buildUserInvite(user, window.location.origin));
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         } catch {

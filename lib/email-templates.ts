@@ -6,8 +6,17 @@ import { userName } from "@/lib/users";
 import { drinkPoolValue, voucherText } from "@/lib/vouchers";
 import type { Contact, Deal, Edition, Language, Sponsor, User } from "@/types";
 
-/* ---------- portal invitation text ---------- */
-export function buildInvitation(sponsor: Sponsor, contact?: Contact | null, responsible?: string) {
+/* ---------- portal invitation text ----------
+   A personal note the team copies and sends themselves. It doesn't replace
+   the email that switching on portal access sends (the link to choose a
+   password); it tells the contact that email is coming and what to do with
+   it. The button names quoted here are the sign-in page's own. */
+export function buildInvitation(
+  sponsor: Sponsor,
+  contact: Contact | null | undefined,
+  appUrl: string,
+  responsible?: string,
+) {
   const c = contact || primaryContact(sponsor) || ({} as Partial<Contact>);
   const lang: Language = c.language || "nl";
   const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
@@ -16,8 +25,11 @@ export function buildInvitation(sponsor: Sponsor, contact?: Contact | null, resp
 
 Via onze sponsortool kan u de gegevens van ${sponsor.companyName} voor Grensrock zelf nakijken en aanpassen, en uw logo opladen (voor de folder, ledboarding, website, ...).
 
-Link: [link naar de sponsortool]
-Meld u aan met uw e-mailadres (${c.email || "het adres dat wij van u hebben"}): u krijgt een aanmeldlink per e-mail, een wachtwoord is niet nodig.
+Link: ${appUrl}
+
+U krijgt van ons een e-mail met een link om een wachtwoord te kiezen. Daarna meldt u zich aan met uw e-mailadres (${c.email || "het adres dat wij van u hebben"}) en dat wachtwoord.
+Liever zonder wachtwoord? Kies op de aanmeldpagina "Stuur me een aanmeldlink"; die link meldt u meteen aan.
+Geen e-mail gekregen, of is de link verlopen? Kies dan "Wachtwoord vergeten of nog geen wachtwoord?".
 
 Alvast bedankt!
 ${responsible || "Het Grensrock-team"}`,
@@ -25,8 +37,11 @@ ${responsible || "Het Grensrock-team"}`,
 
 Via notre outil sponsors, vous pouvez vérifier et modifier vous-même les données de ${sponsor.companyName} pour Grensrock, et télécharger votre logo (pour le dépliant, le ledboarding, le site web, ...).
 
-Lien : [lien vers l'outil sponsors]
-Connectez-vous avec votre adresse e-mail (${c.email || "l'adresse que nous avons"}) : vous recevrez un lien de connexion par e-mail, aucun mot de passe n'est nécessaire.
+Lien : ${appUrl}
+
+Vous recevrez de notre part un e-mail avec un lien pour choisir un mot de passe. Ensuite, connectez-vous avec votre adresse e-mail (${c.email || "l'adresse que nous avons"}) et ce mot de passe.
+Vous préférez vous passer de mot de passe ? Choisissez « Envoyez-moi un lien de connexion » sur la page de connexion ; ce lien vous connecte directement.
+Pas reçu d'e-mail, ou le lien a expiré ? Choisissez alors « Mot de passe oublié, ou pas encore de mot de passe ? ».
 
 Merci d'avance !
 ${responsible || "L'équipe Grensrock"}`,
@@ -34,8 +49,11 @@ ${responsible || "L'équipe Grensrock"}`,
 
 Through our sponsor tool you can review and update ${sponsor.companyName}'s details for Grensrock yourself, and upload your logo (for the folder, LED boarding, website, ...).
 
-Link: [link to the sponsor tool]
-Log in with your email address (${c.email || "the address we have on file"}): you'll get a login link by email, no password needed.
+Link: ${appUrl}
+
+You'll get an email from us with a link to choose a password. After that, sign in with your email address (${c.email || "the address we have on file"}) and that password.
+Rather not use a password? Choose "Send me a sign-in link" on the sign-in page; that link signs you straight in.
+No email, or has the link expired? Then choose "Forgot your password, or don't have one yet?".
 
 Thank you!
 ${responsible || "The Grensrock team"}`,
@@ -316,14 +334,29 @@ Grensrock`,
   return { subject, body };
 }
 
-export function buildUserInvite(user: User) {
-  return `Hi ${userName(user)},
+/* ---------- team invitation text ----------
+   Copied from the Team tab and sent by hand, in the account's own language
+   (NL/EN, like buildAccessGranted below). Team members sign in with Google;
+   there is no password of theirs to mention. */
+export function buildUserInvite(user: User, appUrl: string) {
+  if (user.language === "en") {
+    return `Hi ${userName(user)},
 
 You have access to the Grensrock sponsor tool.
 
-Link: [link to the tool]
-Log in with your email address (${user.email}) and the password you set through the invitation email from Grensrock.
-Your role: ${user.role === "admin" ? "admin (full access)" : "user (sponsors & agreements)"}
+Link: ${appUrl}
+Sign in with your Google account (${user.email}) using "Sign in with Google". There is no separate password for the tool.
+Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
+
+Grensrock`;
+  }
+  return `Dag ${userName(user)},
+
+U hebt toegang tot de Grensrock-sponsortool.
+
+Link: ${appUrl}
+Meld u aan met uw Google-account (${user.email}) via "Aanmelden met Google". Een apart wachtwoord voor de tool is er niet.
+Uw rol: ${user.role === "admin" ? "admin — alles, inclusief edities, facturatie en teamaccounts" : "user — sponsors en overeenkomsten bekijken en bijwerken"}
 
 Grensrock`;
 }

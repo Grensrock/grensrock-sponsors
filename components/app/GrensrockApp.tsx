@@ -2235,7 +2235,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                   <div className="gr-cardhead">
                     <div>
                       <h3 className="gr-h3">
-                        {ed.name} {ed.active ? <Tag tone="green">active</Tag> : <Tag>inactive</Tag>}
+                        {ed.name} {ed.active ? <Tag tone="green">{t("ov.active")}</Tag> : <Tag>{t("ov.inactive")}</Tag>}
                       </h3>
                       <p className="gr-muted">
                         {ed.startDate}
@@ -2252,7 +2252,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                             {t("common.edit")}
                           </button>
                           <button className="gr-mini" onClick={() => toggleEdition(ed.id)}>
-                            {ed.active ? "Deactivate" : "Activate"}
+                            {ed.active ? t("ed.deactivate") : t("c.activate")}
                           </button>
                           <button className="gr-mini gr-danger" onClick={() => deleteEdition(ed.id)}>
                             {t("common.delete")}
@@ -2269,7 +2269,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                           className="gr-mini"
                           onClick={() => setModal({ type: "formula", payload: { editionId: ed.id } })}
                         >
-                          + Formula
+                          {t("ed.addformula")}
                         </button>
                       )}
                     </div>
@@ -2863,7 +2863,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               />
                             </td>
                             <td>
-                              <strong>{contactName(c) || <span className="gr-muted">no name</span>}</strong>
+                              <strong>{contactName(c) || <span className="gr-muted">{t("c.noname")}</span>}</strong>
                             </td>
                             <td>{sp.companyName}</td>
                             <td>
@@ -2876,7 +2876,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                             <td onClick={(e) => e.stopPropagation()}>
                               {c.portalAccess ? (
                                 <>
-                                  <Tag tone="green">active</Tag>{" "}
+                                  <Tag tone="green">{t("c.active")}</Tag>{" "}
                                   <button
                                     className="gr-mini"
                                     title={t("tt.resendlink")}
@@ -2893,7 +2893,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   {t("c.activate")}
                                 </button>
                               ) : (
-                                <span className="gr-muted">no email</span>
+                                <span className="gr-muted">{t("c.noemail")}</span>
                               )}
                             </td>
                             <td>
@@ -2912,10 +2912,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     </table>
                   </div>
                 )}
-                <p className="gr-muted" style={{ marginTop: 10 }}>
-                  Tip: filter on a communication type before exporting — the file then contains exactly the mailing
-                  list you need (e.g. everyone who wants invoicing correspondence).
-                </p>
+                <p className="gr-muted" style={{ marginTop: 10 }}>{t("ct.tip")}</p>
               </section>
             );
           })()}
@@ -3576,9 +3573,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       {t("common.clear")}
                     </button>
                   )}
-                  <span className="gr-muted">
-                    {rows.length} of {log.length} entries
-                  </span>
+                  <span className="gr-muted">{t("au.count", { n: rows.length, total: log.length })}</span>
                 </div>
 
                 {rows.length === 0 ? (
@@ -3617,10 +3612,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     </table>
                   </div>
                 )}
-                <p className="gr-muted" style={{ marginTop: 10 }}>
-                  Changes are recorded on the server; the 1000 most recent ones are shown here. Export if you need a
-                  copy outside the tool.
-                </p>
+                <p className="gr-muted" style={{ marginTop: 10 }}>{t("au.note")}</p>
               </section>
             );
           })()}
@@ -3705,11 +3697,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               </div>
             )}
             {users.length === 0 ? (
-              <p className="gr-empty">
-                No accounts yet. Someone with a @grensrock.be Google account can sign in to register — their request
-                shows up here for an admin to grant. Adding someone here instead skips that step, and is the only way
-                in for an account outside that domain.
-              </p>
+              <p className="gr-empty">{t("tm.none")}</p>
             ) : (
               <div className="gr-tablewrap">
                 <table className="gr-table gr-clickable">
@@ -3726,12 +3714,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       <tr key={u.id} title={t("tt.editaccount")} onClick={() => setModal({ type: "user", payload: u })}>
                         <td>
                           <strong>{userName(u)}</strong>
-                          {u.id === userId && <span className="gr-muted"> · you</span>}
+                          {u.id === userId && <span className="gr-muted"> · {t("tm.you")}</span>}
                         </td>
                         <td>
-                          {u.email ? u.email : <span style={{ color: "var(--red)" }}>⚠ no email — can&apos;t log in</span>}
+                          {u.email ? u.email : <span style={{ color: "var(--red)" }}>{t("tm.noemail")}</span>}
                         </td>
-                        <td>{isAdmin(u) ? <Tag tone="green">admin</Tag> : <Tag>user</Tag>}</td>
+                        <td>{isAdmin(u) ? <Tag tone="green">{t("tm.admin")}</Tag> : <Tag>{t("tm.user")}</Tag>}</td>
                         <td className="gr-rowbtns" onClick={(e) => e.stopPropagation()}>
                           <CopyUserInvite user={u} t={t} />
                           <button className="gr-mini gr-danger" onClick={() => deleteUser(u.id)}>
@@ -3750,9 +3738,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               <strong>{t("tm.user")}</strong> {t("tm.roleuser")}
             </p>
             <div className="gr-portalbox" style={{ marginTop: 14 }}>
-              Everyone logs in with their own email address and password.
+              {t("tm.signin")}
               <p className="gr-muted" style={{ margin: "6px 0 0" }}>
-                A new team account gets an invitation email to set that password.
+                {t("tm.signin2")}
               </p>
             </div>
           </section>
@@ -3949,6 +3937,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             vatCfg={data.settings?.vatLookup || defaultVatLookup}
             existingSponsors={sponsors}
             t={t}
+            lang={uiLang}
             onSave={saveSponsor}
             onCancel={() => setModal(null)}
           />
@@ -3958,9 +3947,11 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         <Modal
           title={t(modal.payload.contact ? "md.editcontact" : "md.newcontact")}
           onClose={() => setModal(null)}
+          lang={uiLang}
         >
           <ContactForm
             initial={modal.payload.contact}
+            lang={uiLang}
             onSave={(c) => saveContact(modal.payload.sponsorId, c)}
             onDelete={(cid) => deleteContact(modal.payload.sponsorId, cid)}
             onCancel={() => setModal(null)}
@@ -4010,20 +4001,17 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               </dl>
               <h4 className="gr-subhead">{t("ac.termsaccepted")}</h4>
               <ul className="gr-benefitlist">
-                {[...ticketLines(snap, "en"), ...visibilityLines(snap, "en")].map((line, i) => (
+                {[...ticketLines(snap, uiLang), ...visibilityLines(snap, uiLang)].map((line, i) => (
                   <li key={i}>{line}</li>
                 ))}
               </ul>
-              {(snap.notes || "").trim() && <p className="gr-muted">Notes: {snap.notes}</p>}
+              {(snap.notes || "").trim() && <p className="gr-muted">{t("c.notes")}: {snap.notes}</p>}
               {changed && (
                 <>
-                  <p className="gr-blockbanner">
-                    The agreement has been modified since the sponsor accepted it. The snapshot above is what they
-                    agreed to; the current terms are below. Ask them to accept again if the change is material.
-                  </p>
+                  <p className="gr-blockbanner">{t("ac.changedbanner")}</p>
                   <h4 className="gr-subhead">{t("ac.currentterms")}</h4>
                   <ul className="gr-benefitlist">
-                    {[...ticketLines(d, "en"), ...visibilityLines(d, "en")].map((line, i) => (
+                    {[...ticketLines(d, uiLang), ...visibilityLines(d, uiLang)].map((line, i) => (
                       <li key={i}>{line}</li>
                     ))}
                   </ul>

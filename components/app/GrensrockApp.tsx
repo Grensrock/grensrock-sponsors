@@ -45,6 +45,7 @@ import { supabase } from "@/lib/supabase/client";
 import { removeAllLogoFiles } from "@/lib/supabase/storage";
 import {
   ADMIN_TABS,
+  AUDIT_ENTITIES,
   COMM_LABELS,
   FOLDER_OPTS,
   LANGS,
@@ -3558,9 +3559,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     onChange={(e) => setAuEntity(e.target.value)}
                   >
                     <option value="">{t("c.alltypes")}</option>
-                    {Object.entries(ENTITY_LABEL).map(([k, l]) => (
+                    {AUDIT_ENTITIES.map((k) => (
                       <option key={k} value={k}>
-                        {l}
+                        {ENTITY_LABEL(k)}
                       </option>
                     ))}
                   </select>

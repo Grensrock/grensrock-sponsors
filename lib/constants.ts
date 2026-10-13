@@ -1,4 +1,5 @@
 import type {
+  AuditEntity,
   Contact,
   Deal,
   Edition,
@@ -272,3 +273,6 @@ export const OP_MAAT = "Op maat";
 
 /* ---------- audit ---------- */
 export const AUDIT_MAX = 1000;
+
+/* Every entity the log records (audit_log's check constraint), in the order the type filter lists them. */
+export const AUDIT_ENTITIES: AuditEntity[] = ["sponsor", "contact", "agreement", "edition", "vouchers", "account"];

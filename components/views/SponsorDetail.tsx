@@ -127,10 +127,10 @@ export default function SponsorDetail({
           <h2 className="gr-h2">{sponsor.companyName}</h2>
           <p className="gr-muted">
             {sponsor.entityType === "legal" ? t("c.legal") : t("c.person")}
-            {sponsor.vatNumber && <> · VAT {sponsor.vatNumber}</>}
-            {responsibleName(sponsor, users) && <> · Managed by {responsibleName(sponsor, users)}</>}
+            {sponsor.vatNumber && <> · {t("c.vat")} {sponsor.vatNumber}</>}
+            {responsibleName(sponsor, users) && <> · {t("sd.managedby")} {responsibleName(sponsor, users)}</>}
           </p>
-          {sponsor.refRequired && <Tag tone="amber">reference required on contract &amp; invoice</Tag>}
+          {sponsor.refRequired && <Tag tone="amber">{t("sd.reftag")}</Tag>}
         </div>
         <div className="gr-detail-btns">
           <button className="gr-btn-ghost" onClick={onEdit}>
@@ -178,7 +178,7 @@ export default function SponsorDetail({
                 <dt>{t("c.address")}</dt>
                 <dd>{formatAddress(sponsor) || "—"}</dd>
                 <dt>{t("c.responsible")}</dt>
-                <dd>{responsibleName(sponsor, users) || "— not assigned —"}</dd>
+                <dd>{responsibleName(sponsor, users) || t("sf.noresp")}</dd>
                 <dt>{t("vc.receiver")}</dt>
                 <dd>
                   {(() => {
@@ -274,7 +274,8 @@ export default function SponsorDetail({
                             {t("pv.portalshort")}
                           </button>
                         )}
-                        {c.email && (
+                        {/* The invitation points at the portal, which only lets in contacts with access. */}
+                        {c.email && c.portalAccess && (
                           <CopyInviteButton
                             sponsor={sponsor}
                             contact={c}
@@ -379,17 +380,17 @@ export default function SponsorDetail({
                         <strong>{eur(d.cost)}</strong>
                         {d.settlement === "inkind" && (
                           <div className="gr-muted" style={{ fontSize: 11 }}>
-                            in kind
+                            {t("sd.inkind")}
                           </div>
                         )}
                         {d.settlement === "mixed" && (
                           <div className="gr-muted" style={{ fontSize: 11 }}>
-                            {eur(invoiceAmount(d))} billed
+                            {eur(invoiceAmount(d))} {t("sd.billed")}
                           </div>
                         )}
                         {foodDrinkExtra(d) > 0 && (
                           <div style={{ fontSize: 11, color: "var(--orange-deep)" }}>
-                            + {eur(foodDrinkExtra(d))} extra F&amp;D
+                            + {eur(foodDrinkExtra(d))} {t("sd.extrafd")}
                           </div>
                         )}
                       </td>

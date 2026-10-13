@@ -16,19 +16,20 @@ export type ImportField =
   | "contactEmail"
   | "contactLanguage";
 
+/* Each field with the TEAM_TEXT key of its label in the column mapping. */
 export const IMPORT_FIELDS: Array<[ImportField, string]> = [
-  ["companyName", "Company / name *"],
-  ["street", "Street"],
-  ["houseNumber", "House number"],
-  ["postalCode", "Postal code"],
-  ["city", "City"],
-  ["vatNumber", "VAT number"],
-  ["entityType", "Type (legal/person)"],
-  ["contactFirstName", "Contact first name"],
-  ["contactLastName", "Contact last name"],
-  ["contactPhone", "Contact phone"],
-  ["contactEmail", "Contact email"],
-  ["contactLanguage", "Language (NL/FR/EN)"],
+  ["companyName", "imf.companyName"],
+  ["street", "imf.street"],
+  ["houseNumber", "imf.houseNumber"],
+  ["postalCode", "imf.postalCode"],
+  ["city", "imf.city"],
+  ["vatNumber", "imf.vatNumber"],
+  ["entityType", "imf.entityType"],
+  ["contactFirstName", "imf.contactFirstName"],
+  ["contactLastName", "imf.contactLastName"],
+  ["contactPhone", "imf.contactPhone"],
+  ["contactEmail", "imf.contactEmail"],
+  ["contactLanguage", "imf.contactLanguage"],
 ];
 
 export const HEADER_SYNONYMS: Record<ImportField, string[]> = {
@@ -113,15 +114,16 @@ export type ContactField =
   | "info"
   | "invoice";
 
+/* Each field with the TEAM_TEXT key of its label, as for IMPORT_FIELDS. */
 export const CONTACT_FIELDS: Array<[ContactField, string]> = [
-  ["company", "Sponsor / company *"],
-  ["firstName", "First name"],
-  ["lastName", "Last name"],
-  ["email", "Email"],
-  ["phone", "Phone"],
-  ["language", "Language"],
-  ["info", "Wants information (yes/no)"],
-  ["invoice", "Wants invoicing (yes/no)"],
+  ["company", "imf.company"],
+  ["firstName", "imf.firstName"],
+  ["lastName", "imf.lastName"],
+  ["email", "imf.email"],
+  ["phone", "imf.phone"],
+  ["language", "imf.language"],
+  ["info", "imf.info"],
+  ["invoice", "imf.invoice"],
 ];
 
 export const CONTACT_SYNONYMS: Record<ContactField, string[]> = {

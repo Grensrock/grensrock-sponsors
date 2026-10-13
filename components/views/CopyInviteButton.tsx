@@ -18,7 +18,7 @@ export default function CopyInviteButton({
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(buildInvitation(sponsor, contact, responsible));
+      await navigator.clipboard.writeText(buildInvitation(sponsor, contact, window.location.origin, responsible));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

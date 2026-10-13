@@ -119,6 +119,7 @@ export default function DealForm({
           vatCfg={vatCfg}
           existingSponsors={sponsors}
           t={t}
+          lang={lang}
           onSave={async (s) => {
             const created = await onAddSponsor(s);
             set("sponsorId", created.id);

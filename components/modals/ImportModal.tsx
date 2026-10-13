@@ -33,6 +33,7 @@ export interface SponsorImportRow {
 interface SkippedRow {
   line: number;
   name: string;
+  /** A TEAM_TEXT key, so the list follows the interface language. */
   reason: string;
 }
 
@@ -92,17 +93,17 @@ export default function ImportModal({
     rows.forEach((row, i) => {
       const companyName = get(row, "companyName");
       if (!companyName) {
-        skipped.push({ line: i + 2, name: "(empty)", reason: "no company name" });
+        skipped.push({ line: i + 2, name: "", reason: "im.r.nocompany" });
         return;
       }
       const vatKey = normVatKey(get(row, "vatNumber"));
       const nameKey = normNameKey(companyName);
       if ((vatKey && existingVat.has(vatKey)) || existingName.has(nameKey)) {
-        skipped.push({ line: i + 2, name: companyName, reason: "already in database" });
+        skipped.push({ line: i + 2, name: companyName, reason: "im.r.indb" });
         return;
       }
       if ((vatKey && seenVat.has(vatKey)) || seenName.has(nameKey)) {
-        skipped.push({ line: i + 2, name: companyName, reason: "duplicate inside file" });
+        skipped.push({ line: i + 2, name: companyName, reason: "im.r.dupfile" });
         return;
       }
       if (vatKey) seenVat.add(vatKey);
@@ -155,13 +156,8 @@ export default function ImportModal({
     return (
       <Modal title={t("im.donesp")} onClose={onClose} lang={lang}>
         <p>
-          <strong>{result.createdCount}</strong> new sponsor(s) created.
-          {result.skipped.length > 0 && (
-            <>
-              {" "}
-              <strong>{result.skipped.length}</strong> row(s) skipped.
-            </>
-          )}
+          {t("im.createdsp", { n: result.createdCount })}
+          {result.skipped.length > 0 && <> {t("im.skippedrows", { n: result.skipped.length })}</>}
         </p>
         {result.skipped.length > 0 && (
           <div className="gr-tablewrap">
@@ -177,8 +173,8 @@ export default function ImportModal({
                 {result.skipped.map((s, i) => (
                   <tr key={i}>
                     <td>{s.line}</td>
-                    <td>{s.name}</td>
-                    <td>{s.reason}</td>
+                    <td>{s.name || t("im.empty")}</td>
+                    <td>{t(s.reason)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -198,11 +194,7 @@ export default function ImportModal({
     <Modal title={t("im.importsp")} onClose={onClose} wide lang={lang}>
       {!headers ? (
         <>
-          <p className="gr-muted">
-            Upload your sponsor list as an Excel (.xlsx) or CSV file. The first row must contain column headers (e.g.
-            Bedrijfsnaam, BTW-nummer, Contactpersoon, E-mail, Taal…). Existing sponsors are recognised by VAT number
-            or company name and won&apos;t be created twice.
-          </p>
+          <p className="gr-muted">{t("im.introsp")}</p>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} className="gr-file" />
           {err && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>
@@ -215,18 +207,18 @@ export default function ImportModal({
           <h4 className="gr-subhead" style={{ borderTop: "none", paddingTop: 0 }}>
             {t("im.colmapping")}
           </h4>
-          <p className="gr-muted">Columns were detected automatically — check them and adjust if needed.</p>
+          <p className="gr-muted">{t("im.detected")}</p>
           <div className="gr-grid3">
-            {IMPORT_FIELDS.map(([field, label]) => (
-              <Field key={field} label={label}>
+            {IMPORT_FIELDS.map(([field, labelKey]) => (
+              <Field key={field} label={t(labelKey)}>
                 <select
                   value={map[field] ?? -1}
                   onChange={(e) => setMap({ ...map, [field]: Number(e.target.value) })}
                 >
-                  <option value={-1}>— skip —</option>
+                  <option value={-1}>{t("im.skip")}</option>
                   {headers.map((h, i) => (
                     <option key={i} value={i}>
-                      {h || `Column ${i + 1}`}
+                      {h || t("im.column", { n: i + 1 })}
                     </option>
                   ))}
                 </select>
@@ -240,11 +232,11 @@ export default function ImportModal({
           )}
           {analysis && (
             <>
-              <h4 className="gr-subhead">Preview</h4>
+              <h4 className="gr-subhead">{t("im.preview")}</h4>
               <p className="gr-muted">
-                <Tag tone="green">{analysis.create.length} new</Tag>{" "}
+                <Tag tone="green">{t("im.newcount", { n: analysis.create.length })}</Tag>{" "}
                 <Tag tone={analysis.skipped.length ? "amber" : "grey"}>
-                  {analysis.skipped.length} skipped (duplicates / empty)
+                  {t("im.skippedwhy", { n: analysis.skipped.length })}
                 </Tag>
               </p>
               {analysis.create.length > 0 && (
@@ -253,7 +245,7 @@ export default function ImportModal({
                     <thead>
                       <tr>
                         <th>{t("c.company")}</th>
-                        <th>VAT</th>
+                        <th>{t("c.vat")}</th>
                         <th>{t("c.contact")}</th>
                         <th>{t("c.email")}</th>
                         <th>{t("im.lang")}</th>
@@ -300,7 +292,7 @@ export default function ImportModal({
                       {analysis.create.length > 6 && (
                         <tr>
                           <td colSpan={5} className="gr-muted">
-                            …and {analysis.create.length - 6} more
+                            {t("im.more", { n: analysis.create.length - 6 })}
                           </td>
                         </tr>
                       )}
@@ -322,7 +314,7 @@ export default function ImportModal({
               {t("im.chooseother")}
             </button>
             <button className="gr-btn" disabled={!analysis || analysis.create.length === 0} onClick={doImport}>
-              Import {analysis ? analysis.create.length : 0} sponsor(s)
+              {t("im.dosp", { n: analysis ? analysis.create.length : 0 })}
             </button>
           </div>
         </>

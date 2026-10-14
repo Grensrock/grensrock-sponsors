@@ -10,6 +10,8 @@ export interface Sponsor {
   postalCode: string;
   city: string;
   vatNumber: string;
+  /** Ticked on purpose: this sponsor has no VAT number, so a blank one is fine. */
+  noVatNumber: boolean;
   entityType: EntityType;
   contacts: Contact[];
   /** The single contact who receives the vouchers ("" = automatic). */

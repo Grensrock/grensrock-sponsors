@@ -66,6 +66,7 @@ export function diffForAudit(prev: AppData, next: AppData, actor?: AuditActor | 
       const f = auditFieldList(old, s, [
         "companyName",
         "vatNumber",
+        "noVatNumber",
         "street",
         "houseNumber",
         "postalCode",

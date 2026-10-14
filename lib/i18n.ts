@@ -189,8 +189,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Enter a VAT number, or tick that this sponsor does not have one.",
   ],
   "sd.novat": ["Geen BTW-nummer", "No VAT number"],
-  "sf.refreq": ["Wij hebben een referentie (bestelbon, PO-nummer, kostenplaats) nodig op contract & factuur",
-                "We need a reference (purchase order, PO number, cost centre) on the contract & invoice"],
+  "sf.refreq": ["Deze sponsor vereist een referentie op contract & factuur (PO-nummer, bestelbon, kostenplaats…)",
+                "This sponsor requires a reference on contract & invoice (PO number, order reference, cost centre…)"],
   // sponsor detail info
   "sd.companydetails": ["Bedrijfsgegevens", "Company details"],
   "sd.logo": ["Logo (artwork: folder, LED, …)", "Logo (artwork: folder, LED, …)"],
@@ -386,7 +386,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "nc.elsewhereok": ["U kan deze persoon toch toevoegen — dezelfde persoon kan bij meerdere sponsors horen.", "You can still add this person — the same individual can belong to several sponsors."],
   "nc.nosponsor": ["Geen sponsor gevonden met die naam.", "No sponsor found with that name."],
   "nc.portalaccess": ["Toegang tot het sponsorportaal geven", "Give access to the sponsor portal"],
-  "nc.portalhint": ["Deze persoon kan aanmelden via een link die naar dit e-mailadres wordt gestuurd.", "This person can log in via a link sent to this email address."],
+  "nc.portalhint": [
+    "Deze persoon krijgt een e-mail met een link om een wachtwoord te kiezen. Op de aanmeldpagina kan ook altijd een aanmeldlink aangevraagd worden.",
+    "This person is emailed a link to choose a password. A sign-in link can always be requested on the sign-in page too.",
+  ],
   "nc.portalneedsmail": ["Vul eerst een geldig e-mailadres in om portaaltoegang te kunnen geven.", "Enter a valid email address first to be able to grant portal access."],
   "im.selcompany": ["Selecteer welke kolom de bedrijfsnaam bevat.", "Select which column contains the company name."],
   "im.selsponsor": ["Selecteer welke kolom de sponsornaam bevat.", "Select which column contains the sponsor name."],
@@ -520,7 +523,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   // contacts
   "dlg.contactmailfail": [
     '{name} heeft portaaltoegang, maar de e-mail kon niet verzonden worden: {error}\n\nGebruik "Nieuwe link sturen" zodra dat opgelost is.',
-    '{name} has portal access, but the email couldn\'t be sent: {error}\n\nUse "Resend portal link" once that\'s fixed.',
+    '{name} has portal access, but the email couldn\'t be sent: {error}\n\nUse "Resend link" once that\'s fixed.',
   ],
   "dlg.delcontactask": [
     "Deze contactpersoon verwijderen? Ze verliezen hun toegang tot het sponsorportaal.",
@@ -857,6 +860,134 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "De gebruikte endpoint-paden ( POST /vouchers, POST /vouchers/{code}/send, DELETE /vouchers/{code} ) zijn aannames — controleer ze tegen de Tickoweb-documentatie en pas de module {module} in de code aan.",
     "The endpoint paths used ( POST /vouchers, POST /vouchers/{code}/send, DELETE /vouchers/{code} ) are assumptions — verify them against the Tickoweb reference and adjust the {module} module in the code.",
   ],
+
+  /* ---------- sponsor detail: header & sponsoring table ---------- */
+  "sd.managedby": ["Opgevolgd door", "Managed by"],
+  "sd.reftag": ["referentie vereist op contract & factuur", "reference required on contract & invoice"],
+  "sd.extrafd": ["extra eten & drank", "extra F&D"],
+
+  /* ---------- contacts tab ---------- */
+  "ct.tip": [
+    "Tip: filter op een communicatietype vóór u exporteert — het bestand bevat dan precies de mailinglijst die u nodig hebt (bv. iedereen die facturatiecorrespondentie wil ontvangen).",
+    "Tip: filter on a communication type before exporting — the file then contains exactly the mailing list you need (e.g. everyone who wants invoicing correspondence).",
+  ],
+
+  /* ---------- acceptance ---------- */
+  "ac.changedbanner": [
+    "De overeenkomst is gewijzigd sinds de sponsor ze aanvaardde. Hierboven staat waarmee de sponsor akkoord ging; de huidige voorwaarden staan hieronder. Laat de sponsor opnieuw aanvaarden als de wijziging wezenlijk is.",
+    "The agreement has been modified since the sponsor accepted it. The snapshot above is what they agreed to; the current terms are below. Ask them to accept again if the change is material.",
+  ],
+
+  /* ---------- editions ---------- */
+  "ed.deactivate": ["Deactiveren", "Deactivate"],
+  "ed.addformula": ["+ Formule", "+ Formula"],
+
+  /* ---------- folder ---------- */
+  "fo.pagefree": ["{n} pagina nog vrij", "{n} page still free"],
+  "fo.missingtag": ["ontbreekt", "missing"],
+
+  /* ---------- team ---------- */
+  "tm.you": ["dat bent u", "you"],
+  "tm.noemail": ["⚠ geen e-mailadres", "⚠ no email address"],
+  "tm.none": [
+    "Nog geen accounts. Wie een @grensrock.be-account bij Google heeft, kan zich aanmelden om toegang te vragen — die aanvraag verschijnt hier, zodat een beheerder ze kan goedkeuren. Een account hier zelf toevoegen slaat die stap over, en is de enige weg naar binnen voor een adres buiten dat domein.",
+    "No accounts yet. Someone with a @grensrock.be Google account can sign in to register — their request shows up here for an admin to grant. Adding someone here instead skips that step, and is the only way in for an account outside that domain.",
+  ],
+  "tm.signin": [
+    'Teamleden melden zich aan met hun Google-account, via "Aanmelden met Google" op de startpagina. Een apart wachtwoord voor deze tool is er niet.',
+    'Team members sign in with their Google account, using "Sign in with Google" on the start page. There is no separate password for this tool.',
+  ],
+  "tm.signin2": [
+    "Wie zich voor het eerst aanmeldt met een @grensrock.be-account, verschijnt hierboven als toegangsaanvraag. Een account dat u hier zelf toevoegt, heeft meteen toegang: die persoon meldt zich aan met het Google-account van dat e-mailadres.",
+    "Anyone signing in with a @grensrock.be account for the first time shows up above as an access request. An account you add here yourself has access straight away: that person signs in with the Google account for that email address.",
+  ],
+  "uf.usestandard": ["Het standaardadres op {domain} gebruiken", "Use the standard {domain} address"],
+  "uf.roleshint": [
+    "Beheerders beheren edities, formules, facturatie en teamaccounts. Gebruikers kunnen alle sponsors en hun overeenkomsten bekijken en aanpassen.",
+    "Admins manage editions, formulas, invoicing and team accounts. Users can view and update all sponsors and their agreements.",
+  ],
+
+  /* ---------- audit log ---------- */
+  "au.count": ["{n} van {total} items", "{n} of {total} entries"],
+  "au.note": [
+    "Wijzigingen worden op de server bijgehouden; hier staan de 1000 recentste. Exporteer als u een kopie buiten de tool nodig hebt.",
+    "Changes are recorded on the server; the 1000 most recent ones are shown here. Export if you need a copy outside the tool.",
+  ],
+
+  /* ---------- VAT lookup settings ---------- */
+  "vl.explain": [
+    "Een BTW-nummer dat de controle op formaat en controlecijfers doorstaat, wordt opgezocht in de Kruispuntbank van Ondernemingen. Staat het bedrijf daarin, dan worden de officiële naam en het maatschappelijk adres ingevuld — velden die u zelf al invulde, worden nooit overschreven zonder het te vragen. De KBO bevat alleen Belgische ondernemingen; buitenlandse BTW-nummers worden wel op formaat gecontroleerd, maar hun gegevens moet u zelf intypen.",
+    "A VAT number that passes the format and check-digit test is looked up in the Crossroads Bank for Enterprises. If the company is there, its official name and registered address are filled in — fields you already filled in yourself are never overwritten without asking. The registry only covers Belgium; foreign VAT numbers are still format-checked, but their details have to be typed in.",
+  ],
+  "vl.local": [
+    "Het BTW-nummer zelf wordt altijd lokaal gecontroleerd, ongeacht deze instelling. Opzoekingen lopen via de server, zodat de API-sleutel van de KBO nooit in een browser terechtkomt.",
+    "The VAT number itself is always validated locally, regardless of this setting. Lookups run through the server, so the registry API key never reaches a browser.",
+  ],
+
+  /* ---------- imports (sponsors & contacts) ---------- */
+  "im.introsp": [
+    "Laad uw sponsorlijst op als Excel- (.xlsx) of CSV-bestand. De eerste rij moet kolomhoofdingen bevatten (bv. Bedrijfsnaam, BTW-nummer, Contactpersoon, E-mail, Taal…). Bestaande sponsors worden herkend aan hun BTW-nummer of bedrijfsnaam en worden geen tweede keer aangemaakt.",
+    "Upload your sponsor list as an Excel (.xlsx) or CSV file. The first row must contain column headers (e.g. Bedrijfsnaam, BTW-nummer, Contactpersoon, E-mail, Taal…). Existing sponsors are recognised by VAT number or company name and won't be created twice.",
+  ],
+  "im.introct": [
+    "Laad een Excel- (.xlsx) of CSV-bestand op met één contactpersoon per rij. De sponsor wordt gezocht op de bedrijfsnaam, precies zoals die hier bewaard is. Een rij waarvan het bedrijf nog niet bestaat, wordt overgeslagen — er wordt geen nieuwe sponsor voor aangemaakt.",
+    "Upload an Excel (.xlsx) or CSV file with one contact per row. The sponsor is matched on the company name exactly as it is stored here, so a row whose company doesn't exist yet is skipped rather than creating a new sponsor.",
+  ],
+  "im.detected": [
+    "De kolommen zijn automatisch herkend — kijk ze na en pas aan waar nodig.",
+    "Columns were detected automatically — check them and adjust if needed.",
+  ],
+  "im.detectedct": [
+    'Automatisch herkend — pas aan waar nodig. Laat de voorkeurkolommen op "overslaan" staan om elke geïmporteerde contactpersoon enkel "informatie" te geven.',
+    'Detected automatically — adjust where needed. Leave the preference columns on "skip" to give every imported contact "information" only.',
+  ],
+  "im.skip": ["— overslaan —", "— skip —"],
+  "im.column": ["Kolom {n}", "Column {n}"],
+  "im.preview": ["Voorbeeld", "Preview"],
+  "im.newcount": ["{n} nieuw", "{n} new"],
+  "im.toadd": ["{n} toe te voegen", "{n} to add"],
+  "im.skippedcount": ["{n} overgeslagen", "{n} skipped"],
+  "im.skippedwhy": ["{n} overgeslagen (dubbel / leeg)", "{n} skipped (duplicates / empty)"],
+  "im.more": ["…en nog {n}", "…and {n} more"],
+  "im.dosp": ["{n} sponsor(s) importeren", "Import {n} sponsor(s)"],
+  "im.doct": ["{n} contactperso(o)n(en) importeren", "Import {n} contact(s)"],
+  "im.createdsp": ["{n} nieuwe sponsor(s) aangemaakt.", "{n} new sponsor(s) created."],
+  "im.createdct": ["{n} contactperso(o)n(en) toegevoegd.", "{n} contact person(s) added."],
+  "im.skippedrows": ["{n} rij(en) overgeslagen.", "{n} row(s) skipped."],
+  "im.empty": ["(leeg)", "(empty)"],
+  "im.nomatchbanner": [
+    "Sommige bedrijfsnamen komen met geen enkele sponsor overeen. Kijk de spelling na, of importeer die sponsors eerst via Sponsors → Lijst importeren.",
+    "Some company names don't match a sponsor. Check the spelling, or import those sponsors first via Sponsors → Import list.",
+  ],
+  // why a row was skipped
+  "im.r.nocompany": ["geen bedrijfsnaam", "no company name"],
+  "im.r.indb": ["staat al in de databank", "already in database"],
+  "im.r.dupfile": ["dubbel in het bestand", "duplicate inside file"],
+  "im.r.nosponsorname": ["geen sponsornaam", "no sponsor name"],
+  "im.r.nosponsor": ["sponsor niet gevonden", "sponsor not found"],
+  "im.r.noname": ["geen naam of e-mail", "no name or email"],
+  "im.r.hascontact": ["al een contactpersoon van deze sponsor", "already a contact of this sponsor"],
+  // column-mapping labels (IMPORT_FIELDS / CONTACT_FIELDS in lib/import-helpers)
+  "imf.companyName": ["Bedrijf / naam *", "Company / name *"],
+  "imf.street": ["Straat", "Street"],
+  "imf.houseNumber": ["Huisnummer", "House number"],
+  "imf.postalCode": ["Postcode", "Postal code"],
+  "imf.city": ["Gemeente", "City"],
+  "imf.vatNumber": ["BTW-nummer", "VAT number"],
+  "imf.entityType": ["Type (rechtspersoon/persoon)", "Type (legal/person)"],
+  "imf.contactFirstName": ["Voornaam contactpersoon", "Contact first name"],
+  "imf.contactLastName": ["Achternaam contactpersoon", "Contact last name"],
+  "imf.contactPhone": ["Telefoon contactpersoon", "Contact phone"],
+  "imf.contactEmail": ["E-mail contactpersoon", "Contact email"],
+  "imf.contactLanguage": ["Taal (NL/FR/EN)", "Language (NL/FR/EN)"],
+  "imf.company": ["Sponsor / bedrijf *", "Sponsor / company *"],
+  "imf.firstName": ["Voornaam", "First name"],
+  "imf.lastName": ["Achternaam", "Last name"],
+  "imf.email": ["E-mail", "Email"],
+  "imf.phone": ["Telefoon", "Phone"],
+  "imf.language": ["Taal", "Language"],
+  "imf.info": ["Wil informatie (ja/nee)", "Wants information (yes/no)"],
+  "imf.invoice": ["Wil facturatie (ja/nee)", "Wants invoicing (yes/no)"],
 };
 
 export const teamT = (key: string, lang: TeamLanguage, params?: Record<string, string | number>): string => {

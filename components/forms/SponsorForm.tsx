@@ -9,7 +9,7 @@ import { defaultVatLookup, vatLookup } from "@/lib/integrations/vat-lookup";
 import { normNameKey, normVatKey } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { validateVat, vatToStore } from "@/lib/vat";
-import type { Sponsor, TranslateFn, User, VatLookupConfig } from "@/types";
+import type { Language, Sponsor, TranslateFn, User, VatLookupConfig } from "@/types";
 
 /* ---------- Sponsor form ---------- */
 
@@ -21,6 +21,7 @@ export default function SponsorForm({
   vatCfg = defaultVatLookup,
   existingSponsors = [],
   t = (k) => k,
+  lang = "nl",
 }: {
   initial?: Partial<Sponsor> | null;
   onSave: (s: Sponsor) => void;
@@ -29,6 +30,8 @@ export default function SponsorForm({
   vatCfg?: VatLookupConfig;
   existingSponsors?: Sponsor[];
   t?: TranslateFn;
+  /** For the VAT and registry messages, which are shared with the sponsor portal. */
+  lang?: Language;
 }) {
   const [s, setS] = useState<Sponsor>(() => {
     const start = { id: "", ...emptySponsor, ...initial };
@@ -65,7 +68,7 @@ export default function SponsorForm({
             <VatInput
               value={s.vatNumber}
               onChange={set("vatNumber")}
-              lang="en"
+              lang={lang}
               cfg={vatCfg}
               current={s}
               /* The registry also tells us whether it's a company or a sole trader. */
@@ -111,7 +114,7 @@ export default function SponsorForm({
           hint={teamMembers.length === 0 ? t("sf.noteam") : undefined}
         >
           <select value={s.responsibleId || ""} onChange={(e) => setS({ ...s, responsibleId: e.target.value })}>
-            <option value="">— not assigned —</option>
+            <option value="">{t("sf.noresp")}</option>
             {teamMembers.map((u) => (
               <option key={u.id} value={u.id}>
                 {userName(u)}
@@ -138,7 +141,7 @@ export default function SponsorForm({
           checked={!!s.refRequired}
           onChange={(e) => setS({ ...s, refRequired: e.target.checked })}
         />
-        This sponsor requires a reference on contract &amp; invoice (PO number, order reference, cost centre…)
+        {t("sf.refreq")}
       </label>
       {vatMissing && s.companyName.trim() && (
         <p className="gr-muted" style={{ marginBottom: 12 }}>

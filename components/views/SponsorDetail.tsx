@@ -174,7 +174,7 @@ export default function SponsorDetail({
                 <dt>{t("c.type")}</dt>
                 <dd>{sponsor.entityType === "legal" ? t("c.legal") : t("c.person")}</dd>
                 <dt>{t("c.vatnr")}</dt>
-                <dd>{sponsor.vatNumber || "—"}</dd>
+                <dd>{sponsor.vatNumber || (sponsor.noVatNumber ? t("sd.novat") : "—")}</dd>
                 <dt>{t("c.address")}</dt>
                 <dd>{formatAddress(sponsor) || "—"}</dd>
                 <dt>{t("c.responsible")}</dt>

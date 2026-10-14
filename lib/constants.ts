@@ -126,6 +126,7 @@ export const emptySponsor: Omit<Sponsor, "id"> = {
   postalCode: "",
   city: "",
   vatNumber: "",
+  noVatNumber: false,
   entityType: "legal",
   contacts: [],
   voucherContactId: "", // the single contact who receives the vouchers

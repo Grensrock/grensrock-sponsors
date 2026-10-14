@@ -183,6 +183,12 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "sf.type": ["Type", "Type"],
   "sf.responsible": ["Verantwoordelijke", "Responsible"],
   "sf.noresp": ["— niet toegewezen —", "— not assigned —"],
+  "sf.novat": ["Heeft geen BTW-nummer", "Does not have a VAT number"],
+  "sf.vatrequired": [
+    "Vul een BTW-nummer in, of vink aan dat deze sponsor er geen heeft.",
+    "Enter a VAT number, or tick that this sponsor does not have one.",
+  ],
+  "sd.novat": ["Geen BTW-nummer", "No VAT number"],
   "sf.refreq": ["Wij hebben een referentie (bestelbon, PO-nummer, kostenplaats) nodig op contract & factuur",
                 "We need a reference (purchase order, PO number, cost centre) on the contract & invoice"],
   // sponsor detail info

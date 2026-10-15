@@ -65,6 +65,15 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "nav.audit": ["Audit log", "Audit log"],
   "nav.team": ["Team", "Team"],
   "nav.menu": ["Menu", "Menu"],
+  "nav.faq": ["FAQ", "FAQ"],
+  // FAQ
+  "faq.title": ["Veelgestelde vragen", "Frequently asked questions"],
+  "faq.intro": [
+    "Antwoorden op de vragen die het vaakst terugkomen over het werken met de sponsortool.",
+    "Answers to the questions that come up most about working with the sponsor tool.",
+  ],
+  "faq.search": ["Zoek in de vragen…", "Search the questions…"],
+  "faq.noresults": ["Geen vragen gevonden. Probeer een ander woord.", "No questions found. Try another word."],
   "common.logout": ["Afmelden", "Log out"],
   "common.cancel": ["Annuleren", "Cancel"],
   "common.save": ["Opslaan", "Save"],

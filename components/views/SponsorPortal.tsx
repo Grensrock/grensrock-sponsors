@@ -6,6 +6,7 @@ import ContactForm from "@/components/forms/ContactForm";
 import VoucherEditor from "@/components/forms/VoucherEditor";
 import ReturnExamples from "@/components/modals/ReturnExamples";
 import EmailInput from "@/components/ui/EmailInput";
+import Faq from "@/components/views/Faq";
 import Field from "@/components/ui/Field";
 import LogoManager from "@/components/ui/LogoManager";
 import Modal from "@/components/ui/Modal";
@@ -25,6 +26,7 @@ import {
 import { contactName, primaryContact, sponsorContacts } from "@/lib/contacts";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
+import { sponsorFaq } from "@/lib/faq";
 import { eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
 import { validateVat, vatToStore } from "@/lib/vat";
 import {
@@ -281,6 +283,7 @@ export default function SponsorPortal({
         myVouchers.filter((v) => v.status !== "cancelled").length
       })`,
     ],
+    ["faq", T("FAQ", "FAQ", "FAQ")],
   ];
 
   const saveBar = (
@@ -1203,6 +1206,27 @@ export default function SponsorPortal({
             </Modal>
           )}
         </div>
+        {/* Outside the preview lock: it changes nothing, and a team member
+            previewing the portal may well want to read what sponsors are told. */}
+        {sub === "faq" && (
+          <Faq
+            sections={sponsorFaq(lang)}
+            labels={{
+              title: T("Veelgestelde vragen", "Questions fréquentes", "Frequently asked questions"),
+              intro: T(
+                "Antwoorden op de vragen die we het vaakst krijgen over dit portaal.",
+                "Les réponses aux questions que l'on nous pose le plus souvent sur ce portail.",
+                "Answers to the questions we get most often about this portal.",
+              ),
+              search: T("Zoek in de vragen…", "Rechercher dans les questions…", "Search the questions…"),
+              noResults: T(
+                "Geen vragen gevonden. Probeer een ander woord.",
+                "Aucune question trouvée. Essayez un autre mot.",
+                "No questions found. Try another word.",
+              ),
+            }}
+          />
+        )}
       </main>
       {children}
     </div>

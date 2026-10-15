@@ -382,10 +382,30 @@ const TEAM_FAQ: TeamSection[] = [
     title: { nl: "Sponsors en contactpersonen", en: "Sponsors and contact persons" },
     entries: [
       {
+        q: {
+          nl: "Welke sponsors mag ik wijzigen?",
+          en: "Which sponsors can I change?",
+        },
+        a: {
+          nl: "Als gebruiker wijzig je enkel de sponsors waarvoor jij de verantwoordelijke bent: hun gegevens, contactpersonen, afzeggingen en overeenkomsten. Voor die sponsors verstuur je ook de bevestigingsmail. Alle andere sponsors en overeenkomsten kan je bekijken, maar niet wijzigen. Logo's kan iedereen van het team toevoegen.\n\nEnkel een beheerder kan:\n- elke sponsor wijzigen, ook een sponsor zonder verantwoordelijke\n- een lijst met sponsors importeren\n- sponsors en overeenkomsten verwijderen\n\nKies **Mijn sponsors tonen** in de lijst om enkel je eigen sponsors te zien.",
+          en: "As a user you only change the sponsors you are the responsible person for: their details, contact persons, declines and agreements. For those sponsors you also send the confirmation email. You can view every other sponsor and agreement, but not change them. Anyone on the team can add logos.\n\nOnly an admin can:\n- change any sponsor, including one without a responsible person\n- import a list of sponsors\n- delete sponsors and agreements\n\nChoose **Show my sponsors** in the list to see only your own sponsors.",
+        },
+      },
+      {
+        q: {
+          nl: "Ik zie geen knop om een sponsor te wijzigen.",
+          en: "I don't see a button to change a sponsor.",
+        },
+        a: {
+          nl: "Je bent niet de verantwoordelijke voor die sponsor. Bovenaan de sponsorpagina staat wie dat wel is. Vraag die persoon of een beheerder om de wijziging te doen, of vraag een beheerder om de sponsor aan jou toe te wijzen. Heeft de sponsor nog geen verantwoordelijke, dan wijst een beheerder hem eerst toe.",
+          en: "You're not the responsible person for that sponsor. The top of the sponsor page says who is. Ask that person or an admin to make the change, or ask an admin to assign the sponsor to you. If the sponsor has no responsible person yet, an admin assigns it first.",
+        },
+      },
+      {
         q: { nl: "Hoe voeg ik een sponsor toe?", en: "How do I add a sponsor?" },
         a: {
-          nl: "1. Ga naar **Sponsors** en klik **+ Nieuwe sponsor**.\n2. Vul **Bedrijf / naam** en het BTW-nummer in. Bij een geldig Belgisch nummer vult de tool naam en adres aan uit de KBO.\n3. Kies het type en de verantwoordelijke uit ons team.\n4. Vink de referentie aan als de sponsor een bestelbon, PO-nummer of kostenplaats nodig heeft op contract en factuur.\n5. Klik **Sponsor opslaan** en voeg daarna de contactpersonen toe op de sponsorpagina.",
-          en: "1. Go to **Sponsors** and click **+ New sponsor**.\n2. Fill in **Company / name** and the VAT number. With a valid Belgian number the app fills in name and address from the company registry.\n3. Pick the type and the responsible person from our team.\n4. Tick the reference box if the sponsor needs a purchase order, PO number or cost centre on the contract and invoice.\n5. Click **Save sponsor**, then add the contact persons on the sponsor page.",
+          nl: "1. Ga naar **Sponsors** en klik **+ Nieuwe sponsor**.\n2. Vul **Bedrijf / naam** en het BTW-nummer in. Bij een geldig Belgisch nummer vult de tool naam en adres aan uit de KBO.\n3. Kies het type. Als verantwoordelijke staat jij al ingevuld; kies iemand anders als een collega de sponsor opvolgt.\n4. Vink de referentie aan als de sponsor een bestelbon, PO-nummer of kostenplaats nodig heeft op contract en factuur.\n5. Klik **Sponsor opslaan** en voeg daarna de contactpersonen toe op de sponsorpagina.\n\nKies je een andere verantwoordelijke, dan kan je de sponsor daarna zelf niet meer wijzigen.",
+          en: "1. Go to **Sponsors** and click **+ New sponsor**.\n2. Fill in **Company / name** and the VAT number. With a valid Belgian number the app fills in name and address from the company registry.\n3. Pick the type. You're already filled in as the responsible person; pick someone else if a colleague follows up this sponsor.\n4. Tick the reference box if the sponsor needs a purchase order, PO number or cost centre on the contract and invoice.\n5. Click **Save sponsor**, then add the contact persons on the sponsor page.\n\nIf you pick someone else as responsible, you can't change the sponsor yourself afterwards.",
         },
       },
       {
@@ -492,12 +512,12 @@ const TEAM_FAQ: TeamSection[] = [
       },
       {
         q: {
-          nl: "Ik kan geen overeenkomst maken voor een editie.",
-          en: "I can't create an agreement for an edition.",
+          nl: "Ik kan geen overeenkomst maken voor een sponsor of editie.",
+          en: "I can't create an agreement for a sponsor or an edition.",
         },
         a: {
-          nl: "Enkel actieve edities zijn beschikbaar, en een sponsor heeft maar één overeenkomst per editie. Bestaat er al een, open die dan met **Bestaande overeenkomst openen**.",
-          en: "Only active editions are available, and a sponsor has only one agreement per edition. If there already is one, open it from the notice in the form.",
+          nl: "Je kan enkel een overeenkomst maken voor een sponsor waarvoor jij verantwoordelijk bent; andere sponsors staan niet in de keuzelijst. Enkel actieve edities zijn beschikbaar, en een sponsor heeft maar één overeenkomst per editie. Bestaat er al een, open die dan met **Bestaande overeenkomst openen**.",
+          en: "You can only create an agreement for a sponsor you're responsible for; other sponsors aren't in the list. Only active editions are available, and a sponsor has only one agreement per edition. If there already is one, open it from the notice in the form.",
         },
       },
     ],
@@ -511,6 +531,16 @@ const TEAM_FAQ: TeamSection[] = [
         a: {
           nl: "Altijd bij **Beheer → Edities & formules**. Maak een nieuwe editie aan (naam, data, locatie) en voeg haar formules toe. Een nieuwe editie is meteen actief.\n\nEen formule aanpassen of verwijderen verandert niets aan bestaande overeenkomsten. Een editie verwijderen wist ook al haar formules, overeenkomsten en bonnen.",
           en: "Always in **Admin → Editions & formulas**. Create a new edition (name, dates, location) and add its formulas. A new edition is active straight away.\n\nChanging or deleting a formula doesn't affect existing agreements. Deleting an edition also deletes all its formulas, agreements and vouchers.",
+        },
+      },
+      {
+        q: {
+          nl: "Hoe verdeel ik de sponsors over het team?",
+          en: "How do I divide the sponsors among the team?",
+        },
+        a: {
+          nl: "Open de sponsor, klik **Bewerken** en kies de **Verantwoordelijke (ons team)**. Vanaf dan kan die persoon de sponsor, zijn contactpersonen en overeenkomsten wijzigen; andere gebruikers kunnen dat niet meer.\n\nEen sponsor zonder verantwoordelijke kan enkel een beheerder wijzigen. Met **Lijst importeren** komen sponsors zonder verantwoordelijke binnen: kies na een import **Niet toegewezen** in de lijst en wijs ze toe.",
+          en: "Open the sponsor, click **Edit** and choose the **Responsible (our team)**. From then on that person can change the sponsor, its contact persons and agreements; other users no longer can.\n\nOnly an admin can change a sponsor without a responsible person. Sponsors from **Import list** come in without one: after an import, choose **Not assigned** in the list and assign them.",
         },
       },
       {

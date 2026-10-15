@@ -76,8 +76,9 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  /* Both roles may send an agreement — this is everyday sponsor work, not
-     administration — but an account still waiting for approval may not. */
+  /* Both roles may send an agreement (this is everyday sponsor work, not
+     administration), but an account still waiting for approval may not, and
+     a user only for a sponsor they are responsible for (checked below). */
   const { data: caller } = await supabase.from("profiles").select("id, role, approved").eq("id", user.id).maybeSingle();
   if (!caller || !caller.approved) {
     return NextResponse.json({ error: "Your account doesn't have access yet." }, { status: 403 });
@@ -88,6 +89,18 @@ export async function POST(request: NextRequest) {
      was already turned away above. */
   const { data: deal } = await supabase.from("deals").select("id, sponsor_id").eq("id", dealId).maybeSingle();
   if (!deal) return NextResponse.json({ error: "No such agreement." }, { status: 404 });
+
+  /* Sending the contract is changing the agreement, so the same rule as
+     editing it applies (0024): the sponsor's responsible, or an admin. Asked
+     before anything goes out — marking it sent at the end would be refused
+     too, but by then the sponsor would already have the mail. */
+  const { data: allowed } = await supabase.rpc("can_manage_sponsor", { p_sponsor_id: deal.sponsor_id });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Only the team member responsible for this sponsor, or an admin, can send this agreement." },
+      { status: 403 },
+    );
+  }
 
   /* Scoped to the agreement's own sponsor, so a valid id belonging to some
      other company cannot be smuggled into the recipient list. */

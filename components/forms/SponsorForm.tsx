@@ -15,6 +15,7 @@ import type { Language, Sponsor, TranslateFn, User, VatLookupConfig } from "@/ty
 
 export default function SponsorForm({
   initial,
+  defaultResponsibleId,
   onSave,
   onCancel,
   teamMembers = [],
@@ -24,6 +25,8 @@ export default function SponsorForm({
   lang = "nl",
 }: {
   initial?: Partial<Sponsor> | null;
+  /** Who a NEW sponsor starts out assigned to — the person creating it. Still changeable. */
+  defaultResponsibleId?: string;
   onSave: (s: Sponsor) => void;
   onCancel: () => void;
   teamMembers?: User[];
@@ -34,7 +37,12 @@ export default function SponsorForm({
   lang?: Language;
 }) {
   const [s, setS] = useState<Sponsor>(() => {
-    const start = { id: "", ...emptySponsor, ...initial };
+    const start = {
+      id: "",
+      ...emptySponsor,
+      ...(!initial?.id && defaultResponsibleId ? { responsibleId: defaultResponsibleId } : {}),
+      ...initial,
+    };
     /* A number filled in later (e.g. through the portal) wins over an old tick. */
     return start.vatNumber.trim() ? { ...start, noVatNumber: false } : start;
   });

@@ -370,6 +370,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const me = users.find((u) => u.id === userId) || null;
   const realAdmin = users.length === 0 ? true : isAdmin(me); // bootstrap: first entry is admin
   const admin = realAdmin && !previewUser;
+  /* Who may change a sponsor, its contacts, declines and agreements: an admin,
+     or the team member responsible for it (0024 enforces the same rule in the
+     database). Unassigned sponsors are therefore an admin's to hand out. */
+  const canManage = (s?: Pick<Sponsor, "responsibleId"> | null) =>
+    !!s && (admin || (!!userId && s.responsibleId === userId));
+  const manageableSponsors = sponsors.filter((s) => canManage(s));
   // A non-admin should never sit on an admin-only tab (e.g. after losing admin, or stale state)
   useEffect(() => {
     const adminOnly = ADMIN_TABS.includes(tab) || ["folder", "invoicing", "vouchers"].includes(tab);
@@ -1978,9 +1984,11 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
-              <button className="gr-btn-ghost" onClick={() => setModal({ type: "import" })}>
-                {t("common.import")}
-              </button>
+              {admin && (
+                <button className="gr-btn-ghost" onClick={() => setModal({ type: "import" })}>
+                  {t("common.import")}
+                </button>
+              )}
               <button className="gr-btn-ghost" onClick={exportSponsors}>
                 {t("common.export")}
               </button>
@@ -2181,6 +2189,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             lang={uiLang}
             onBack={() => setOpenSponsorId(null)}
             onEdit={() => setModal({ type: "sponsor", payload: openSponsor })}
+            canEdit={canManage(openSponsor)}
             canDelete={admin}
             onDelete={() => deleteSponsor(openSponsor.id)}
             onAddDeal={() => setModal({ type: "deal", payload: { sponsorId: openSponsor.id, lockSponsor: true } })}
@@ -2673,9 +2682,11 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
 
             /* Same rule as the sponsors table: intersected with the filters, so a
                selection made before narrowing the list can never act on rows that
-               are no longer on screen. */
-            const selectedRows = rows.filter((r) => r.contact.id && coSel.includes(r.contact.id));
-            const allShown = rows.length > 0 && selectedRows.length === rows.length;
+               are no longer on screen. Only contacts of a sponsor this person may
+               change can be selected at all — every bulk action is a change. */
+            const selectable = rows.filter((r) => r.contact.id && canManage(r.sponsor));
+            const selectedRows = selectable.filter((r) => coSel.includes(r.contact.id));
+            const allShown = selectable.length > 0 && selectedRows.length === selectable.length;
 
             const exportContacts = () => {
               const rowData = rows.map(({ contact: c, sponsor: sp }) => ({
@@ -2729,9 +2740,11 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                         {t("common.import")}
                       </button>
                     )}
-                    <button className="gr-btn-ghost" onClick={() => setModal({ type: "newContact" })}>
-                      {t("sd.addcontact")}
-                    </button>
+                    {manageableSponsors.length > 0 && (
+                      <button className="gr-btn-ghost" onClick={() => setModal({ type: "newContact" })}>
+                        {t("sd.addcontact")}
+                      </button>
+                    )}
                     <button className="gr-btn" onClick={exportContacts}>
                       {t("common.export")}
                     </button>
@@ -2829,11 +2842,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               type="checkbox"
                               aria-label={t("sp.selectall")}
                               checked={allShown}
+                              disabled={selectable.length === 0}
                               ref={(el) => {
                                 if (el) el.indeterminate = selectedRows.length > 0 && !allShown;
                               }}
                               onChange={(e) =>
-                                setCoSel(e.target.checked ? rows.map((r) => r.contact.id).filter(Boolean) : [])
+                                setCoSel(e.target.checked ? selectable.map((r) => r.contact.id) : [])
                               }
                             />
                           </th>
@@ -2848,22 +2862,29 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map(({ contact: c, sponsor: sp }) => (
+                        {rows.map(({ contact: c, sponsor: sp }) => {
+                          const mine = canManage(sp);
+                          return (
                           <tr
                             key={sp.id + (c.id || "")}
-                            title={t("tt.editcontact")}
-                            onClick={() => setModal({ type: "contact", payload: { sponsorId: sp.id, contact: c } })}
+                            className={mine ? undefined : "gr-readonly"}
+                            title={mine ? t("tt.editcontact") : undefined}
+                            onClick={() =>
+                              mine && setModal({ type: "contact", payload: { sponsorId: sp.id, contact: c } })
+                            }
                           >
                             {/* Stops the row's own click, or ticking a box opens the editor. */}
                             <td onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                aria-label={`${t("sp.select")} ${contactName(c) || c.email}`}
-                                checked={coSel.includes(c.id)}
-                                onChange={(e) =>
-                                  setCoSel(e.target.checked ? [...coSel, c.id] : coSel.filter((x) => x !== c.id))
-                                }
-                              />
+                              {mine && (
+                                <input
+                                  type="checkbox"
+                                  aria-label={`${t("sp.select")} ${contactName(c) || c.email}`}
+                                  checked={coSel.includes(c.id)}
+                                  onChange={(e) =>
+                                    setCoSel(e.target.checked ? [...coSel, c.id] : coSel.filter((x) => x !== c.id))
+                                  }
+                                />
+                              )}
                             </td>
                             <td>
                               <strong>{contactName(c) || <span className="gr-muted">{t("c.noname")}</span>}</strong>
@@ -2880,15 +2901,19 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               {c.portalAccess ? (
                                 <>
                                   <Tag tone="green">{t("c.active")}</Tag>{" "}
-                                  <button
-                                    className="gr-mini"
-                                    title={t("tt.resendlink")}
-                                    onClick={() => resendPortalLink(c)}
-                                  >
-                                    {t("ct.resendlink")}
-                                  </button>
+                                  {mine && (
+                                    <button
+                                      className="gr-mini"
+                                      title={t("tt.resendlink")}
+                                      onClick={() => resendPortalLink(c)}
+                                    >
+                                      {t("ct.resendlink")}
+                                    </button>
+                                  )}
                                 </>
-                              ) : c.email ? (
+                              ) : !c.email ? (
+                                <span className="gr-muted">{t("c.noemail")}</span>
+                              ) : mine ? (
                                 <button
                                   className="gr-mini"
                                   onClick={() => saveContact(sp.id, { ...c, portalAccess: true })}
@@ -2896,7 +2921,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   {t("c.activate")}
                                 </button>
                               ) : (
-                                <span className="gr-muted">{t("c.noemail")}</span>
+                                <Tag>{t("c.inactive")}</Tag>
                               )}
                             </td>
                             <td>
@@ -2910,7 +2935,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                             </td>
                             <td>{responsibleName(sp, users) || "—"}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -3142,10 +3168,13 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       </thead>
                       <tbody>
                         {rows.map(({ deal: d, sponsor, edition }) => (
+                          /* Someone else's agreement stays readable here and on
+                             the sponsor page; it just doesn't open the editor. */
                           <tr
                             key={d.id}
-                            title={t("sd.clicktoedit")}
-                            onClick={() => setModal({ type: "deal", payload: d })}
+                            className={canManage(sponsor) ? undefined : "gr-readonly"}
+                            title={canManage(sponsor) ? t("sd.clicktoedit") : undefined}
+                            onClick={() => canManage(sponsor) && setModal({ type: "deal", payload: d })}
                           >
                             <td>
                               {/* The row opens the agreement; the name is the way to the sponsor. */}
@@ -3949,6 +3978,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         <Modal title={t(modal.payload ? "md.editsponsor" : "md.newsponsor")} onClose={() => setModal(null)} lang={uiLang}>
           <SponsorForm
             initial={modal.payload}
+            defaultResponsibleId={me?.id}
             teamMembers={users}
             vatCfg={data.settings?.vatLookup || defaultVatLookup}
             existingSponsors={sponsors}
@@ -3977,6 +4007,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       {modal?.type === "newContact" && (
         <NewContactModal
           sponsors={sponsors}
+          pickableSponsors={manageableSponsors}
           t={t}
           lang={uiLang}
           onClose={() => setModal(null)}
@@ -4032,32 +4063,34 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     ))}
                   </ul>
                   <p className="gr-muted">{t("ac.currentcontribution")}: {eur(d.cost)}</p>
-                  <div className="gr-actions">
-                    <button
-                      className="gr-btn-ghost gr-danger"
-                      onClick={() =>
-                        ask(
-                          t("dlg.resetacceptask"),
-                          async () => {
-                            try {
-                              const saved = await dealsApi.updateDeal(d.id, { acceptance: null });
-                              setData((prev) => ({
-                                ...prev,
-                                deals: prev.deals.map((x) => (x.id === d.id ? saved : x)),
-                              }));
-                              setSaveErr(false);
-                              setModal(null);
-                            } catch (e) {
-                              failWith(e);
-                            }
-                          },
-                          { title: t("dlg.resetaccepttitle"), confirmLabel: t("dlg.reset") },
-                        )
-                      }
-                    >
-                      {t("ac.reqnew")}
-                    </button>
-                  </div>
+                  {canManage(sponsors.find((s) => s.id === d.sponsorId)) && (
+                    <div className="gr-actions">
+                      <button
+                        className="gr-btn-ghost gr-danger"
+                        onClick={() =>
+                          ask(
+                            t("dlg.resetacceptask"),
+                            async () => {
+                              try {
+                                const saved = await dealsApi.updateDeal(d.id, { acceptance: null });
+                                setData((prev) => ({
+                                  ...prev,
+                                  deals: prev.deals.map((x) => (x.id === d.id ? saved : x)),
+                                }));
+                                setSaveErr(false);
+                                setModal(null);
+                              } catch (e) {
+                                failWith(e);
+                              }
+                            },
+                            { title: t("dlg.resetaccepttitle"), confirmLabel: t("dlg.reset") },
+                          )
+                        }
+                      >
+                        {t("ac.reqnew")}
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </Modal>
@@ -4104,7 +4137,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           />
         </Modal>
       )}
-      {modal?.type === "import" && (
+      {modal?.type === "import" && admin && (
         <ImportModal
           sponsors={sponsors}
           onImport={importSponsors}
@@ -4135,9 +4168,11 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             key={modal.payload?.id || "new"}
             initial={modal.payload}
             sponsors={sponsors}
+            pickableSponsors={manageableSponsors}
             editions={editions}
             deals={deals}
             teamMembers={users}
+            defaultResponsibleId={me?.id}
             onSave={saveDeal}
             onCancel={() => setModal(null)}
             onAddSponsor={addSponsorInline}

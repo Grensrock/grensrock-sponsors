@@ -46,6 +46,7 @@ export default function SponsorDetail({
   editions,
   users = [],
   vouchers = [],
+  canEdit = true,
   canDelete,
   t = (k) => k,
   lang = "nl",
@@ -72,6 +73,10 @@ export default function SponsorDetail({
   editions: Edition[];
   users?: User[];
   vouchers?: Voucher[];
+  /** False for someone on the user role who isn't this sponsor's responsible:
+      everything stays readable, nothing that changes the sponsor is offered.
+      Logos are the exception — they stay open to the whole team. */
+  canEdit?: boolean;
   canDelete?: boolean;
   t?: TranslateFn;
   lang?: Language;
@@ -131,24 +136,37 @@ export default function SponsorDetail({
             {responsibleName(sponsor, users) && <> · {t("sd.managedby")} {responsibleName(sponsor, users)}</>}
           </p>
           {sponsor.refRequired && <Tag tone="amber">{t("sd.reftag")}</Tag>}
+          {/* responsibleId, not responsibleName: a legacy free-text responsible
+              is a name only, not an account that may change anything. */}
+          {!canEdit && (
+            <p className="gr-muted">
+              {sponsor.responsibleId
+                ? t("sd.readonly", { name: responsibleName(sponsor, users) })
+                : t("sd.readonlynone")}
+            </p>
+          )}
         </div>
         <div className="gr-detail-btns">
-          <button className="gr-btn-ghost" onClick={onEdit}>
-            {t("common.edit")}
-          </button>
+          {canEdit && (
+            <button className="gr-btn-ghost" onClick={onEdit}>
+              {t("common.edit")}
+            </button>
+          )}
           {canDelete && (
             <button className="gr-btn-ghost gr-danger" onClick={onDelete}>
               {t("common.delete")}
             </button>
           )}
-          {onDecline && (
+          {canEdit && onDecline && (
             <button className="gr-btn-ghost" onClick={onDecline}>
               {t("dc.button")}
             </button>
           )}
-          <button className="gr-btn" onClick={onAddDeal}>
-            {t("sd.addagr")}
-          </button>
+          {canEdit && (
+            <button className="gr-btn" onClick={onAddDeal}>
+              {t("sd.addagr")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -211,15 +229,17 @@ export default function SponsorDetail({
                 {t("pv.portal")}
               </button>
             )}
-            <button className="gr-btn" onClick={() => onEditContact(null)}>
-              {t("sd.addcontact")}
-            </button>
+            {canEdit && (
+              <button className="gr-btn" onClick={() => onEditContact(null)}>
+                {t("sd.addcontact")}
+              </button>
+            )}
           </div>
           {contacts.length === 0 ? (
             <p className="gr-empty">{t("sd.nocontacts")}</p>
           ) : (
             <div className="gr-tablewrap">
-              <table className="gr-table gr-clickable">
+              <table className={"gr-table" + (canEdit ? " gr-clickable" : "")}>
                 <thead>
                   <tr>
                     <th>{t("c.name")}</th>
@@ -233,7 +253,11 @@ export default function SponsorDetail({
                 </thead>
                 <tbody>
                   {contacts.map((c, i) => (
-                    <tr key={c.id || i} title={t("tt.editcontact")} onClick={() => onEditContact(c)}>
+                    <tr
+                      key={c.id || i}
+                      title={canEdit ? t("tt.editcontact") : undefined}
+                      onClick={() => canEdit && onEditContact(c)}
+                    >
                       <td>
                         <strong>{contactName(c) || <span className="gr-muted">{t("c.noname")}</span>}</strong>
                       </td>
@@ -247,12 +271,14 @@ export default function SponsorDetail({
                       <td onClick={(e) => e.stopPropagation()}>
                         {c.portalAccess ? (
                           <Tag tone="green">{t("c.active")}</Tag>
-                        ) : c.email ? (
+                        ) : !c.email ? (
+                          <span className="gr-muted">{t("c.noemail")}</span>
+                        ) : canEdit ? (
                           <button className="gr-mini" onClick={() => onActivateContact(c)}>
                             {t("c.activate")}
                           </button>
                         ) : (
-                          <span className="gr-muted">{t("c.noemail")}</span>
+                          <Tag>{t("c.inactive")}</Tag>
                         )}
                       </td>
                       <td>
@@ -322,7 +348,7 @@ export default function SponsorDetail({
                         </div>
                       </td>
                       <td className="gr-rowbtns">
-                        {onWithdrawDecline && (
+                        {canEdit && onWithdrawDecline && (
                           <button className="gr-mini" onClick={() => onWithdrawDecline(x.id)}>
                             {t("dc.withdraw")}
                           </button>
@@ -338,7 +364,7 @@ export default function SponsorDetail({
             declined.length === 0 && <p className="gr-empty">{t("sd.noagreements")}</p>
           ) : (
             <div className="gr-tablewrap">
-              <table className="gr-table gr-clickable">
+              <table className={"gr-table" + (canEdit ? " gr-clickable" : "")}>
                 <thead>
                   <tr>
                     <th>{t("c.edition")}</th>
@@ -364,7 +390,11 @@ export default function SponsorDetail({
                 </thead>
                 <tbody>
                   {history.map((d) => (
-                    <tr key={d.id} title={t("sd.clicktoedit")} onClick={() => onEditDeal(d)}>
+                    <tr
+                      key={d.id}
+                      title={canEdit ? t("sd.clicktoedit") : undefined}
+                      onClick={() => canEdit && onEditDeal(d)}
+                    >
                       <td>
                         {d.edition ? d.edition.name : "?"}{" "}
                         {d.edition && !d.edition.active && <Tag>{t("th.archived")}</Tag>}
@@ -473,15 +503,17 @@ export default function SponsorDetail({
                       </td>
                       <td>{d.emailSentAt ? <Tag tone="green">{t("sd.sent")}</Tag> : <Tag>{t("sd.notsent")}</Tag>}</td>
                       <td className="gr-rowbtns">
-                        <button
-                          className="gr-mini"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEmail(d);
-                          }}
-                        >
-                          {t("sd.email")}
-                        </button>
+                        {canEdit && (
+                          <button
+                            className="gr-mini"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEmail(d);
+                            }}
+                          >
+                            {t("sd.email")}
+                          </button>
+                        )}
                         {canDelete && (
                           <button
                             className="gr-mini gr-danger"

@@ -98,6 +98,10 @@
 .gr-table .gr-tag, .gr-table td.gr-r { white-space:nowrap; }
 .gr-clickable tbody tr { cursor:pointer; }
 .gr-clickable tbody tr:hover { background:#FBF3F7; }
+/* A row in a shared list that this person may look at but not open: a
+   sponsor someone else is responsible for. */
+.gr-clickable tbody tr.gr-readonly { cursor:default; }
+.gr-clickable tbody tr.gr-readonly:hover { background:none; }
 /* Text inputs inside a clickable row keep their own cursor; buttons and
    checkboxes are clickable in their own right and say so. */
 .gr-clickable input { cursor:auto; }

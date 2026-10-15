@@ -13,12 +13,15 @@ import type { Contact, Language, Sponsor, TranslateFn } from "@/types";
 
 export default function NewContactModal({
   sponsors,
+  pickableSponsors = sponsors,
   onSave,
   onClose,
   t = (k) => k,
   lang = "nl",
 }: {
   sponsors: Sponsor[];
+  /** The ones this person may add a contact to; `sponsors` is still searched for duplicates. */
+  pickableSponsors?: Sponsor[];
   onSave: (sponsorId: string, contact: Contact) => void;
   onClose: () => void;
   t?: TranslateFn;
@@ -36,7 +39,7 @@ export default function NewContactModal({
 
   const sponsor = sponsors.find((s) => s.id === sponsorId);
   const matches = q.trim()
-    ? sponsors.filter((s) => s.companyName.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8)
+    ? pickableSponsors.filter((s) => s.companyName.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8)
     : [];
   const mailRes = validateEmail(contact.email);
   const emailOk = !!contact.email && !!mailRes && mailRes.valid;

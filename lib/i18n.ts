@@ -176,6 +176,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "c.portal": ["Portaal", "Portal"],
   "c.noemail": ["geen e-mail", "no email"],
   "c.active": ["actief", "active"],
+  "c.inactive": ["niet actief", "not active"],
   "c.accepted": ["Aanvaard", "Accepted"],
   // sponsor form
   "sf.new": ["Nieuwe sponsor", "New sponsor"],
@@ -872,6 +873,14 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
 
   /* ---------- sponsor detail: header & sponsoring table ---------- */
   "sd.managedby": ["Opgevolgd door", "Managed by"],
+  "sd.readonly": [
+    "Enkel {name} of een beheerder kan deze sponsor, zijn contactpersonen en overeenkomsten wijzigen.",
+    "Only {name} or an admin can change this sponsor, its contact persons and agreements.",
+  ],
+  "sd.readonlynone": [
+    "Nog niemand is verantwoordelijk voor deze sponsor. Enkel een beheerder kan hem wijzigen of toewijzen.",
+    "Nobody is responsible for this sponsor yet. Only an admin can change it or assign it to someone.",
+  ],
   "sd.reftag": ["referentie vereist op contract & factuur", "reference required on contract & invoice"],
   "sd.extrafd": ["extra eten & drank", "extra F&D"],
 

@@ -58,6 +58,8 @@ export default function Landing({
      wording has to be chosen at render time rather than fixed on arrival. */
   const [arrivedWith, setArrivedWith] = useState(authError);
   const [err, setErr] = useState("");
+  /* Google's failure belongs on the team card, not under the sponsor's form. */
+  const [teamErr, setTeamErr] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [lng, setLng] = useState<Language>("nl");
@@ -80,6 +82,9 @@ export default function Landing({
             "That link is incomplete. Ask for a new one below.",
           )
         : arrivedWith;
+  /* The link codes are about a sponsor's emailed link; anything else came back
+     from Google, so it is the team's. */
+  const arrivalIsSponsors = LINK_CODES.includes(arrivedWith);
 
   /* Tidy the address bar once the message is on screen, so a refresh doesn't
      resurrect a complaint about a link that is long gone. Only the URL is
@@ -93,11 +98,12 @@ export default function Landing({
     window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
   }, [authError]);
 
-  /* One place, because there are now three of these: a stale "link expired"
+  /* One place, because there are now four of these: a stale "link expired"
      sitting under a fresh "check your inbox" is how a working portal comes to
-     look broken. Anything that starts a new attempt wipes all three. */
+     look broken. Anything that starts a new attempt wipes them all. */
   const clearMessages = () => {
     setErr("");
+    setTeamErr("");
     setInfo("");
     setArrivedWith("");
   };
@@ -108,6 +114,23 @@ export default function Landing({
     setPassword("");
     clearMessages();
   };
+
+  /* On a phone the keyboard covers the lower half of the screen, and the
+     answer to a sign-in appears under its button — behind the keyboard, unless
+     it is put away first. */
+  const dropKeyboard = () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  };
+
+  /* Under the button that caused it, in the card it is about. Below both cards
+     it sat off the bottom of a phone screen, and in red on the black page. */
+  const message = (text: string, tone: "err" | "info") =>
+    text ? (
+      <p className={"gr-landmsg" + (tone === "err" ? " err" : "")} role={tone === "err" ? "alert" : "status"}>
+        {text}
+      </p>
+    ) : null;
+  const sponsorErr = err || (arrivalIsSponsors ? arrivalError : "");
 
   /* Team: Google Workspace */
   const teamLogin = async () => {
@@ -123,7 +146,7 @@ export default function Landing({
     });
     if (error) {
       setBusy(false);
-      setErr(
+      setTeamErr(
         L(
           "Aanmelden met Google lukte niet. Probeer het zo dadelijk opnieuw.",
           "La connexion avec Google a échoué. Réessayez dans un instant.",
@@ -138,6 +161,7 @@ export default function Landing({
   const sponsorLogin = async () => {
     if (busy) return;
     clearMessages();
+    dropKeyboard();
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
@@ -160,8 +184,14 @@ export default function Landing({
     /* No /auth/callback in a password sign-in, so the binding that the
        callback does has to happen here. It is a no-op if already bound. */
     await supabase.rpc("claim_portal_contact");
-    setBusy(false);
-    await onSignedIn();
+    /* Busy until the portal has loaded and replaced this page: dropped any
+       earlier, the button comes back to life for the seconds the data takes,
+       and a second tap signs in twice. */
+    try {
+      await onSignedIn();
+    } finally {
+      setBusy(false);
+    }
   };
 
   /* ---------- the two "mail me something" forms ----------
@@ -178,6 +208,7 @@ export default function Landing({
       return;
     }
     clearMessages();
+    dropKeyboard();
     setBusy(true);
     try {
       await fetch(kind === "magic" ? "/api/portal/magic-link" : "/api/portal/request-link", {
@@ -224,25 +255,38 @@ export default function Landing({
               "Enter your email address. If it belongs to a sponsor contact with portal access, we'll send you a link to choose a password. The link stays valid for 14 days.",
             )}
       </p>
-      <input
-        type="email"
-        autoComplete="email"
-        placeholder={MAIL_PLACEHOLDER[lng]}
-        value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-          clearMessages();
+      {/* A form, so the keyboard's own Go key sends it. noValidate keeps the
+          browser's bubble out of it: the messages below are the ones that
+          speak the sponsor's language. */}
+      <form
+        className="gr-landform"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          mailMe(kind);
         }}
-        onKeyDown={(e) => e.key === "Enter" && mailMe(kind)}
-        autoFocus
-      />
-      <button className="gr-btn" disabled={busy} onClick={() => mailMe(kind)}>
-        {busy
-          ? L("Bezig…", "En cours…", "Working…")
-          : kind === "magic"
-            ? L("Stuur me een aanmeldlink", "Envoyez-moi un lien de connexion", "Send me a sign-in link")
-            : L("Stuur me een link", "Envoyez-moi un lien", "Send me a link")}
-      </button>
+      >
+        <input
+          type="email"
+          autoComplete="email"
+          placeholder={MAIL_PLACEHOLDER[lng]}
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clearMessages();
+          }}
+          autoFocus
+        />
+        <button type="submit" className="gr-btn" disabled={busy}>
+          {busy
+            ? L("Bezig…", "En cours…", "Working…")
+            : kind === "magic"
+              ? L("Stuur me een aanmeldlink", "Envoyez-moi un lien de connexion", "Send me a sign-in link")
+              : L("Stuur me een link", "Envoyez-moi un lien", "Send me a link")}
+        </button>
+      </form>
+      {message(sponsorErr, "err")}
+      {!sponsorErr && message(info, "info")}
       <button
         className="gr-linkbtn"
         onClick={() => {
@@ -267,6 +311,7 @@ export default function Landing({
       <button className="gr-btn" disabled={busy} onClick={teamLogin}>
         {L("Aanmelden met Google", "Se connecter avec Google", "Sign in with Google")}
       </button>
+      {message(teamErr || (arrivalIsSponsors ? "" : arrivalError), "err")}
       <p className="gr-muted" style={{ fontSize: 12 }}>
         {L(
           `Met uw @${TEAM_DOMAIN}-account.`,
@@ -279,32 +324,42 @@ export default function Landing({
 
   const sponsorForm = (
     <>
-      <input
-        type="email"
-        autoComplete="email"
-        placeholder={MAIL_PLACEHOLDER[lng]}
-        value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-          clearMessages();
+      {/* A form for the same reason as above, and so a password manager sees
+          a sign-in it can fill and offer to save. */}
+      <form
+        className="gr-landform"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          sponsorLogin();
         }}
-        onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
-        autoFocus
-      />
-      <input
-        type="password"
-        autoComplete="current-password"
-        placeholder={L("Wachtwoord", "Mot de passe", "Password")}
-        value={password}
-        onChange={(e) => {
-          setPassword(e.target.value);
-          clearMessages();
-        }}
-        onKeyDown={(e) => e.key === "Enter" && sponsorLogin()}
-      />
-      <button className="gr-btn" disabled={busy} onClick={sponsorLogin}>
-        {L("Aanmelden", "Se connecter", "Sign in")}
-      </button>
+      >
+        <input
+          type="email"
+          autoComplete="email"
+          placeholder={MAIL_PLACEHOLDER[lng]}
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clearMessages();
+          }}
+          autoFocus
+        />
+        <input
+          type="password"
+          autoComplete="current-password"
+          placeholder={L("Wachtwoord", "Mot de passe", "Password")}
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            clearMessages();
+          }}
+        />
+        <button type="submit" className="gr-btn" disabled={busy}>
+          {busy ? L("Bezig…", "En cours…", "Working…") : L("Aanmelden", "Se connecter", "Sign in")}
+        </button>
+      </form>
+      {message(sponsorErr, "err")}
       {/* Offered before "forgot your password", because for most people it is
           the better answer to the same problem: it needs nothing remembered. */}
       <button
@@ -396,12 +451,6 @@ export default function Landing({
           )}
         </div>
       </div>
-      {/* A message about the link they arrived on reads the same as any other
-          failure, so it shares the slot rather than adding a second red line. */}
-      {(err || arrivalError) && (
-        <p style={{ color: "var(--red)", fontWeight: 600 }}>{err || arrivalError}</p>
-      )}
-      {info && !err && !arrivalError && <p style={{ color: "#fff", fontWeight: 600 }}>{info}</p>}
     </div>
   );
 }

@@ -30,6 +30,7 @@ export interface ContactImportRow {
 interface SkippedRow {
   line: number;
   name: string;
+  /** A TEAM_TEXT key, so the list follows the interface language. */
   reason: string;
 }
 
@@ -85,12 +86,12 @@ export default function ContactImportModal({
       const line = i + 2;
       const company = get(row, "company");
       if (!company) {
-        skipped.push({ line, name: "(empty)", reason: "no sponsor name" });
+        skipped.push({ line, name: "", reason: "im.r.nosponsorname" });
         return;
       }
       const sponsor = byName.get(normNameKey(company));
       if (!sponsor) {
-        skipped.push({ line, name: company, reason: "sponsor not found" });
+        skipped.push({ line, name: company, reason: "im.r.nosponsor" });
         return;
       }
 
@@ -98,7 +99,7 @@ export default function ContactImportModal({
       const first = get(row, "firstName"),
         last = get(row, "lastName");
       if (!first && !last && !email) {
-        skipped.push({ line, name: company, reason: "no name or email" });
+        skipped.push({ line, name: company, reason: "im.r.noname" });
         return;
       }
 
@@ -110,12 +111,12 @@ export default function ContactImportModal({
         skipped.push({
           line,
           name: `${first} ${last}`.trim() || email,
-          reason: "already a contact of this sponsor",
+          reason: "im.r.hascontact",
         });
         return;
       }
       if (dupeInFile) {
-        skipped.push({ line, name: email, reason: "duplicate inside file" });
+        skipped.push({ line, name: email, reason: "im.r.dupfile" });
         return;
       }
 
@@ -145,13 +146,8 @@ export default function ContactImportModal({
     return (
       <Modal title={t("im.donesp")} onClose={onClose} wide lang={lang}>
         <p>
-          <strong>{result.created}</strong> contact person(s) added.
-          {result.skipped.length > 0 && (
-            <>
-              {" "}
-              <strong>{result.skipped.length}</strong> row(s) skipped.
-            </>
-          )}
+          {t("im.createdct", { n: result.created })}
+          {result.skipped.length > 0 && <> {t("im.skippedrows", { n: result.skipped.length })}</>}
         </p>
         {result.skipped.length > 0 && (
           <div className="gr-tablewrap">
@@ -167,8 +163,8 @@ export default function ContactImportModal({
                 {result.skipped.map((s, i) => (
                   <tr key={i}>
                     <td>{s.line}</td>
-                    <td>{s.name}</td>
-                    <td>{s.reason}</td>
+                    <td>{s.name || t("im.empty")}</td>
+                    <td>{t(s.reason)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -188,11 +184,7 @@ export default function ContactImportModal({
     <Modal title={t("im.importct")} onClose={onClose} wide lang={lang}>
       {!headers ? (
         <>
-          <p className="gr-muted">
-            Upload an Excel (.xlsx) or CSV file with one contact per row. The sponsor is matched on the company name
-            exactly as it is stored here, so a row whose company doesn&apos;t exist yet is skipped rather than
-            creating a new sponsor.
-          </p>
+          <p className="gr-muted">{t("im.introct")}</p>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} className="gr-file" />
           {err && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>
@@ -205,21 +197,18 @@ export default function ContactImportModal({
           <h4 className="gr-subhead" style={{ borderTop: "none", paddingTop: 0 }}>
             {t("im.colmapping")}
           </h4>
-          <p className="gr-muted">
-            Detected automatically — adjust where needed. Leave the preference columns on &quot;skip&quot; to give
-            every imported contact &quot;information&quot; only.
-          </p>
+          <p className="gr-muted">{t("im.detectedct")}</p>
           <div className="gr-grid3">
-            {CONTACT_FIELDS.map(([field, label]) => (
-              <Field key={field} label={label}>
+            {CONTACT_FIELDS.map(([field, labelKey]) => (
+              <Field key={field} label={t(labelKey)}>
                 <select
                   value={map[field] ?? -1}
                   onChange={(e) => setMap({ ...map, [field]: Number(e.target.value) })}
                 >
-                  <option value={-1}>— skip —</option>
+                  <option value={-1}>{t("im.skip")}</option>
                   {headers.map((h, i) => (
                     <option key={i} value={i}>
-                      {h || `Column ${i + 1}`}
+                      {h || t("im.column", { n: i + 1 })}
                     </option>
                   ))}
                 </select>
@@ -233,10 +222,12 @@ export default function ContactImportModal({
           )}
           {analysis && (
             <>
-              <h4 className="gr-subhead">Preview</h4>
+              <h4 className="gr-subhead">{t("im.preview")}</h4>
               <p className="gr-muted">
-                <Tag tone="green">{analysis.create.length} to add</Tag>{" "}
-                <Tag tone={analysis.skipped.length ? "amber" : "grey"}>{analysis.skipped.length} skipped</Tag>
+                <Tag tone="green">{t("im.toadd", { n: analysis.create.length })}</Tag>{" "}
+                <Tag tone={analysis.skipped.length ? "amber" : "grey"}>
+                  {t("im.skippedcount", { n: analysis.skipped.length })}
+                </Tag>
               </p>
               {analysis.create.length > 0 && (
                 <div className="gr-tablewrap">
@@ -271,7 +262,7 @@ export default function ContactImportModal({
                       {analysis.create.length > 6 && (
                         <tr>
                           <td colSpan={5} className="gr-muted">
-                            …and {analysis.create.length - 6} more
+                            {t("im.more", { n: analysis.create.length - 6 })}
                           </td>
                         </tr>
                       )}
@@ -279,10 +270,9 @@ export default function ContactImportModal({
                   </table>
                 </div>
               )}
-              {analysis.skipped.some((s) => s.reason === "sponsor not found") && (
+              {analysis.skipped.some((s) => s.reason === "im.r.nosponsor") && (
                 <p className="gr-blockbanner" style={{ marginTop: 12 }}>
-                  Some company names don&apos;t match a sponsor. Check the spelling, or import those sponsors first
-                  via Sponsors → Import list.
+                  {t("im.nomatchbanner")}
                 </p>
               )}
             </>
@@ -307,7 +297,7 @@ export default function ContactImportModal({
                 setResult({ created: analysis.create.length, skipped: analysis.skipped });
               }}
             >
-              Import {analysis ? analysis.create.length : 0} contact(s)
+              {t("im.doct", { n: analysis ? analysis.create.length : 0 })}
             </button>
           </div>
         </>

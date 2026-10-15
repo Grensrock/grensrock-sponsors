@@ -1,4 +1,5 @@
 import type {
+  AuditEntity,
   Contact,
   Deal,
   Edition,
@@ -126,6 +127,7 @@ export const emptySponsor: Omit<Sponsor, "id"> = {
   postalCode: "",
   city: "",
   vatNumber: "",
+  noVatNumber: false,
   entityType: "legal",
   contacts: [],
   voucherContactId: "", // the single contact who receives the vouchers
@@ -272,3 +274,6 @@ export const OP_MAAT = "Op maat";
 
 /* ---------- audit ---------- */
 export const AUDIT_MAX = 1000;
+
+/* Every entity the log records (audit_log's check constraint), in the order the type filter lists them. */
+export const AUDIT_ENTITIES: AuditEntity[] = ["sponsor", "contact", "agreement", "edition", "vouchers", "account"];

@@ -45,7 +45,9 @@ export default function EmailModal({
   sponsor: Sponsor;
   edition: Edition;
   onClose: () => void;
-  onMarkSent: () => void;
+  /** Records the mail as sent without sending it. `edited` says the text was
+      changed here, which is worth a question first: closing on it drops the edit. */
+  onMarkSent: (edited: boolean) => void;
   /** The send succeeded; the agreement is already marked sent server-side. */
   onSent: (sentAt: string) => void;
   /** Saves a brand-new contact on this sponsor and hands it back with its real id. */
@@ -162,6 +164,7 @@ export default function EmailModal({
 
           {all.length > 0 && (
             <Field
+              group
               label={t("em.recipients")}
               hint={mixedLangs ? t("em.mixedlangs", { lang: LANGS[recipients[0]?.language || "nl"] }) : undefined}
             >
@@ -251,18 +254,30 @@ export default function EmailModal({
 
           {err && <p className="gr-blockbanner">{t("em.sendfailed")}: {err}</p>}
 
+          {/* Sending it some other way, kept apart from Send. In one row with it,
+              a phone stacked "Mark as sent" directly above Send, and what it
+              meant was only a tooltip, which a phone never shows — so it read
+              as a second send button that sends nothing. */}
+          <div className="gr-sendalt">
+            <div className="gr-sendalt-row">
+              <button className="gr-mini" onClick={copy}>
+                {copied ? t("em.copied") : t("em.copy")}
+              </button>
+              {recipients.length > 0 && (
+                <a className="gr-mini gr-btn-link" href={mailto}>
+                  {t("vo.openmail")}
+                </a>
+              )}
+            </div>
+            <div className="gr-sendalt-row">
+              <button className="gr-mini" onClick={() => onMarkSent(!!draft)}>
+                {t("vo.marksent")}
+              </button>
+              <span className="gr-muted">{t("em.marksenthint")}</span>
+            </div>
+          </div>
+
           <div className="gr-actions">
-            <button className="gr-btn-ghost" onClick={copy}>
-              {copied ? t("em.copied") : t("em.copy")}
-            </button>
-            {recipients.length > 0 && (
-              <a className="gr-btn-ghost gr-btn-link" href={mailto}>
-                {t("vo.openmail")}
-              </a>
-            )}
-            <button className="gr-btn-ghost" onClick={onMarkSent} title={t("em.marksenthint")}>
-              {t("vo.marksent")}
-            </button>
             <button className="gr-btn" onClick={send} disabled={busy || recipients.length === 0}>
               {busy ? t("em.sending") : t("em.send")}
             </button>

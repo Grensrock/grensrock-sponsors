@@ -95,7 +95,7 @@ export default function FolderOverview({
   const missing = rows.filter((r) => r.sponsor && !files[r.sponsor.id]);
 
   const logoQuality = (rec: LogoRecord | null): { tone: Tone; text: string } => {
-    if (!rec) return { tone: "amber", text: "missing" };
+    if (!rec) return { tone: "amber", text: t("fo.missingtag") };
     if (rec.vector) return { tone: "green", text: `vector .${rec.ext}` };
     if (rec.width)
       return {
@@ -262,7 +262,9 @@ export default function FolderOverview({
       {counts.length > 0 && (
         <p className="gr-muted">
           {counts.map(([k, n]) => `${n} × ${label(FOLDER_OPTS, k, lang)}`).join(" · ")}
-          {totalFraction % 1 !== 0 && <> — {(pages - totalFraction).toFixed(3).replace(/\.?0+$/, "")} page still free</>}
+          {totalFraction % 1 !== 0 && (
+            <> — {t("fo.pagefree", { n: (pages - totalFraction).toFixed(3).replace(/\.?0+$/, "") })}</>
+          )}
         </p>
       )}
 

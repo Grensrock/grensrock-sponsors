@@ -28,9 +28,11 @@ type DealFormState = Omit<Deal, "id"> & { id?: string; lockSponsor?: boolean };
 export default function DealForm({
   initial,
   sponsors,
+  pickableSponsors = sponsors,
   editions,
   deals = [],
   teamMembers = [],
+  defaultResponsibleId,
   vatCfg = defaultVatLookup,
   onSave,
   onCancel,
@@ -42,9 +44,13 @@ export default function DealForm({
 }: {
   initial?: DealDraft | null;
   sponsors: Sponsor[];
+  /** The ones this person may make an agreement for; `sponsors` is still used for lookups and duplicates. */
+  pickableSponsors?: Sponsor[];
   editions: Edition[];
   deals?: Deal[];
   teamMembers?: User[];
+  /** Responsible for a sponsor created from inside the form: whoever is filling it in. */
+  defaultResponsibleId?: string;
   vatCfg?: VatLookupConfig;
   onSave: (d: DealFormState) => void;
   onCancel: () => void;
@@ -115,10 +121,12 @@ export default function DealForm({
         </button>
         <SponsorForm
           initial={newSponsorDraft}
+          defaultResponsibleId={defaultResponsibleId}
           teamMembers={teamMembers}
           vatCfg={vatCfg}
           existingSponsors={sponsors}
           t={t}
+          lang={lang}
           onSave={async (s) => {
             const created = await onAddSponsor(s);
             set("sponsorId", created.id);
@@ -134,7 +142,7 @@ export default function DealForm({
     <div>
       <Field label={t("df.sponsor")} group>
         <SponsorPicker
-          sponsors={sponsors}
+          sponsors={pickableSponsors}
           value={d.sponsorId}
           onChange={(id) => set("sponsorId", id)}
           locked={!!initial?.lockSponsor || !!d.id}

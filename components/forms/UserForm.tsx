@@ -50,6 +50,7 @@ export default function UserForm({
         </Field>
       </div>
       <Field
+        group
         label={t("uf.emaillogin")}
         hint={customEmail ? t("uf.customaddress") : t("uf.autoaddress", { domain: TEAM_DOMAIN })}
       >
@@ -74,7 +75,7 @@ export default function UserForm({
               setU({ ...u, email: "" });
             }}
           >
-            Use the standard {TEAM_DOMAIN} address
+            {t("uf.usestandard", { domain: TEAM_DOMAIN })}
           </button>
         )}
       </Field>
@@ -101,10 +102,7 @@ export default function UserForm({
           </select>
         </Field>
       </div>
-      <p className="gr-muted">
-        Admins manage editions, formulas, invoicing and team accounts. Users can view and update all sponsors and
-        their agreements.
-      </p>
+      <p className="gr-muted">{t("uf.roleshint")}</p>
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onCancel}>
           {t("common.cancel")}

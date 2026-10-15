@@ -21,7 +21,7 @@ export default function BenefitFields({
   set: BenefitSetter;
   showVouchers?: boolean;
   t?: TranslateFn;
-  /** For the option labels, which are shared with the sponsor portal. */
+  /** For the option labels and the voucher editor, which are shared with the sponsor portal. */
   lang?: Language;
 }) {
   const num = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -46,6 +46,7 @@ export default function BenefitFields({
         <VoucherEditor
           amount={v.drinkValue}
           rows={v.drinkVouchers || []}
+          lang={lang}
           title="drink"
           onChange={(rows) => set("drinkVouchers", rows)}
         />
@@ -67,6 +68,7 @@ export default function BenefitFields({
         <VoucherEditor
           amount={v.foodDrinkValue}
           rows={v.foodDrinkVouchers || []}
+          lang={lang}
           title="food"
           onChange={(rows) => set("foodDrinkVouchers", rows)}
         />
@@ -103,7 +105,7 @@ export default function BenefitFields({
       <Field label={t("bf.fence")}>
         <input type="number" min="0" value={v.fenceCovers || 0} onChange={num("fenceCovers")} />
       </Field>
-      <Field label={t("bf.led")}>
+      <Field group label={t("bf.led")}>
         <div className="gr-checkrow">
           {(Object.keys(LED_ZONES) as LedZone[]).map((k) => {
             const zones = normLed(v.ledboarding);

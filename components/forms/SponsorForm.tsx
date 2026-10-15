@@ -9,28 +9,43 @@ import { defaultVatLookup, vatLookup } from "@/lib/integrations/vat-lookup";
 import { normNameKey, normVatKey } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { validateVat, vatToStore } from "@/lib/vat";
-import type { Sponsor, TranslateFn, User, VatLookupConfig } from "@/types";
+import type { Language, Sponsor, TranslateFn, User, VatLookupConfig } from "@/types";
 
 /* ---------- Sponsor form ---------- */
 
 export default function SponsorForm({
   initial,
+  defaultResponsibleId,
   onSave,
   onCancel,
   teamMembers = [],
   vatCfg = defaultVatLookup,
   existingSponsors = [],
   t = (k) => k,
+  lang = "nl",
 }: {
   initial?: Partial<Sponsor> | null;
+  /** Who a NEW sponsor starts out assigned to — the person creating it. Still changeable. */
+  defaultResponsibleId?: string;
   onSave: (s: Sponsor) => void;
   onCancel: () => void;
   teamMembers?: User[];
   vatCfg?: VatLookupConfig;
   existingSponsors?: Sponsor[];
   t?: TranslateFn;
+  /** For the VAT and registry messages, which are shared with the sponsor portal. */
+  lang?: Language;
 }) {
-  const [s, setS] = useState<Sponsor>({ id: "", ...emptySponsor, ...initial });
+  const [s, setS] = useState<Sponsor>(() => {
+    const start = {
+      id: "",
+      ...emptySponsor,
+      ...(!initial?.id && defaultResponsibleId ? { responsibleId: defaultResponsibleId } : {}),
+      ...initial,
+    };
+    /* A number filled in later (e.g. through the portal) wins over an old tick. */
+    return start.vatNumber.trim() ? { ...start, noVatNumber: false } : start;
+  });
   const set =
     (k: keyof Sponsor) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setS({ ...s, [k]: e.target.value } as Sponsor);
@@ -47,23 +62,36 @@ export default function SponsorForm({
       : null;
   const dup = dupVat || dupName;
 
-  const valid = s.companyName.trim().length > 0 && (!vatRes || vatRes.valid);
+  /* A VAT number is required, unless someone ticked that there isn't one. */
+  const vatMissing = !s.noVatNumber && !vatRes;
+  const valid = s.companyName.trim().length > 0 && (s.noVatNumber || (!!vatRes && vatRes.valid));
   return (
     <div>
       <div className="gr-grid2">
         <Field label={t("sf.companyname")}>
           <input value={s.companyName} onChange={set("companyName")} placeholder="Brouwerij Vanhonsebrouck" />
         </Field>
-        <Field label={t("c.vatnr")} hint={vatLookup.enabled(vatCfg) ? t("sf.fetchhint") : null}>
-          <VatInput
-            value={s.vatNumber}
-            onChange={set("vatNumber")}
-            lang="en"
-            cfg={vatCfg}
-            current={s}
-            /* The registry also tells us whether it's a company or a sole trader. */
-            onApply={(patch, company) => setS((prev) => ({ ...prev, ...patch, entityType: company.entityType }))}
-          />
+        <Field group label={t("c.vatnr") + (s.noVatNumber ? "" : " *")} hint={vatLookup.enabled(vatCfg) ? t("sf.fetchhint") : null}>
+          {!s.noVatNumber && (
+            <VatInput
+              value={s.vatNumber}
+              onChange={set("vatNumber")}
+              lang={lang}
+              cfg={vatCfg}
+              current={s}
+              /* The registry also tells us whether it's a company or a sole trader. */
+              onApply={(patch, company) => setS((prev) => ({ ...prev, ...patch, entityType: company.entityType }))}
+            />
+          )}
+          <label className={"gr-check" + (s.noVatNumber ? " on" : "")} style={{ marginTop: 6 }}>
+            <input
+              type="checkbox"
+              checked={!!s.noVatNumber}
+              /* Ticking it clears whatever was typed, so no stray number is saved. */
+              onChange={(e) => setS({ ...s, noVatNumber: e.target.checked, vatNumber: e.target.checked ? "" : s.vatNumber })}
+            />
+            {t("sf.novat")}
+          </label>
         </Field>
       </div>
       <div className="gr-gridaddr">
@@ -94,7 +122,7 @@ export default function SponsorForm({
           hint={teamMembers.length === 0 ? t("sf.noteam") : undefined}
         >
           <select value={s.responsibleId || ""} onChange={(e) => setS({ ...s, responsibleId: e.target.value })}>
-            <option value="">— not assigned —</option>
+            <option value="">{t("sf.noresp")}</option>
             {teamMembers.map((u) => (
               <option key={u.id} value={u.id}>
                 {userName(u)}
@@ -121,8 +149,13 @@ export default function SponsorForm({
           checked={!!s.refRequired}
           onChange={(e) => setS({ ...s, refRequired: e.target.checked })}
         />
-        This sponsor requires a reference on contract &amp; invoice (PO number, order reference, cost centre…)
+        {t("sf.refreq")}
       </label>
+      {vatMissing && s.companyName.trim() && (
+        <p className="gr-muted" style={{ marginBottom: 12 }}>
+          {t("sf.vatrequired")}
+        </p>
+      )}
       {dup && !s.id && (
         <p className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
           {dupVat

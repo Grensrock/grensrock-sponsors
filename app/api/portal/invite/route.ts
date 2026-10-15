@@ -21,6 +21,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
    gets a 404 and no mail is sent. Writing that rule out again here
    would only be a second copy to keep in step with the first.
 
+   Seeing a contact is not the same as being allowed to change it,
+   though: since 0024 a team member may only manage the contacts of a
+   sponsor they are responsible for. So a team caller is also asked
+   can_manage_sponsor(), the rule the contacts policies use. A portal
+   caller has no profiles row and stays covered by the read alone.
+
    Only the id crosses the wire — address, name and language all come
    from the row, so this cannot be pointed at an arbitrary address, and
    the email always describes the contact that actually exists.
@@ -46,10 +52,21 @@ export async function POST(request: NextRequest) {
 
   const { data: row } = await supabase
     .from("contacts")
-    .select(PORTAL_CONTACT_COLUMNS)
+    .select(`${PORTAL_CONTACT_COLUMNS}, sponsor_id`)
     .eq("id", contactId)
     .maybeSingle();
   if (!row) return NextResponse.json({ error: "No such contact." }, { status: 404 });
+
+  const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  if (profile) {
+    const { data: allowed } = await supabase.rpc("can_manage_sponsor", { p_sponsor_id: row.sponsor_id });
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Only the team member responsible for this sponsor, or an admin, can send this link." },
+        { status: 403 },
+      );
+    }
+  }
 
   if (!row.portal_access) {
     return NextResponse.json({ error: "This contact doesn't have portal access." }, { status: 409 });

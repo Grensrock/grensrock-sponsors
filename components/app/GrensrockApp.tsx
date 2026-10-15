@@ -21,6 +21,7 @@ import Modal from "@/components/ui/Modal";
 import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
 import CopyUserInvite from "@/components/views/CopyUserInvite";
+import Faq from "@/components/views/Faq";
 import FolderOverview from "@/components/views/FolderOverview";
 import Landing from "@/components/views/Landing";
 import SponsorDetail from "@/components/views/SponsorDetail";
@@ -75,6 +76,7 @@ import {
 } from "@/lib/money";
 import { ledLabel, normFolder, normLed, normNameKey, normVatKey } from "@/lib/normalize";
 import { isAdmin, responsibleName, userName } from "@/lib/users";
+import { teamFaq } from "@/lib/faq";
 import { portalDialogT, teamT } from "@/lib/i18n";
 import { expectedVouchers, ticketLines, visibilityLines, voucherProducts } from "@/lib/vouchers";
 import type {
@@ -1751,6 +1753,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                   ["admin", t("nav.admin")],
                 ] as Array<[string, string]>)
               : []),
+            ["faq", t("nav.faq")],
           ] as Array<[string, string]>;
           /* Naming the current screen on the button means the collapsed menu
              still answers "where am I?" without being opened. */
@@ -3925,6 +3928,19 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               })()
             )}
           </section>
+        )}
+
+        {/* ---------- FAQ ---------- */}
+        {tab === "faq" && (
+          <Faq
+            sections={teamFaq(uiLang, admin)}
+            labels={{
+              title: t("faq.title"),
+              intro: t("faq.intro"),
+              search: t("faq.search"),
+              noResults: t("faq.noresults"),
+            }}
+          />
         )}
       </main>
 

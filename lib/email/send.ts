@@ -85,31 +85,49 @@ function transport(): Transporter {
 
 export interface Message {
   to: string | string[];
+  cc?: string | string[];
   subject: string;
   text: string;
+  /** Who this copy is actually delivered to, when that isn't everyone in To
+      and Cc. The headers still name them all, so a reply-all reaches them —
+      send-agreement uses this to give each contact a copy with their own
+      sign-in link, and the Cc'd responsible a copy without one. */
+  deliverTo?: string | string[];
 }
+
+const addresses = (v?: string | string[]) => (Array.isArray(v) ? v : v ? [v] : []).map((a) => a.trim()).filter(Boolean);
 
 /**
  * Turns an intended message into the one actually handed to SMTP, applying
  * the staging redirect. Separate from the sending so the rule can be read —
  * and tested — without a mail server.
  */
-export function composeForDelivery({ to, subject, text }: Message) {
-  const intended = (Array.isArray(to) ? to : [to]).map((a) => a.trim()).filter(Boolean);
+export function composeForDelivery({ to, cc, subject, text, deliverTo }: Message) {
+  const intended = addresses(to);
   if (intended.length === 0) throw new Error("No recipient address.");
+  const copied = addresses(cc);
+  const envelope = addresses(deliverTo);
 
   const redirect = mailRedirectTo();
-  if (!redirect) return { to: intended, subject, text, redirected: false as const };
+  if (!redirect) {
+    return { to: intended, cc: copied, envelope: envelope.length ? envelope : null, subject, text, redirected: false as const };
+  }
 
   /* Rewritten rather than added as a Bcc: a redirected message that still
      carries the sponsor's address in To: is one careless "reply all" away
-     from doing the exact damage the redirect exists to prevent. The real
-     recipients are written into the subject and the body instead, which is
-     what makes a diverted mail readable as a test rather than confusing. */
+     from doing the exact damage the redirect exists to prevent. The Cc goes
+     the same way. The real recipients are written into the subject and the
+     body instead, which is what makes a diverted mail readable as a test
+     rather than confusing. */
+  const reaches = envelope.length ? envelope : [...intended, ...copied];
+  const headers = intended.join(", ") + (copied.length ? `, cc ${copied.join(", ")}` : "");
+  const delivered = envelope.length ? `, delivered to ${envelope.join(", ")} only,` : "";
   return {
     to: [redirect],
-    subject: `[STAGING → ${intended.join(", ")}] ${subject}`,
-    text: `--- Not production. This message was addressed to ${intended.join(", ")} and diverted here. ---\n\n${text}`,
+    cc: [],
+    envelope: null,
+    subject: `[STAGING → ${reaches.join(", ")}] ${subject}`,
+    text: `--- Not production. This message was addressed to ${headers}${delivered} and diverted here. ---\n\n${text}`,
     redirected: true as const,
   };
 }
@@ -119,6 +137,11 @@ export async function sendMail(message: Message) {
   await transport().sendMail({
     from: fromAddress(),
     to: out.to.join(", "),
+    cc: out.cc.length ? out.cc.join(", ") : undefined,
+    /* A custom envelope replaces the one nodemailer would derive from the
+       headers, sender included: without `from` it would go out with an empty
+       return path. */
+    envelope: out.envelope ? { from: fromAddress(), to: out.envelope } : undefined,
     subject: out.subject,
     text: out.text,
   });

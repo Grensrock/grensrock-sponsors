@@ -4217,6 +4217,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               deal={d}
               sponsor={s}
               edition={e}
+              responsible={users.find((u) => u.id === s.responsibleId) || null}
               onClose={() => setModal(null)}
               onMarkSent={(edited) =>
                 edited

@@ -10,7 +10,8 @@ import { ACCEPT_PATH, LANGS, emptyContact, uid } from "@/lib/constants";
 import { contactName, contactsFor, sponsorContacts } from "@/lib/contacts";
 import { buildEmail } from "@/lib/email-templates";
 import { emailToStore, sameEmail, validateEmail } from "@/lib/email-validate";
-import type { Contact, Deal, Edition, Sponsor, TranslateFn } from "@/types";
+import { userName } from "@/lib/users";
+import type { Contact, Deal, Edition, Sponsor, TranslateFn, User } from "@/types";
 
 /* ---------- Sending the confirmation email / contract ----------
    The team picks who it goes to, reads it, edits it if they want, and
@@ -35,6 +36,7 @@ export default function EmailModal({
   deal,
   sponsor,
   edition,
+  responsible,
   onClose,
   onMarkSent,
   onSent,
@@ -44,6 +46,8 @@ export default function EmailModal({
   deal: Deal;
   sponsor: Sponsor;
   edition: Edition;
+  /** The sponsor's responsible, who is put in Cc. */
+  responsible?: User | null;
   onClose: () => void;
   /** Records the mail as sent without sending it. `edited` says the text was
       changed here, which is worth a question first: closing on it drops the edit. */
@@ -65,6 +69,15 @@ export default function EmailModal({
     return (invoice.length ? invoice : info).map((c) => c.id);
   });
   const recipients = all.filter((c) => picked.includes(c.id));
+
+  /* Mirrors the route: no Cc without a usable address, nor for someone who is
+     already one of the recipients. */
+  const cc =
+    responsible &&
+    validateEmail(responsible.email)?.valid &&
+    !recipients.some((c) => sameEmail(c.email, responsible.email))
+      ? responsible
+      : null;
 
   /* Where the sponsor lands to accept. Shown bare here: on sending, each
      recipient's copy gets their own token on it, which signs them in and opens
@@ -104,15 +117,16 @@ export default function EmailModal({
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState<{ to: string[]; warnings: string[] } | null>(null);
+  const [done, setDone] = useState<{ to: string[]; cc: string | null; warnings: string[] } | null>(null);
   const [copied, setCopied] = useState(false);
   const [adding, setAdding] = useState(all.length === 0);
 
   const to = recipients.map((c) => c.email).join(",");
-  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const ccParam = cc ? `cc=${encodeURIComponent(cc.email)}&` : "";
+  const mailto = `mailto:${encodeURIComponent(to)}?${ccParam}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`To: ${to}\nSubject: ${subject}\n\n${body}`);
+      await navigator.clipboard.writeText(`To: ${to}\n${cc ? `Cc: ${cc.email}\n` : ""}Subject: ${subject}\n\n${body}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -129,7 +143,7 @@ export default function EmailModal({
     setErr("");
     try {
       const res = await sendAgreementEmail(deal.id, recipients.map((c) => c.id), subject, body);
-      setDone({ to: res.to, warnings: res.warnings });
+      setDone({ to: res.to, cc: res.cc, warnings: res.warnings });
       onSent(res.sentAt);
     } catch (e) {
       setErr((e as Error).message);
@@ -145,7 +159,9 @@ export default function EmailModal({
            do here but say what happened. */
         <>
           <p className="gr-blockbanner" style={{ background: "#E7F4EC", color: "var(--green)" }}>
-            {t("em.sentto", { to: done.to.join(", ") })}
+            {done.cc
+              ? t("em.senttocc", { to: done.to.join(", "), cc: done.cc })
+              : t("em.sentto", { to: done.to.join(", ") })}
           </p>
           {done.warnings.map((w, i) => (
             <p key={i} className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
@@ -225,6 +241,9 @@ export default function EmailModal({
               {t("em.personal")}
               {needInvite.length > 0 && <> {t("em.willinvite")}</>}
             </p>
+          )}
+          {recipients.length > 0 && cc && (
+            <p className="gr-muted">{t("em.cc", { name: userName(cc) || cc.email })}</p>
           )}
           {recipients.length === 0 && all.length > 0 && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>

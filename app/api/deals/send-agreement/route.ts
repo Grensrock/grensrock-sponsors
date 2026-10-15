@@ -3,7 +3,7 @@ import { createAcceptLink } from "@/lib/auth/portal-accept-link";
 import { PORTAL_CONTACT_COLUMNS, toPortalContact } from "@/lib/auth/portal-account";
 import { ACCEPT_PATH } from "@/lib/constants";
 import { MailNotConfiguredError, mailConfigured, sendMail } from "@/lib/email/send";
-import { validateEmail } from "@/lib/email-validate";
+import { sameEmail, validateEmail } from "@/lib/email-validate";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -31,6 +31,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
    the preview showed the bare one. Recipients that had no portal access
    are given it here — the link is the way in, so no separate
    set-password mail is needed to make it work.
+
+   The sponsor's responsible is in Cc, so a reply-all from the sponsor
+   reaches them too. Only in the headers, though: a contact's copy is
+   delivered to that contact alone, since its link signs in AS them.
+   The responsible gets one copy of their own, with the app's address
+   where the link was.
    ============================================================ */
 
 export const runtime = "nodejs"; // nodemailer opens a TCP connection; not available on edge
@@ -138,6 +144,23 @@ export async function POST(request: NextRequest) {
   const bareLink = `${request.nextUrl.origin}${ACCEPT_PATH}`;
   const hasLink = text.includes(bareLink);
 
+  /* No responsible, or one without a usable address: no Cc, and nothing to
+     warn about — the sponsor still gets their mail. Nor when they are also
+     one of the contacts, who already get it in To. */
+  const { data: sponsorRow } = await admin
+    .from("sponsors")
+    .select("responsible_id")
+    .eq("id", deal.sponsor_id)
+    .maybeSingle();
+  const { data: responsible } = sponsorRow?.responsible_id
+    ? await admin.from("profiles").select("email").eq("id", sponsorRow.responsible_id).maybeSingle()
+    : { data: null };
+  const responsibleEmail = String(responsible?.email || "").trim();
+  const cc =
+    validateEmail(responsibleEmail)?.valid && !chosen.some((r) => sameEmail(String(r.email || ""), responsibleEmail))
+      ? responsibleEmail
+      : "";
+
   for (const row of chosen) {
     const who = [row.first_name, row.last_name].filter(Boolean).join(" ") || String(row.email);
     let personal = text;
@@ -159,7 +182,12 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await sendMail({ to: String(row.email), subject, text: personal });
+      await sendMail({
+        to: String(row.email),
+        ...(cc && { cc, deliverTo: String(row.email) }),
+        subject,
+        text: personal,
+      });
       sentTo.push(String(row.email));
     } catch (ex) {
       if (ex instanceof MailNotConfiguredError) {
@@ -173,6 +201,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: warnings.join("\n") || "Could not send the email." }, { status: 502 });
   }
 
+  /* The responsible's copy: addressed like the ones that went out, so it reads
+     as the same conversation, but with the app where the personal link was. */
+  let ccSent: string | null = null;
+  if (cc) {
+    try {
+      await sendMail({
+        to: sentTo,
+        cc,
+        deliverTo: cc,
+        subject,
+        text: hasLink ? text.split(bareLink).join(request.nextUrl.origin) : text,
+      });
+      ccSent = cc;
+    } catch (ex) {
+      warnings.push(`The copy for ${cc} (cc) could not be sent: ${ex instanceof Error ? ex.message : "unknown error"}`);
+    }
+  }
+
   /* Through the caller's session on purpose: the audit trail (0005_audit.sql)
      then records the team member who sent it, not the service role. */
   const sentAt = new Date().toISOString();
@@ -184,6 +230,7 @@ export async function POST(request: NextRequest) {
     sent: true,
     sentAt,
     to: sentTo,
+    cc: ccSent,
     warnings,
   });
 }

@@ -204,6 +204,8 @@ export interface SendAgreementResult {
   sentAt: string;
   /** Addresses the message actually went to, as stored on the contacts. */
   to: string[];
+  /** The sponsor's responsible, if they were put in Cc and got their copy. */
+  cc: string | null;
   /** Non-fatal problems worth telling the team about; the mail still went. */
   warnings: string[];
 }
@@ -231,6 +233,7 @@ export async function sendAgreementEmail(
   return {
     sentAt: String(data.sentAt || new Date().toISOString()),
     to: Array.isArray(data.to) ? data.to.map(String) : [],
+    cc: data.cc ? String(data.cc) : null,
     warnings: Array.isArray(data.warnings) ? data.warnings.map(String) : [],
   };
 }

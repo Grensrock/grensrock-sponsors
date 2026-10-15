@@ -749,6 +749,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "em.send": ["Versturen", "Send"],
   "em.sending": ["Bezig met versturen…", "Sending…"],
   "em.sentto": ["Verzonden naar {to}.", "Sent to {to}."],
+  "em.senttocc": ["Verzonden naar {to}, in cc {cc}.", "Sent to {to}, cc {cc}."],
+  "em.cc": [
+    "In cc: {name}, verantwoordelijke voor deze sponsor. Die krijgt één kopie, zonder de persoonlijke links.",
+    "Cc: {name}, responsible for this sponsor. They get one copy, without the personal links.",
+  ],
   "em.sendfailed": ["Versturen mislukt", "Sending failed"],
   "em.marksenthint": [
     "Gebruik dit als u de mail zelf al buiten deze tool verstuurde.",

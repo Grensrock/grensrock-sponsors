@@ -1,4 +1,4 @@
-import { LED_ZONES, label } from "@/lib/constants";
+import { LED_ZONES, OP_MAAT, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
@@ -406,6 +406,66 @@ Sign in with your Grensrock account (${user.email}) using "Sign in with Google".
 Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
 
 If you were still signed in, sign out and back in once.
+
+Grensrock`;
+
+  return { subject, body };
+}
+
+/* ---------- new agreement, for the admins ----------
+   Sent to each admin when an agreement is created — by a team member in
+   the app, or by a sponsor picking a formula in the portal — so a new one
+   doesn't have to be spotted in the list. Team-facing, so NL/EN in the
+   admin's own language, like buildAccessGranted above. */
+export function buildAgreementCreated(
+  admin: User,
+  deal: Pick<Deal, "formulaName" | "cost" | "settlement">,
+  sponsorName: string,
+  editionName: string,
+  createdBy: { name: string; viaPortal: boolean },
+  appUrl: string,
+) {
+  const lang = admin.language === "en" ? "en" : "nl";
+  const nl = lang === "nl";
+  const custom = !deal.formulaName.trim() || deal.formulaName === OP_MAAT;
+  const formula = custom ? (nl ? "op maat" : "custom") : deal.formulaName;
+  const by = createdBy.viaPortal
+    ? nl
+      ? `${createdBy.name || "de sponsor"}, via het sponsorportaal`
+      : `${createdBy.name || "the sponsor"}, via the sponsor portal`
+    : createdBy.name || (nl ? "een teamlid" : "a team member");
+
+  const subject = nl
+    ? `Nieuwe overeenkomst: ${sponsorName} (${editionName})`
+    : `New agreement: ${sponsorName} (${editionName})`;
+
+  const body = nl
+    ? `Dag ${userName(admin)},
+
+Er is een nieuwe overeenkomst aangemaakt.
+
+Sponsor: ${sponsorName}
+Editie: ${editionName}
+Formule: ${formula}
+Bijdrage: ${eur(deal.cost)}
+Afrekening: ${label(SETTLEMENTS, deal.settlement, lang)}
+Aangemaakt door: ${by}
+
+Link: ${appUrl}
+
+Grensrock`
+    : `Hi ${userName(admin)},
+
+A new agreement has been created.
+
+Sponsor: ${sponsorName}
+Edition: ${editionName}
+Formula: ${formula}
+Contribution: ${eur(deal.cost)}
+Settlement: ${label(SETTLEMENTS, deal.settlement, lang)}
+Created by: ${by}
+
+Link: ${appUrl}
 
 Grensrock`;
 

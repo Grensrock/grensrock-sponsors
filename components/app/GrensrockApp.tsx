@@ -766,6 +766,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const requestFormula = async (editionId: string, formulaName: string, byName: string): Promise<boolean> => {
     try {
       const dealId = await dealsApi.portalRequestFormula(editionId, formulaName, byName);
+      /* The RPC hands back an agreement that already existed rather than
+         making a second one; only a new one is news to the admins. */
+      if (!deals.some((x) => x.id === dealId)) dealsApi.notifyDealCreated(dealId).catch(console.error);
       const fresh = await dealsApi.getDeal(dealId);
       if (fresh)
         setData((d) => ({
@@ -1522,6 +1525,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         setModal(null);
       } else {
         const created = await dealsApi.createDeal({ ...d, responsible: d.responsible || userName(me) || "" });
+        /* Not awaited: the team member shouldn't wait on mail to the admins, and
+           a mail that failed is no reason to hold back the email modal below. */
+        dealsApi.notifyDealCreated(created.id).catch(console.error);
         /* The database drops a decline for this sponsor and edition (0022); mirror it. */
         setData((prev) => ({
           ...prev,
@@ -4211,6 +4217,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               deal={d}
               sponsor={s}
               edition={e}
+              responsible={users.find((u) => u.id === s.responsibleId) || null}
               onClose={() => setModal(null)}
               onMarkSent={(edited) =>
                 edited

@@ -177,6 +177,27 @@ export async function teamAcceptDeal(dealId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/* ----- telling the admins about a new agreement ----- */
+
+/**
+ * Mails the admins that this agreement was just created. Call it once, right
+ * after creating one — the route refuses agreements that aren't brand new.
+ *
+ * Throws on failure. The agreement exists regardless, so callers should only
+ * log that, not undo or block anything.
+ */
+export async function notifyDealCreated(dealId: string): Promise<void> {
+  const res = await fetch("/api/deals/notify-created", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dealId }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error || "Could not notify the admins.");
+  }
+}
+
 /* ----- sending the confirmation email ----- */
 
 export interface SendAgreementResult {

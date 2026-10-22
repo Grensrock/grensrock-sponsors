@@ -1,15 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAcceptLink } from "@/lib/auth/portal-accept-link";
 import { PORTAL_CONTACT_COLUMNS, toPortalContact } from "@/lib/auth/portal-account";
-import { ACCEPT_PATH } from "@/lib/constants";
+import { ACCEPT_PATH, LANGS } from "@/lib/constants";
 import { MailNotConfiguredError, mailConfigured, sendMail } from "@/lib/email/send";
+import { renderAgreementHtml } from "@/lib/email-templates";
 import { sameEmail, validateEmail } from "@/lib/email-validate";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Language } from "@/types";
 
 /* ============================================================
    POST /api/deals/send-agreement
-     { dealId, contactIds[], subject, body }
+     { dealId, contactIds[], subject, body, language }
    ============================================================
    Mails the confirmation of an agreement to the sponsor's contact
    person(s) and marks the agreement as sent. Server-side because the
@@ -19,7 +21,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
    Unlike the other mail routes, the text IS taken from the request: the
    team edits the message in the preview before sending, so a route that
    rebuilt it server-side would send something other than what was
-   approved on screen. The property that actually matters is kept
+   approved on screen. The language comes along with it: it is the
+   text's, and it picks the words on the button the link becomes in the
+   laid-out mail. The property that actually matters is kept
    regardless — only contact IDS cross the wire, and every address is
    read back from the row. So this cannot be pointed at an arbitrary
    recipient no matter what is in the body, and the message can only
@@ -51,6 +55,7 @@ interface Payload {
   contactIds?: unknown;
   subject?: string;
   body?: string;
+  language?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -65,6 +70,7 @@ export async function POST(request: NextRequest) {
   const contactIds = Array.isArray(payload.contactIds) ? payload.contactIds.map((x) => String(x || "").trim()) : [];
   const subject = String(payload.subject || "").trim();
   const text = String(payload.body || "");
+  const language = (payload.language && Object.hasOwn(LANGS, payload.language) ? payload.language : "nl") as Language;
 
   if (!dealId) return NextResponse.json({ error: "An agreement id is required." }, { status: 400 });
   if (contactIds.filter(Boolean).length === 0) {
@@ -164,6 +170,7 @@ export async function POST(request: NextRequest) {
   for (const row of chosen) {
     const who = [row.first_name, row.last_name].filter(Boolean).join(" ") || String(row.email);
     let personal = text;
+    let personalLink: string | undefined;
 
     if (hasLink) {
       if (!row.portal_access) {
@@ -178,6 +185,7 @@ export async function POST(request: NextRequest) {
         warnings.push(`No personal link could be made for ${who} (${link.reason}), so the mail to them wasn't sent.`);
         continue;
       }
+      personalLink = link.url;
       personal = text.split(bareLink).join(link.url);
     }
 
@@ -187,6 +195,7 @@ export async function POST(request: NextRequest) {
         ...(cc && { cc, deliverTo: String(row.email) }),
         subject,
         text: personal,
+        html: renderAgreementHtml(personal, subject, language, personalLink),
       });
       sentTo.push(String(row.email));
     } catch (ex) {
@@ -202,16 +211,19 @@ export async function POST(request: NextRequest) {
   }
 
   /* The responsible's copy: addressed like the ones that went out, so it reads
-     as the same conversation, but with the app where the personal link was. */
+     as the same conversation, but with the app where the personal link was —
+     as a plain link, since the sponsor's button would ask them to accept. */
   let ccSent: string | null = null;
   if (cc) {
+    const copy = hasLink ? text.split(bareLink).join(request.nextUrl.origin) : text;
     try {
       await sendMail({
         to: sentTo,
         cc,
         deliverTo: cc,
         subject,
-        text: hasLink ? text.split(bareLink).join(request.nextUrl.origin) : text,
+        text: copy,
+        html: renderAgreementHtml(copy, subject, language),
       });
       ccSent = cc;
     } catch (ex) {

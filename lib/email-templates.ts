@@ -1,5 +1,6 @@
 import { LED_ZONES, OP_MAAT, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
+import { renderEmailHtml } from "@/lib/email/layout";
 import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import { userName } from "@/lib/users";
@@ -68,7 +69,7 @@ export function buildEmail(
   edition: Edition,
   contact?: Contact | Contact[] | null,
   acceptUrl?: string,
-): { subject: string; body: string } {
+): { subject: string; body: string; lang: Language } {
   /* One text goes to everyone it is addressed to, so the recipients are taken
      as a list: the language and the "your address" line follow the first, and
      the greeting names all of them. "Beste Jan" arriving in Piet's inbox reads
@@ -286,6 +287,7 @@ ${contribution}
 Inbegrepen:
 ${list || "  • (geen voordelen geselecteerd)"}
 ${notes ? "\nOpmerkingen:\n" + notes + "\n" : ""}
+Facturatie:
 ${settlementBlock}
 
 ${confirm}
@@ -304,6 +306,7 @@ ${contribution}
 Inclus :
 ${list || "  • (aucun avantage sélectionné)"}
 ${notes ? "\nRemarques :\n" + notes + "\n" : ""}
+Facturation :
 ${settlementBlock}
 
 ${confirm}
@@ -322,6 +325,7 @@ ${contribution}
 Included:
 ${list || "  • (no benefits selected)"}
 ${notes ? "\nNotes:\n" + notes + "\n" : ""}
+Invoicing:
 ${settlementBlock}
 
 ${confirm}
@@ -331,7 +335,25 @@ ${deal.responsible || "The Grensrock team"}
 Grensrock`,
   );
 
-  return { subject, body };
+  return { subject, body, lang };
+}
+
+/* ---------- the agreement, laid out ----------
+   Built from the text rather than beside buildEmail, because the text is
+   what the team may edit before it goes out: the preview and the route
+   both lay out the approved text through here, so what the modal shows is
+   what arrives. `acceptUrl` is the link as it stands in that text — the
+   bare one in the preview, a recipient's personal one in their copy. */
+export function renderAgreementHtml(body: string, subject: string, lang: Language, acceptUrl?: string) {
+  const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+  return renderEmailHtml({
+    text: body,
+    lang,
+    heading: subject,
+    buttons: acceptUrl
+      ? { [acceptUrl]: B("Overeenkomst bekijken en aanvaarden", "Consulter et accepter l'accord", "Review and accept the agreement") }
+      : {},
+  });
 }
 
 /* ---------- team invitation text ----------
@@ -536,7 +558,14 @@ Then sign in with your email address (${contact.email}) and the password you cho
 Grensrock`,
   );
 
-  return { subject, body };
+  const html = renderEmailHtml({
+    text: body,
+    lang,
+    heading: B("Kies uw wachtwoord", "Choisissez votre mot de passe", "Choose your password"),
+    buttons: { [url]: B("Wachtwoord kiezen", "Choisir un mot de passe", "Choose a password") },
+  });
+
+  return { subject, body, html };
 }
 
 /* ---------- sponsor portal: sign in with a link ----------
@@ -599,5 +628,12 @@ Didn't ask for this? Then there's nothing to do. Without the link nothing about 
 Grensrock`,
   );
 
-  return { subject, body };
+  const html = renderEmailHtml({
+    text: body,
+    lang,
+    heading: B("Uw aanmeldlink", "Votre lien de connexion", "Your sign-in link"),
+    buttons: { [url]: B("Aanmelden", "Se connecter", "Sign in") },
+  });
+
+  return { subject, body, html };
 }

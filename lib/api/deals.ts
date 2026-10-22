@@ -10,7 +10,7 @@ import {
   voucherRowsToJson,
   type Row,
 } from "@/lib/api/util";
-import type { Acceptance, Deal, Settlement, VoucherRow } from "@/types";
+import type { Acceptance, Deal, Language, Settlement, VoucherRow } from "@/types";
 
 /* ============================================================
    deals (agreements)
@@ -222,11 +222,12 @@ export async function sendAgreementEmail(
   contactIds: string[],
   subject: string,
   body: string,
+  language: Language,
 ): Promise<SendAgreementResult> {
   const res = await fetch("/api/deals/send-agreement", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dealId, contactIds, subject, body }),
+    body: JSON.stringify({ dealId, contactIds, subject, body, language }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || "Could not send the email.");

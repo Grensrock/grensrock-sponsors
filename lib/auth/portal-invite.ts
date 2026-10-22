@@ -84,9 +84,9 @@ export async function issuePortalInvite(contact: PortalContact, origin: string):
   if (insertError) return { sent: false, reason: insertError.message };
 
   const url = `${origin.replace(/\/$/, "")}/set-password?token=${encodeURIComponent(token)}`;
-  const { subject, body } = buildPortalPasswordLink(contact, url, expiresAt);
+  const { subject, body, html } = buildPortalPasswordLink(contact, url, expiresAt);
   try {
-    await sendMail({ to: email, subject, text: body });
+    await sendMail({ to: email, subject, text: body, html });
   } catch (ex) {
     /* Reported rather than thrown: the caller can then say which contact and
        why, instead of the route collapsing into a bodyless 500. */

@@ -8,10 +8,10 @@ import Tag from "@/components/ui/Tag";
 import { sendAgreementEmail } from "@/lib/api/deals";
 import { ACCEPT_PATH, LANGS, emptyContact, uid } from "@/lib/constants";
 import { contactName, contactsFor, sponsorContacts } from "@/lib/contacts";
-import { buildEmail } from "@/lib/email-templates";
+import { buildEmail, renderAgreementHtml } from "@/lib/email-templates";
 import { emailToStore, sameEmail, validateEmail } from "@/lib/email-validate";
 import { userName } from "@/lib/users";
-import type { Contact, Deal, Edition, Sponsor, TranslateFn, User } from "@/types";
+import type { Contact, Deal, Edition, Language, Sponsor, TranslateFn, User } from "@/types";
 
 /* ---------- Sending the confirmation email / contract ----------
    The team picks who it goes to, reads it, edits it if they want, and
@@ -88,7 +88,8 @@ export default function EmailModal({
      client pass disagree with the server's and React throws the tree away.
      This gives the server "" and the client the real origin, which is exactly
      what the hook is for. It never changes, hence the no-op subscribe. */
-  const acceptUrl = useSyncExternalStore(subscribeNever, readOrigin, readNoOrigin);
+  const origin = useSyncExternalStore(subscribeNever, readOrigin, readNoOrigin);
+  const acceptUrl = origin ? origin + ACCEPT_PATH : undefined;
 
   /* The contact being added below is ticked the moment it is saved, so the
      preview already counts them in: picking their language rewrites the mail
@@ -103,17 +104,21 @@ export default function EmailModal({
     sponsor,
     edition,
     pending ? [...recipients, pending] : recipients,
-    acceptUrl ? acceptUrl + ACCEPT_PATH : undefined,
+    acceptUrl,
   );
 
   /* null means "still following the agreement". Once the team types, their
      text stands — silently regenerating over an edit would be the modal
-     throwing away work while they are looking at it. */
-  const [draft, setDraft] = useState<{ subject: string; body: string } | null>(null);
+     throwing away work while they are looking at it. The draft keeps the
+     language it was written in, which the button in the mail is worded in,
+     even if the recipients change under it. */
+  const [draft, setDraft] = useState<{ subject: string; body: string; lang: Language } | null>(null);
   const subject = draft ? draft.subject : built.subject;
   const body = draft ? draft.body : built.body;
+  const lang = draft ? draft.lang : built.lang;
   const edit = (patch: Partial<{ subject: string; body: string }>) =>
-    setDraft({ subject, body, ...patch });
+    setDraft({ subject, body, lang, ...patch });
+  const [editing, setEditing] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -142,7 +147,7 @@ export default function EmailModal({
     setBusy(true);
     setErr("");
     try {
-      const res = await sendAgreementEmail(deal.id, recipients.map((c) => c.id), subject, body);
+      const res = await sendAgreementEmail(deal.id, recipients.map((c) => c.id), subject, body, lang);
       setDone({ to: res.to, cc: res.cc, warnings: res.warnings });
       onSent(res.sentAt);
     } catch (e) {
@@ -251,25 +256,35 @@ export default function EmailModal({
             </p>
           )}
 
-          {/* The preview is the editable message itself, rather than a render
-              of one — the mail is plain text, so there is nothing a read-only
-              copy would show that the textarea doesn't. */}
+          {/* The text is what gets edited, but the sponsor sees it laid out,
+              with the link as a button — so that is what the modal shows until
+              the team asks for the text. The preview is laid out from the same
+              text by the same function as the mail that goes out. */}
           <Field label={t("em.subject")}>
             <input value={subject} onChange={(e) => edit({ subject: e.target.value })} />
           </Field>
           <Field label={t("em.body")} hint={draft ? t("em.edited") : undefined}>
-            <textarea
-              className="gr-emailedit"
-              rows={16}
-              value={body}
-              onChange={(e) => edit({ body: e.target.value })}
-            />
+            {editing ? (
+              <textarea
+                className="gr-emailedit"
+                rows={16}
+                value={body}
+                onChange={(e) => edit({ body: e.target.value })}
+              />
+            ) : (
+              <MailPreview html={renderAgreementHtml(body, subject, lang, acceptUrl)} title={subject} />
+            )}
           </Field>
-          {draft && (
-            <button className="gr-mini" onClick={() => setDraft(null)}>
-              {t("em.rebuild")}
+          <div className="gr-sendalt-row">
+            <button className="gr-mini" onClick={() => setEditing((on) => !on)}>
+              {editing ? t("em.preview") : t("em.edit")}
             </button>
-          )}
+            {draft && (
+              <button className="gr-mini" onClick={() => setDraft(null)}>
+                {t("em.rebuild")}
+              </button>
+            )}
+          </div>
 
           {err && <p className="gr-blockbanner">{t("em.sendfailed")}: {err}</p>}
 
@@ -304,6 +319,34 @@ export default function EmailModal({
         </>
       )}
     </Modal>
+  );
+}
+
+/* ---------- the mail as the sponsor sees it ----------
+   In a frame, so the mail's own styles neither leak into the app nor pick
+   up the app's. Sandboxed without scripts — there are none — and grown to
+   the mail's height rather than scrolling inside a modal that scrolls. The
+   frame has to share the page's origin for its height to be readable; with
+   no scripts allowed in it, that gives the mail nothing. Its links open
+   nothing: in the preview the accept link is the bare one, without a token. */
+function MailPreview({ html, title }: { html: string; title: string }) {
+  const [height, setHeight] = useState(520);
+  const measure = (frame: HTMLIFrameElement) => {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    setHeight(doc.documentElement.scrollHeight);
+    /* The web fonts arrive after the first layout and change line breaks. */
+    doc.fonts?.ready.then(() => setHeight(doc.documentElement.scrollHeight));
+  };
+  return (
+    <iframe
+      className="gr-mailpreview"
+      title={title}
+      srcDoc={html}
+      sandbox="allow-same-origin"
+      style={{ height }}
+      onLoad={(e) => measure(e.currentTarget)}
+    />
   );
 }
 

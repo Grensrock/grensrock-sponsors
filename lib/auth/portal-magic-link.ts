@@ -69,9 +69,9 @@ export async function issuePortalMagicLink(contact: PortalContact, origin: strin
     `${origin.replace(/\/$/, "")}/auth/callback` +
     `?token_hash=${encodeURIComponent(hashedToken)}&type=magiclink`;
 
-  const { subject, body } = buildPortalSignInLink(contact, url, MAGIC_LINK_MINUTES);
+  const { subject, body, html } = buildPortalSignInLink(contact, url, MAGIC_LINK_MINUTES);
   try {
-    await sendMail({ to: email, subject, text: body });
+    await sendMail({ to: email, subject, text: body, html });
   } catch (ex) {
     return { sent: false, reason: ex instanceof Error ? ex.message : "The mail server refused the message." };
   }

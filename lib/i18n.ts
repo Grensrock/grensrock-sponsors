@@ -31,6 +31,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "ov.totalvalue": ["totale sponsorwaarde", "total sponsorship value"],
   "ov.toinvoice": ["te factureren", "to invoice"],
   "ov.invoiced": ["gefactureerd", "invoiced"],
+  "ov.performula": ["Overeenkomsten per formule", "Agreements per formula"],
   "ov.newagreement": ["+ Nieuwe overeenkomst", "+ New agreement"],
   "ov.newsponsor": ["+ Nieuwe sponsor", "+ New sponsor"],
   "an.noeditions": ["Maak eerst een editie aan om analyses te zien.", "Create an edition first to see analytics."],
@@ -694,6 +695,9 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "ef.location": ["Locatie", "Location"],
   "ff.name": ["Naam van de formule *", "Formula name *"],
   "ff.cost": ["Kostprijs (€) *", "Cost (€) *"],
+  "ff.color": ["Kleur", "Colour"],
+  "ff.colorhint": ["Zo herkent u de formule in het overzicht en bij een nieuwe overeenkomst", "How the formula stands out in the overview and in a new agreement"],
+  "ff.colorother": ["Andere kleur", "Other colour"],
   "sf.responsibleteam": ["Verantwoordelijke (ons team)", "Responsible (our team)"],
   "sf.noteam": [
     "Nog geen teamaccounts — voeg ze toe in het tabblad Team",

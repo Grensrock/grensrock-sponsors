@@ -1,3 +1,4 @@
+import { normColor } from "@/lib/color";
 import { supabase } from "@/lib/supabase/client";
 import { formulaFieldsToRow, orEmpty, rowToFormulaFields, unwrap, type Row } from "@/lib/api/util";
 import type { Formula } from "@/types";
@@ -12,7 +13,7 @@ import type { Formula } from "@/types";
    ============================================================ */
 
 const COLUMNS =
-  "id, edition_id, name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, fence_covers";
+  "id, edition_id, name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, fence_covers, color";
 
 export interface FormulaWithEdition extends Formula {
   editionId: string;
@@ -23,6 +24,7 @@ export function rowToFormula(row: Row): FormulaWithEdition {
     ...rowToFormulaFields(row),
     editionId: String(row.edition_id),
     name: orEmpty(row.name),
+    color: normColor(row.color),
   };
 }
 
@@ -35,7 +37,7 @@ export async function createFormula(editionId: string, f: Formula): Promise<Form
   const row = unwrap<Row | null>(
     await supabase
       .from("formulas")
-      .insert({ ...formulaFieldsToRow(f), edition_id: editionId, name: f.name || "" })
+      .insert({ ...formulaFieldsToRow(f), edition_id: editionId, name: f.name || "", color: normColor(f.color) })
       .select(COLUMNS)
       .single(),
   );
@@ -50,7 +52,7 @@ export async function updateFormula(
   const row = unwrap<Row | null>(
     await supabase
       .from("formulas")
-      .update({ ...formulaFieldsToRow(f), name: f.name || "" })
+      .update({ ...formulaFieldsToRow(f), name: f.name || "", color: normColor(f.color) })
       .eq("edition_id", editionId)
       .eq("name", originalName)
       .select(COLUMNS)

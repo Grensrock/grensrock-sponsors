@@ -27,6 +27,7 @@ import { contactName, primaryContact, sponsorContacts } from "@/lib/contacts";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { sponsorFaq } from "@/lib/faq";
+import { formulaColor } from "@/lib/color";
 import { eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
 import { validateVat, vatToStore } from "@/lib/vat";
 import {
@@ -626,6 +627,7 @@ export default function SponsorPortal({
                         className={
                           "gr-formulacard" + (chosen?.editionId === ed.id && chosen?.name === f.name ? " on" : "")
                         }
+                        style={f.color ? { borderTopColor: formulaColor(f) } : undefined}
                       >
                         <h5>{f.name}</h5>
                         <div className="gr-formulaprice">{eur(f.cost)}</div>

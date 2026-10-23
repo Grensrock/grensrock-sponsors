@@ -146,6 +146,7 @@ export const emptyEdition: Omit<Edition, "id"> = {
 
 export const emptyFormula: Formula = {
   name: "",
+  color: "",
   cost: "",
   vipFriday: 0,
   vipSaturday: 0,

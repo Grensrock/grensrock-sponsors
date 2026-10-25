@@ -1643,7 +1643,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const ovInvoiced = ovBillable.filter((d) => d.invoiceCreated).length;
   /* The edition's formulas, cheapest first like the agreement form's buttons,
      each with how many agreements took it; whatever matches none of them
-     (Op maat, or a formula renamed since) is counted as custom. */
+     (Op maat, or a formula renamed since) is counted as custom. The overview
+     shows them with their benefits. */
   const ovFormulas = [...(overviewEdition?.formulas || [])]
     .sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0))
     .map((f) => ({ formula: f, count: ovDeals.filter((d) => d.formulaName === f.name).length }));
@@ -1976,26 +1977,6 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     {t("ov.invoiced")}
                   </div>
                 </div>
-                {ovFormulas.length > 0 && (
-                  <>
-                    <h3 className="gr-subhead">{t("ov.performula")}</h3>
-                    <div className="gr-statrow" style={{ marginTop: 10 }}>
-                      {ovFormulas.map(({ formula: f, count }) => (
-                        <div key={f.name} className="gr-stat gr-fstat" style={formulaStyle(f)}>
-                          <span>{count}</span>
-                          <i className="gr-fdot" />
-                          <strong>{f.name}</strong> · {eur(f.cost)}
-                        </div>
-                      ))}
-                      {ovCustom > 0 && (
-                        <div className="gr-stat" style={{ borderLeftColor: "var(--line)" }}>
-                          <span>{ovCustom}</span>
-                          <strong style={{ color: "var(--ink)" }}>{OP_MAAT}</strong>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
                 <div className="gr-actions" style={{ justifyContent: "flex-start" }}>
                   <button className="gr-btn" onClick={() => setModal({ type: "deal" })}>
                     {t("ov.newagreement")}
@@ -2004,6 +1985,76 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     {t("ov.newsponsor")}
                   </button>
                 </div>
+                {/* What each formula gives, as set under Admin › Editions & formulas —
+                    a tab only admins see — and as the sponsor reads it in the portal. */}
+                {ovFormulas.length > 0 && (
+                  <>
+                    <div className="gr-subhead gr-subhead-row">
+                      <span>{t("ov.formulas")}</span>
+                      {admin && (
+                        <button className="gr-mini" onClick={() => setTab("editions")}>
+                          {t("ov.editformulas")}
+                        </button>
+                      )}
+                    </div>
+                    <div className="gr-formulacards gr-fcards">
+                      {ovFormulas.map(({ formula: f, count }) => {
+                        const tickets = ticketLines(f, uiLang);
+                        const visibility = visibilityLines(f, uiLang);
+                        return (
+                          <div key={f.name} className="gr-formulacard gr-fcard" style={formulaStyle(f)}>
+                            <div className="gr-fcard-head">
+                              <div className="gr-fcard-title">
+                                <h5>{f.name}</h5>
+                                <span className="gr-fcard-count">
+                                  <b>{count}</b> {count === 1 ? t("ov.agreement1") : t("ov.agreementn")}
+                                </span>
+                              </div>
+                              <div className="gr-formulaprice">{eur(f.cost)}</div>
+                            </div>
+                            {tickets.length > 0 && (
+                              <>
+                                <span className="gr-label">{t("ov.tickets")}</span>
+                                <ul>
+                                  {tickets.map((line, i) => (
+                                    <li key={i}>{line}</li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
+                            {visibility.length > 0 && (
+                              <>
+                                <span className="gr-label">{t("ov.visibility")}</span>
+                                <ul>
+                                  {visibility.map((line, i) => (
+                                    <li key={i}>{line}</li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
+                            {tickets.length + visibility.length === 0 && (
+                              <p className="gr-muted">{t("ov.nobenefits")}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {ovCustom > 0 && (
+                        <div className="gr-formulacard gr-fcard gr-fcard-custom" style={formulaStyle(null)}>
+                          <div className="gr-fcard-head">
+                            <div className="gr-fcard-title">
+                              <h5>{OP_MAAT}</h5>
+                              <span className="gr-fcard-count">
+                                <b>{ovCustom}</b> {ovCustom === 1 ? t("ov.agreement1") : t("ov.agreementn")}
+                              </span>
+                            </div>
+                            <div className="gr-formulaprice">—</div>
+                          </div>
+                          <p className="gr-muted">{t("ov.custombenefits")}</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </section>

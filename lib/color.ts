@@ -48,7 +48,7 @@ export const textOn = (hex: string): string => {
   return lum > 0.18 ? "#1c1a1c" : "#fff";
 };
 
-/* The custom properties the .gr-fbtn / .gr-fdot / .gr-fstat styles draw with. */
+/* The custom properties the .gr-fbtn / .gr-fdot / .gr-fcard styles draw with. */
 export const formulaStyle = (f?: { color?: string } | null): CSSProperties => {
   const c = formulaColor(f);
   return { "--fc": c, "--fc-ink": textOn(c) } as CSSProperties;

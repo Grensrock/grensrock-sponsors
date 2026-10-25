@@ -920,12 +920,20 @@ export default function SponsorPortal({
                           "Add extra food & drink tickets",
                         )}
                       </span>
+                      {/* Formulas carry no food & drink any more (0027); an older
+                          agreement may still have some included. */}
                       <p className="gr-muted" style={{ margin: "0 0 10px" }}>
-                        {T(
-                          `Uw formule bevat ${eur(d.baseFoodDrink || 0)} aan eten- en drankbonnen. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
-                          `Votre formule comprend ${eur(d.baseFoodDrink || 0)} de bons food & boissons. Vous souhaitez l'augmenter ? Indiquez la valeur totale ci-dessous — la différence s'ajoute à votre contribution.`,
-                          `Your formula includes ${eur(d.baseFoodDrink || 0)} in food & drink tickets. Want to add more? Enter the total value below — the difference is added to your contribution.`,
-                        )}
+                        {Number(d.baseFoodDrink) > 0
+                          ? T(
+                              `Uw formule bevat ${eur(d.baseFoodDrink || 0)} aan eten- en drankbonnen. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
+                              `Votre formule comprend ${eur(d.baseFoodDrink || 0)} de bons food & boissons. Vous souhaitez l'augmenter ? Indiquez la valeur totale ci-dessous — la différence s'ajoute à votre contribution.`,
+                              `Your formula includes ${eur(d.baseFoodDrink || 0)} in food & drink tickets. Want to add more? Enter the total value below — the difference is added to your contribution.`,
+                            )
+                          : T(
+                              "Eten- en drankbonnen komen bovenop uw formule. Vul hieronder de totale waarde in die u wenst — die wordt bij uw bijdrage geteld.",
+                              "Les bons food & boissons s'ajoutent à votre formule. Indiquez ci-dessous la valeur totale souhaitée — elle s'ajoute à votre contribution.",
+                              "Food & drink tickets come on top of your formula. Enter the total value you'd like below — it is added to your contribution.",
+                            )}
                       </p>
                       <div className="gr-inline-field" style={{ maxWidth: 280 }}>
                         <span className="gr-muted">€</span>

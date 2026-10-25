@@ -109,8 +109,7 @@ export function visibilityLines(v: BenefitSource, lang: Language = "nl"): string
     out.push(`${B("Affiche", "Affiche", "Poster")}: ${label(POSTER_OPTS, v.posterMention, lang)}`);
   if (v.websiteMention !== "none") out.push(`Website: ${label(WEBSITE_OPTS, v.websiteMention || "none", lang)}`);
   if (normLed(v.ledboarding).length) out.push(`LED: ${ledLabel(v.ledboarding, lang)}`);
-  if (Number(v.fenceCovers) > 0)
-    out.push(`${v.fenceCovers} × ${B("nadar-/herashoes", "housse Nadar/Heras", "Nadar/Heras fence cover")}`);
+  if (Number(v.fenceCovers) > 0) out.push(`${v.fenceCovers} × banner`);
   return out;
 }
 
@@ -128,8 +127,7 @@ export function returnTypesOf(v: BenefitSource): ReturnExampleType[] {
   if (v.posterMention && v.posterMention !== "none") types.push("poster");
   if (normFolder(v.folderMention) !== "none") types.push("folder");
   if (normLed(v.ledboarding).length) types.push("ledboarding");
-  /* One count for both kinds of fencing, so both example pictures apply. */
-  if (Number(v.fenceCovers) > 0) types.push("barrier", "heras");
+  if (Number(v.fenceCovers) > 0) types.push("banner");
   return types;
 }
 

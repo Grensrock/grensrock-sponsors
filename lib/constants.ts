@@ -249,8 +249,7 @@ export type ReturnExampleType =
   | "poster"
   | "folder"
   | "ledboarding"
-  | "barrier"
-  | "heras";
+  | "banner";
 
 export const RETURN_EXAMPLES: Record<ReturnExampleType, Record<Language, string>> = {
   websiteLogo: { nl: "Logo op de website", fr: "Logo sur le site web", en: "Logo on the website" },
@@ -266,8 +265,7 @@ export const RETURN_EXAMPLES: Record<ReturnExampleType, Record<Language, string>
     fr: "Mention sur le ledboarding",
     en: "Mention on the LED boarding",
   },
-  barrier: { nl: "Hoes voor nadarhek", fr: "Housse pour barrière Nadar", en: "Crowd control barrier cover" },
-  heras: { nl: "Hoes voor Heras-hek", fr: "Housse pour clôture Heras", en: "Heras fence cover" },
+  banner: { nl: "Banner", fr: "Banner", en: "Banner" },
 };
 
 /* Fully custom agreement (not backed by a formula) */

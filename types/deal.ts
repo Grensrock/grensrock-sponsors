@@ -35,7 +35,7 @@ export interface FormulaFields {
   websiteMention: WebsiteMention;
   posterMention: PosterMention;
   ledboarding: LedZone[];
-  /** Covers for the festival's fencing, Nadar or Heras — one count since 0020. */
+  /** Banners. Stored as fence_covers: they started out as Nadar and Heras fence covers (0020). */
   fenceCovers: NumLike;
 }
 

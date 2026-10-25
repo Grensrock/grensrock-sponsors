@@ -195,6 +195,26 @@ export const emptyDeal: Omit<Deal, "id"> = {
   acceptance: null, // { acceptedAt, name, email, contactId, snapshot }
 };
 
+/* What picking a formula copies onto an agreement — the agreement form's
+   formula buttons and the agreement import both start from this. A copy,
+   not a link: changing the formula later leaves the agreement alone. */
+export const dealFieldsFromFormula = (f: Formula): Partial<Deal> => ({
+  formulaName: f.name,
+  cost: f.cost,
+  vipFriday: f.vipFriday,
+  vipSaturday: f.vipSaturday,
+  vipGuests: f.vipGuests,
+  drinkValue: f.drinkValue,
+  drinkVouchers: f.drinkVouchers || [],
+  foodDrinkValue: f.foodDrinkValue,
+  baseFoodDrink: f.foodDrinkValue,
+  folderMention: f.folderMention,
+  websiteMention: f.websiteMention,
+  posterMention: f.posterMention || "none",
+  ledboarding: f.ledboarding,
+  fenceCovers: f.fenceCovers || 0,
+});
+
 export const emptyUser: Omit<User, "id"> = {
   firstName: "",
   lastName: "",

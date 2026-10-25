@@ -98,6 +98,19 @@ export async function createDeal(d: Partial<Deal>): Promise<Deal> {
   return rowToDeal(row as Row);
 }
 
+/** One insert for the whole list, so an import goes in entirely or not at all
+    — a clash on one row never leaves half a file behind. */
+export async function createDeals(list: Array<Partial<Deal>>): Promise<Deal[]> {
+  if (list.length === 0) return [];
+  const rows = unwrap<Row[]>(
+    await supabase
+      .from("deals")
+      .insert(list.map((d) => ({ ...dealToRow(d), sponsor_id: d.sponsorId, edition_id: d.editionId })))
+      .select(COLUMNS),
+  );
+  return (rows as Row[]).map(rowToDeal);
+}
+
 export async function updateDeal(id: string, patch: Partial<Deal>): Promise<Deal> {
   const row = unwrap<Row | null>(await supabase.from("deals").update(dealToRow(patch)).eq("id", id).select(COLUMNS).single());
   return rowToDeal(row as Row);

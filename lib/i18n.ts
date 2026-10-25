@@ -1022,6 +1022,59 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "imf.language": ["Taal", "Language"],
   "imf.info": ["Wil informatie (ja/nee)", "Wants information (yes/no)"],
   "imf.invoice": ["Wil facturatie (ja/nee)", "Wants invoicing (yes/no)"],
+
+  /* ---------- agreement import (components/modals/AgreementImportModal.tsx) ---------- */
+  "ai.title": ["Overeenkomsten importeren", "Import agreements"],
+  "ai.intro": [
+    'Laad een Excel- (.xlsx) of CSV-bestand op met één overeenkomst per rij. De sponsor wordt gezocht op BTW-nummer of bedrijfsnaam, zoals die hier bewaard zijn — een rij met een onbekende sponsor wordt overgeslagen. Een formule brengt haar voordelen mee, zoals in het formulier; een bedrag in het bestand vervangt dan haar prijs. Zonder formule, of met "Op maat", is het bedrag verplicht. Er worden geen e-mails verstuurd.',
+    'Upload an Excel (.xlsx) or CSV file with one agreement per row. The sponsor is matched on VAT number or company name, as stored here — a row with an unknown sponsor is skipped. A formula brings its benefits along, as in the form; an amount in the file then replaces its price. Without a formula, or with "Op maat", the amount is required. No emails are sent.',
+  ],
+  "ai.needheader": [
+    "Het bestand heeft een hoofdingrij nodig plus minstens één rij met een overeenkomst.",
+    "The file needs a header row plus at least one agreement row.",
+  ],
+  "ai.edition": ["Editie voor alle rijen *", "Edition for every row *"],
+  "ai.editionhint": [
+    "Staat de editie per rij in het bestand? Wijs dan hierboven de kolom Editie toe.",
+    "Is the edition in the file, per row? Then map the Edition column above.",
+  ],
+  "ai.seledition": [
+    "Kies de editie, of selecteer welke kolom de editie bevat.",
+    "Pick the edition, or select which column contains it.",
+  ],
+  "ai.selformula": [
+    "Selecteer welke kolom de formule bevat, het bedrag, of allebei.",
+    "Select which column contains the formula, the amount, or both.",
+  ],
+  "ai.declined": [
+    "Deze sponsor had afgezegd voor deze editie — die afzegging vervalt bij het importeren",
+    "This sponsor had declined this edition — importing withdraws the decline",
+  ],
+  "ai.formulabanner": [
+    'Sommige formules bestaan niet in hun editie. Gebruik de naam zoals onder Edities & formules, of "Op maat" met een bedrag.',
+    'Some formulas don\'t exist in their edition. Use the name as listed under Editions & formulas, or "Op maat" with an amount.',
+  ],
+  "ai.showskipped": ["Toon de {n} overgeslagen rij(en)", "Show the {n} skipped row(s)"],
+  "ai.do": ["{n} overeenkomst(en) importeren", "Import {n} agreement(s)"],
+  "ai.created": ["{n} overeenkomst(en) aangemaakt.", "{n} agreement(s) created."],
+  "ai.nomail": [
+    "Er is nog geen bevestigingsmail verstuurd. Open een overeenkomst om ze te versturen wanneer ze klaar is.",
+    "No confirmation email has been sent yet. Open an agreement to send it when it's ready.",
+  ],
+  "ai.clash": [
+    "Er is niets geïmporteerd: een van deze sponsors kreeg intussen al een overeenkomst voor dezelfde editie. Herlaad de pagina en probeer opnieuw.",
+    "Nothing was imported: one of these sponsors got an agreement for the same edition in the meantime. Reload the page and try again.",
+  ],
+  "ai.r.noedition": ["geen editie", "no edition"],
+  "ai.r.edition": ["editie niet gevonden", "edition not found"],
+  "ai.r.hasagr": ["heeft al een overeenkomst voor deze editie", "already has an agreement for this edition"],
+  "ai.r.formula": ["formule bestaat niet in deze editie", "formula doesn't exist in this edition"],
+  "ai.r.noamount": ["geen formule of bedrag", "no formula or amount"],
+  "ai.r.badamount": ["bedrag onleesbaar", "amount unreadable"],
+  "aif.edition": ["Editie", "Edition"],
+  "aif.formula": ["Formule", "Formula"],
+  "aif.amount": ["Bedrag (€)", "Amount (€)"],
+  "aif.notes": ["Notities", "Notes"],
 };
 
 export const teamT = (key: string, lang: TeamLanguage, params?: Record<string, string | number>): string => {

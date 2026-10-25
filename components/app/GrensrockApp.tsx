@@ -10,6 +10,7 @@ import SponsorForm from "@/components/forms/SponsorForm";
 import TickowebSettings from "@/components/forms/TickowebSettings";
 import UserForm, { type UserFormState } from "@/components/forms/UserForm";
 import VatLookupSettings from "@/components/forms/VatLookupSettings";
+import AgreementImportModal from "@/components/modals/AgreementImportModal";
 import ContactImportModal, { type ContactImportRow } from "@/components/modals/ContactImportModal";
 import EmailModal from "@/components/modals/EmailModal";
 import ExampleImagesManager from "@/components/modals/ExampleImagesManager";
@@ -119,6 +120,7 @@ type ModalState =
   | { type: "tickoweb" }
   | { type: "user"; payload?: Partial<User> }
   | { type: "import" }
+  | { type: "importDeals" }
   | { type: "edition"; payload?: Edition }
   | { type: "formula"; payload: { editionId: string; formula?: Formula } }
   | { type: "deal"; payload?: DealDraft }
@@ -1556,6 +1558,26 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           ),
         );
       } else failWith(e);
+    }
+  };
+  /* Bulk-created by an admin, so no "new agreement" mail to the admins and no
+     email modal afterwards — the confirmations go out one by one, later. */
+  const importDeals = async (list: Array<Partial<Deal>>): Promise<boolean> => {
+    try {
+      const created = await dealsApi.createDeals(list.map((d) => ({ ...d, responsible: userName(me) || "" })));
+      const pairs = new Set(created.map((x) => `${x.sponsorId}:${x.editionId}`));
+      /* The database drops a decline for each sponsor and edition (0022); mirror it. */
+      setData((prev) => ({
+        ...prev,
+        deals: [...prev.deals, ...created],
+        declines: (prev.declines || []).filter((x) => !pairs.has(`${x.sponsorId}:${x.editionId}`)),
+      }));
+      setSaveErr(false);
+      return true;
+    } catch (e) {
+      /* The modal already skips pairs it can see; this is one added meanwhile. */
+      failWith(/duplicate key/i.test(String((e as Error)?.message)) ? new Error(t("ai.clash")) : e);
+      return false;
     }
   };
   const saveDecline = async (sponsorId: string, editionId: string, reason: string) => {
@@ -3124,6 +3146,11 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     {t("nav.agreements")}
                   </h2>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {admin && (
+                      <button className="gr-btn-ghost" onClick={() => setModal({ type: "importDeals" })}>
+                        {t("common.import")}
+                      </button>
+                    )}
                     <button className="gr-btn-ghost" onClick={exportAgreements}>
                       {t("common.export")}
                     </button>
@@ -4232,6 +4259,20 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         <ImportModal
           sponsors={sponsors}
           onImport={importSponsors}
+          onClose={() => setModal(null)}
+          t={t}
+          lang={uiLang}
+        />
+      )}
+      {modal?.type === "importDeals" && admin && (
+        <AgreementImportModal
+          sponsors={sponsors}
+          editions={editions}
+          deals={deals}
+          declines={declines}
+          /* The edition the list is narrowed to, else the running one if there is just one. */
+          defaultEditionId={agEdition || (activeEditions.length === 1 ? activeEditions[0].id : "")}
+          onImport={importDeals}
           onClose={() => setModal(null)}
           t={t}
           lang={uiLang}

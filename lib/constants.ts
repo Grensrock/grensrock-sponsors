@@ -193,6 +193,10 @@ export const emptyDeal: Omit<Deal, "id"> = {
   requestedBy: "",
   confirmedAt: null,
   acceptance: null, // { acceptedAt, name, email, contactId, snapshot }
+  benefitsChangedAt: null,
+  benefitsApprovedAt: null,
+  benefitsApprovedBy: "",
+  pendingMail: null,
 };
 
 /* What picking a formula copies onto an agreement — the agreement form's

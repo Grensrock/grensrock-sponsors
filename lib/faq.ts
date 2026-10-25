@@ -476,8 +476,29 @@ const TEAM_FAQ: TeamSection[] = [
       {
         q: { nl: "Hoe registreer ik een overeenkomst?", en: "How do I register an agreement?" },
         a: {
-          nl: "1. Klik **+ Nieuwe overeenkomst**, of **+ Overeenkomst** op de sponsorpagina.\n2. Kies de sponsor, de editie en een formule. De formule vult kostprijs en voordelen in; je kan ze daarna nog aanpassen. Een andere formule kiezen overschrijft wat je al aanpaste.\n3. Kies hoe de bijdrage wordt afgehandeld: factuur, in natura of een combinatie.\n4. Vul indien nodig de referentie voor de factuur en notities in. Notities komen in de mail aan de sponsor en horen bij wat die aanvaardt.\n5. Klik **Overeenkomst opslaan**. Het venster voor de bevestigingsmail opent meteen.",
-          en: "1. Click **+ New agreement**, or the agreement button on the sponsor page.\n2. Pick the sponsor, the edition and a formula. The formula fills in the cost and benefits; you can still change them afterwards. Picking another formula overwrites what you changed.\n3. Choose how the contribution is settled: invoice, in kind or a combination.\n4. Fill in the invoice reference and notes if needed. Notes go into the email to the sponsor and are part of what they accept.\n5. Click save. The confirmation email window opens straight away.",
+          nl: "1. Klik **+ Nieuwe overeenkomst**, of **+ Overeenkomst** op de sponsorpagina.\n2. Kies de sponsor, de editie en een formule. De formule vult kostprijs en voordelen in. De kostprijs kan je aanpassen; de voordelen blijven zoals in de formule, tenzij je **Voordelen aanpassen** kiest. Een andere formule kiezen overschrijft wat je al aanpaste.\n3. Kies hoe de bijdrage wordt afgehandeld: factuur, in natura of een combinatie.\n4. Vul indien nodig de referentie voor de factuur en notities in. Notities komen in de mail aan de sponsor en horen bij wat die aanvaardt.\n5. Klik **Overeenkomst opslaan**. Het venster voor de bevestigingsmail opent meteen.",
+          en: "1. Click **+ New agreement**, or the agreement button on the sponsor page.\n2. Pick the sponsor, the edition and a formula. The formula fills in the cost and benefits. You can change the cost; the benefits stay as in the formula unless you choose **Change the benefits**. Picking another formula overwrites what you changed.\n3. Choose how the contribution is settled: invoice, in kind or a combination.\n4. Fill in the invoice reference and notes if needed. Notes go into the email to the sponsor and are part of what they accept.\n5. Click save. The confirmation email window opens straight away.",
+        },
+      },
+      {
+        q: {
+          nl: "Ik wil de sponsor andere voordelen geven dan de formule.",
+          en: "I want to give the sponsor other benefits than the formula.",
+        },
+        a: {
+          nl: "Dat kan, maar een admin moet het goedkeuren voor de sponsor de overeenkomst krijgt.\n\n1. Klik in de overeenkomst **Voordelen aanpassen** en wijzig wat nodig is. Je ziet meteen wat afwijkt van de formule; **Terug naar formule** zet alles terug.\n2. Klik **Overeenkomst opslaan**. De admins krijgen een mail met wat er afwijkt.\n3. Zet de bevestigingsmail klaar zoals altijd en klik **Klaarzetten tot goedkeuring**.\n\nZodra een admin goedkeurt, vertrekt die mail naar de sponsor, met jou in cc. Tot dan staat de overeenkomst op **wacht op goedkeuring** en kan de sponsor ze niet aanvaarden. Ook **Op maat**, of geen formule, telt als afwijkend zodra er voordelen in staan.",
+          en: "You can, but an admin has to approve it before the sponsor gets the agreement.\n\n1. In the agreement, click **Change the benefits** and change what's needed. You'll see straight away what differs from the formula; **Back to formula** puts it all back.\n2. Save the agreement. The admins get an email with what differs.\n3. Prepare the confirmation email as always and click **Prepare until approved**.\n\nAs soon as an admin approves, that email goes to the sponsor, with you in cc. Until then the agreement shows **waiting for approval** and the sponsor can't accept it. **Op maat**, or no formula, counts as different too as soon as it gives any benefits.",
+        },
+      },
+      {
+        q: {
+          nl: "Een overeenkomst wacht op mijn goedkeuring.",
+          en: "An agreement is waiting for my approval.",
+        },
+        adminOnly: true,
+        a: {
+          nl: "Een teamlid gaf een sponsor andere voordelen dan de formule. Je kreeg daarover een mail, en op het **Overzicht** staat een melding.\n\n1. Klik bij de melding **Bekijken**, of kies in **Overeenkomsten** de status **Wacht op goedkeuring**.\n2. Klik **Goedkeuren**. Je ziet wat er afwijkt en naar wie de klaargezette mail gaat.\n3. Bevestig. De mail vertrekt naar de sponsor, met de verantwoordelijke in cc. Stond er nog geen mail klaar, dan opent het venster om ze zelf te versturen.\n\nNiet akkoord? Open de overeenkomst en pas de voordelen aan, of zet ze **Terug naar formule**. Wat je als admin opslaat, is meteen goedgekeurd.",
+          en: "A team member gave a sponsor other benefits than the formula. You got an email about it, and there's a notice on the **Overview**.\n\n1. Click **View** in the notice, or pick the status **Waiting for approval** in **Agreements**.\n2. Click **Approve**. You'll see what differs and who the prepared email goes to.\n3. Confirm. The email goes to the sponsor, with the responsible in cc. If no email was prepared yet, the window opens to send it yourself.\n\nNot okay? Open the agreement and change the benefits, or put them **Back to formula**. What you save as an admin is approved straight away.",
         },
       },
       {

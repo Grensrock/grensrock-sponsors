@@ -30,6 +30,7 @@ import DeclineForm from "@/components/forms/DeclineForm";
 import PendingAccess from "@/components/views/PendingAccess";
 import SponsorPortal from "@/components/views/SponsorPortal";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
+import { awaitsApproval, benefitChanges, changeLines, formulaOf } from "@/lib/benefits";
 import { formatAddress } from "@/lib/address";
 import { auditActorLabel } from "@/lib/audit-engine";
 import { formulaStyle } from "@/lib/color";
@@ -92,6 +93,7 @@ import type {
   Edition,
   Formula,
   Language,
+  PendingMail,
   Role,
   Settings,
   Sponsor,
@@ -124,7 +126,8 @@ type ModalState =
   | { type: "edition"; payload?: Edition }
   | { type: "formula"; payload: { editionId: string; formula?: Formula } }
   | { type: "deal"; payload?: DealDraft }
-  | { type: "email"; payload: Deal }
+  /* `prepared`: a mail written before, to start from (EmailModal). */
+  | { type: "email"; payload: Deal; prepared?: Partial<PendingMail> | null }
   | { type: "decline"; payload: { sponsorId: string } };
 
 type ViewMode =
@@ -721,6 +724,63 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       { title: t("dlg.teamaccepttitle"), confirmLabel: t("dlg.teamaccept"), danger: false },
     );
 
+  const refreshDeal = async (dealId: string) => {
+    const fresh = await dealsApi.getDeal(dealId);
+    if (fresh) setData((prev) => ({ ...prev, deals: prev.deals.map((x) => (x.id === dealId ? fresh : x)) }));
+    return fresh;
+  };
+
+  /* Admin only: benefits a team member set apart from the formula (0026). The
+     question shows what differs, and what happens to the mail: the one that
+     was prepared goes out with the approval. With none prepared — or one that
+     couldn't go out — the mail window opens instead, so the agreement still
+     reaches the sponsor the way it would have without the wait. */
+  const approveDealBenefits = (d: Deal) => {
+    const sponsor = sponsors.find((s) => s.id === d.sponsorId);
+    const formula = formulaOf(d, editions);
+    const held = d.pendingMail;
+    const heldTo = sponsorContacts(sponsor)
+      .filter((c) => held?.contactIds?.includes(c.id))
+      .map((c) => contactName(c) || c.email);
+    const message = [
+      `${sponsor?.companyName || "?"} — ${editions.find((e) => e.id === d.editionId)?.name || "?"}`,
+      (formula ? t("df.differs", { formula: formula.name }) : t("dlg.approvebyhand")) +
+        "\n" +
+        changeLines(benefitChanges(d, formula, uiLang))
+          .map((line) => `• ${line}`)
+          .join("\n"),
+      held && heldTo.length
+        ? t("dlg.approvemail", { by: held.heldBy || "?", to: heldTo.join(", ") })
+        : t("dlg.approvenomail"),
+    ].join("\n\n");
+    ask(
+      message,
+      async () => {
+        try {
+          const res = await dealsApi.approveBenefits(d.id);
+          const fresh = (await refreshDeal(d.id)) || d;
+          setSaveErr(false);
+          if (res.sent) {
+            const to = res.sent.to.join(", ");
+            notify(
+              [
+                res.sent.cc ? t("dlg.approvedsentcc", { to, cc: res.sent.cc }) : t("dlg.approvedsent", { to }),
+                ...res.sent.warnings,
+              ].join("\n\n"),
+              t("dlg.approvedtitle"),
+            );
+          } else {
+            setModal({ type: "email", payload: fresh, prepared: held });
+            if (res.mailError) notify(t("dlg.approvedmailfailed", { error: res.mailError }), t("dlg.approvedtitle"));
+          }
+        } catch (e) {
+          failWith(e);
+        }
+      },
+      { title: t("dlg.approvetitle"), confirmLabel: t("ba.approve"), danger: false },
+    );
+  };
+
   /* Sponsor tops up their food & drink value. Allowed until the food vouchers are created.
      Changing the total drops the pending food split + any pending food voucher records so they
      regenerate for the new amount. */
@@ -772,7 +832,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       const dealId = await dealsApi.portalRequestFormula(editionId, formulaName, byName);
       /* The RPC hands back an agreement that already existed rather than
          making a second one; only a new one is news to the admins. */
-      if (!deals.some((x) => x.id === dealId)) dealsApi.notifyDealCreated(dealId).catch(console.error);
+      if (!deals.some((x) => x.id === dealId)) dealsApi.notifyAdmins(dealId).catch(console.error);
       const fresh = await dealsApi.getDeal(dealId);
       if (fresh)
         setData((d) => ({
@@ -1542,12 +1602,30 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         });
         setData((prev) => ({ ...prev, deals: prev.deals.map((x) => (x.id === saved.id ? saved : x)) }));
         setSaveErr(false);
-        setModal(null);
+        /* What the database made of the benefits (0026) decides what comes next.
+           Newly put up for approval: the admins hear of it, and the mail can be
+           prepared again — the save dropped any that was held, since it no
+           longer matches the terms. No longer waiting (an admin changed them,
+           or they are back to the formula's) and not sent yet: the mail can go
+           out now, as it would after creating one. */
+        const nowWaiting = awaitsApproval(saved) && saved.benefitsChangedAt !== current?.benefitsChangedAt;
+        if (nowWaiting) dealsApi.notifyAdmins(saved.id).catch(console.error);
+        if (nowWaiting || (!admin && awaitsApproval(saved) && current?.pendingMail && !saved.pendingMail)) {
+          setModal({
+            type: "email",
+            payload: saved,
+            prepared: current?.pendingMail ? { contactIds: current.pendingMail.contactIds } : null,
+          });
+        } else if (awaitsApproval(current) && !awaitsApproval(saved) && !saved.emailSentAt) {
+          setModal({ type: "email", payload: saved });
+        } else setModal(null);
       } else {
         const created = await dealsApi.createDeal({ ...d, responsible: d.responsible || userName(me) || "" });
         /* Not awaited: the team member shouldn't wait on mail to the admins, and
-           a mail that failed is no reason to hold back the email modal below. */
-        dealsApi.notifyDealCreated(created.id).catch(console.error);
+           a mail that failed is no reason to hold back the email modal below.
+           When the benefits wait for an admin, that modal prepares the mail
+           rather than sending it. */
+        dealsApi.notifyAdmins(created.id).catch(console.error);
         /* The database drops a decline for this sponsor and edition (0022); mirror it. */
         setData((prev) => ({
           ...prev,
@@ -1671,6 +1749,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
 
   /* ----- overview stats ----- */
   const pendingRequests = deals.filter((d) => d.requestedAt && !d.confirmedAt);
+  const toApprove = deals.filter(awaitsApproval);
   const awaitingAcceptance = deals.filter((d) => !isAccepted(d) && editions.find((e) => e.id === d.editionId)?.active);
   const overviewEdition = activeEditions[0] || sortedEditions[0];
   const ovDeals = overviewEdition ? deals.filter((d) => d.editionId === overviewEdition.id) : [];
@@ -1974,6 +2053,24 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                         setAgResponsible("");
                         setAgSettle("");
                         setAgStatus("toaccept");
+                      }}
+                    >
+                      {t("ov.view")}
+                    </button>
+                  </div>
+                )}
+                {admin && toApprove.length > 0 && (
+                  <div className="gr-setupbar">
+                    {toApprove.length} {toApprove.length > 1 ? t("ov.toapproven") : t("ov.toapprove1")}
+                    <button
+                      className="gr-mini"
+                      onClick={() => {
+                        setTab("agreements");
+                        setAgQuery("");
+                        setAgEdition("");
+                        setAgResponsible("");
+                        setAgSettle("");
+                        setAgStatus("toapprove");
                       }}
                     >
                       {t("ov.view")}
@@ -2325,6 +2422,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             onEditContact={(c) => setModal({ type: "contact", payload: { sponsorId: openSponsor.id, contact: c } })}
             onShowAcceptance={(d) => setModal({ type: "acceptance", payload: d })}
             onAcceptForSponsor={admin ? acceptForSponsor : undefined}
+            onApproveBenefits={admin ? approveDealBenefits : undefined}
             onActivateContact={(c) => saveContact(openSponsor.id, { ...c, portalAccess: true })}
             /* No contact given (the sponsor has none, or none was picked) still
                previews: the portal falls back to the primary contact's language
@@ -3095,6 +3193,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 if (agStatus === "accepted" && !isAccepted(d)) return false;
                 if (agStatus === "toaccept" && isAccepted(d)) return false;
                 if (agStatus === "requested" && !(d.requestedAt && !d.confirmedAt)) return false;
+                if (agStatus === "toapprove" && !awaitsApproval(d)) return false;
                 if (agStatus === "invoiced" && !d.invoiceCreated) return false;
                 if (agStatus === "toinvoice" && (!needsInvoice(d) || d.invoiceCreated)) return false;
                 if (agSettle && (d.settlement || "invoice") !== agSettle) return false;
@@ -3232,6 +3331,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     <option value="accepted">{t("ag.accepted")}</option>
                     <option value="toaccept">{t("ag.toaccept")}</option>
                     <option value="requested">{t("ag.requested")}</option>
+                    <option value="toapprove">{t("ag.toapprove")}</option>
                     <option value="toinvoice">{t("ag.toinvoice")}</option>
                     <option value="invoiced">{t("ag.invoiced")}</option>
                   </select>
@@ -3345,6 +3445,31 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   <Tag tone="amber">{t("sd.reqbysponsor")}</Tag>
                                 </>
                               )}
+                              {awaitsApproval(d) ? (
+                                <>
+                                  {" "}
+                                  <Tag tone="amber">{t("ba.waiting")}</Tag>
+                                  {admin && (
+                                    <button
+                                      className="gr-mini"
+                                      style={{ marginLeft: 6 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        approveDealBenefits(d);
+                                      }}
+                                    >
+                                      {t("ba.approve")}
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                d.benefitsApprovedAt && (
+                                  <>
+                                    {" "}
+                                    <Tag>{t("ba.approved")}</Tag>
+                                  </>
+                                )
+                              )}
                             </td>
                             <td className="gr-r">
                               <strong>{eur(dealTotalCost(d))}</strong>
@@ -3365,7 +3490,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               ) : (
                                 <>
                                   <Tag tone="amber">{t("sd.notyet")}</Tag>
-                                  {admin && (
+                                  {admin && !awaitsApproval(d) && (
                                     <button
                                       className="gr-mini"
                                       style={{ marginLeft: 6 }}
@@ -4332,6 +4457,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             t={t}
             lang={uiLang}
             onDelete={admin ? deleteDeal : undefined}
+            admin={admin}
           />
         </Modal>
       )}
@@ -4373,7 +4499,13 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     })
                   : markEmailSent(d.id)
               }
-              onSent={(sentAt) => noteEmailSent(d.id, sentAt)}
+              onSent={(sentAt) =>
+                /* An admin's send of one that waited approved it too: read that back. */
+                awaitsApproval(d) ? refreshDeal(d.id).catch(console.error) : noteEmailSent(d.id, sentAt)
+              }
+              onHeld={() => refreshDeal(d.id).catch(console.error)}
+              admin={admin}
+              prepared={modal.prepared}
               onAddContact={commitContact}
             />
           );

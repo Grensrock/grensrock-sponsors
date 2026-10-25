@@ -14,6 +14,7 @@ import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
 import VatInput from "@/components/ui/VatInput";
 import { fmtDateTime, isAccepted } from "@/lib/acceptance";
+import { awaitsApproval } from "@/lib/benefits";
 import {
   COMM_LABELS,
   VOUCHER_STATUS,
@@ -103,9 +104,11 @@ export default function SponsorPortal({
   children?: ReactNode;
 }) {
   /* Agreements on active editions still waiting for the sponsor's acceptance.
-     Computed before the state so the portal can open straight on them. */
+     Computed before the state so the portal can open straight on them. One
+     whose benefits an admin still has to approve isn't ready to be accepted
+     (0026 refuses it too): it shows as awaiting confirmation until then. */
   const toAccept: DealWithEdition[] = deals
-    .filter((d) => d.sponsorId === sponsor.id && !isAccepted(d))
+    .filter((d) => d.sponsorId === sponsor.id && !isAccepted(d) && !awaitsApproval(d))
     .map((d) => ({ ...d, edition: editions.find((e) => e.id === d.editionId) }))
     .filter((d) => d.edition?.active);
 
@@ -947,7 +950,7 @@ export default function SponsorPortal({
                             <tr key={d.id}>
                               <td>
                                 {d.edition ? d.edition.name : "?"}
-                                {d.requestedAt && !d.confirmedAt && (
+                                {((d.requestedAt && !d.confirmedAt) || awaitsApproval(d)) && (
                                   <>
                                     {" "}
                                     <Tag tone="amber">

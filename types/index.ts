@@ -14,6 +14,7 @@ export type {
   Acceptance,
   Deal,
   DealDraft,
+  PendingMail,
 } from "./deal";
 export type { Formula, Edition } from "./edition";
 export type { VoucherType, VoucherStatus, Voucher, StoredVoucher } from "./voucher";

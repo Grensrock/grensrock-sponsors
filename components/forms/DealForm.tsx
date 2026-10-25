@@ -5,6 +5,8 @@ import BenefitFields from "@/components/forms/BenefitFields";
 import SponsorForm from "@/components/forms/SponsorForm";
 import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
+import { fmtDateTime } from "@/lib/acceptance";
+import { awaitsApproval, benefitChanges, changeLines, sameBenefits } from "@/lib/benefits";
 import { formulaStyle } from "@/lib/color";
 import { OP_MAAT, SETTLEMENTS, dealFieldsFromFormula, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
@@ -40,6 +42,7 @@ export default function DealForm({
   onDelete,
   onAddSponsor,
   onOpenDeal,
+  admin,
   t = (k) => k,
   lang = "nl",
 }: {
@@ -59,6 +62,8 @@ export default function DealForm({
   /* Creating a sponsor is a round-trip to the database now, so this may be async. */
   onAddSponsor: (s: Sponsor) => Sponsor | Promise<Sponsor>;
   onOpenDeal?: (d: Deal) => void;
+  /** An admin's own change to the benefits needs nobody's approval (0026). */
+  admin?: boolean;
   t?: TranslateFn;
   lang?: Language;
 }) {
@@ -74,6 +79,24 @@ export default function DealForm({
   const edition = editions.find((e) => e.id === d.editionId);
   /* Cheapest formula first, so the buttons read as a ladder. */
   const formulas = [...(edition?.formulas || [])].sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
+  const formula = formulas.find((x) => x.name === d.formulaName) || null;
+  const changes = benefitChanges(d, formula, lang === "en" ? "en" : "nl");
+
+  /* A formula's benefits are what Grensrock offers for its price, so they stay
+     as the formula has them until someone deliberately opens them up — and
+     doing that as a team member puts the agreement up for an admin's approval
+     (0026). An agreement that already differs opens as it was left; Op maat
+     has no formula to keep to, so it is always open. */
+  const [opened, setOpened] = useState(() => !!initial?.id && changes.length > 0);
+  const locked = !opened && d.formulaName !== OP_MAAT;
+  /* Whether saving has the database look at the benefits again — always for a
+     new agreement. An older one that differs but isn't touched now stays as
+     it was, so it isn't told it needs an approval it won't be asked for. */
+  const reviewed =
+    !initial?.id ||
+    d.formulaName !== initial.formulaName ||
+    d.editionId !== initial.editionId ||
+    !sameBenefits(d, initial);
 
   const applyFormula = (name: string) => {
     if (name === OP_MAAT) {
@@ -87,6 +110,13 @@ export default function DealForm({
       return;
     }
     setD((p) => ({ ...p, ...dealFieldsFromFormula(f) }));
+    setOpened(false);
+  };
+  /* The formula's benefits again, but not its price: that is agreed apart. */
+  const resetBenefits = () => {
+    if (!formula) return;
+    setD((p) => ({ ...p, ...dealFieldsFromFormula(formula), cost: p.cost }));
+    setOpened(false);
   };
 
   /* A sponsor has at most one agreement per edition (unique in the database),
@@ -214,7 +244,54 @@ export default function DealForm({
           </div>
         </>
       )}
-      {d.editionId && <BenefitFields v={d} set={set} showVouchers t={t} lang={lang} />}
+      {d.editionId && (
+        <>
+          <div className="gr-benefitshead">
+            <span className="gr-label">{t("df.benefits")}</span>
+            {locked ? (
+              <button type="button" className="gr-mini" onClick={() => setOpened(true)}>
+                {t("df.changebenefits")}
+              </button>
+            ) : (
+              formula &&
+              changes.length > 0 && (
+                <button type="button" className="gr-mini" onClick={resetBenefits}>
+                  {t("df.resetbenefits", { formula: formula.name })}
+                </button>
+              )
+            )}
+          </div>
+          {awaitsApproval(initial) ? (
+            <p className="gr-muted">{t("df.waiting", { when: fmtDateTime(initial?.benefitsChangedAt) })}</p>
+          ) : (
+            initial?.benefitsApprovedAt &&
+            changes.length > 0 && (
+              <p className="gr-muted">
+                {t("df.approvedby", {
+                  name: initial.benefitsApprovedBy || "?",
+                  when: fmtDateTime(initial.benefitsApprovedAt),
+                })}
+              </p>
+            )
+          )}
+          {changes.length > 0 ? (
+            <div className="gr-benefitdiff" role="status">
+              {formula ? t("df.differs", { formula: formula.name }) : t("df.byhand")}
+              <ul>
+                {changeLines(changes).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              {reviewed && (admin ? t("df.adminapproves") : t("df.needsapproval"))}
+            </div>
+          ) : formula ? (
+            <p className="gr-muted">{t("df.asformula", { formula: formula.name })}</p>
+          ) : (
+            d.formulaName !== OP_MAAT && <p className="gr-muted">{t("df.pickfirst")}</p>
+          )}
+          <BenefitFields v={d} set={set} showVouchers locked={locked} t={t} lang={lang} />
+        </>
+      )}
       {d.editionId && (
         <div className="gr-settle">
           <Field label={t("df.settled")}>

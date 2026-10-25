@@ -6,6 +6,7 @@ import { MailLink, PhoneLink } from "@/components/ui/ContactLink";
 import LogoManager from "@/components/ui/LogoManager";
 import Tag from "@/components/ui/Tag";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
+import { awaitsApproval } from "@/lib/benefits";
 import { formatAddress } from "@/lib/address";
 import {
   COMM_LABELS,
@@ -62,6 +63,7 @@ export default function SponsorDetail({
   onEditContact,
   onShowAcceptance,
   onAcceptForSponsor,
+  onApproveBenefits,
   onActivateContact,
   onPreviewPortal,
   logos = [],
@@ -94,6 +96,8 @@ export default function SponsorDetail({
   onShowAcceptance: (d: Deal) => void;
   /** Admins only: record an acceptance the sponsor gave outside the portal. */
   onAcceptForSponsor?: (d: Deal) => void;
+  /** Admin only: approve benefits that differ from the formula (0026). */
+  onApproveBenefits?: (d: Deal) => void;
   onActivateContact: (c: Contact) => void;
   /** Open this sponsor's portal as one of their contacts sees it, read-only. */
   onPreviewPortal?: (contact?: Contact | null) => void;
@@ -401,7 +405,34 @@ export default function SponsorDetail({
                           </>
                         )}
                       </td>
-                      <td>{d.formulaName || <span className="gr-muted">{t("th.custom")}</span>}</td>
+                      <td>
+                        {d.formulaName || <span className="gr-muted">{t("th.custom")}</span>}
+                        {awaitsApproval(d) ? (
+                          <>
+                            {" "}
+                            <Tag tone="amber">{t("ba.waiting")}</Tag>
+                            {onApproveBenefits && (
+                              <button
+                                className="gr-mini"
+                                style={{ marginLeft: 6 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onApproveBenefits(d);
+                                }}
+                              >
+                                {t("ba.approve")}
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          d.benefitsApprovedAt && (
+                            <>
+                              {" "}
+                              <Tag>{t("ba.approved")}</Tag>
+                            </>
+                          )
+                        )}
+                      </td>
                       <td className="gr-r">
                         <strong>{eur(d.cost)}</strong>
                         {d.settlement === "inkind" && (
@@ -471,7 +502,7 @@ export default function SponsorDetail({
                         ) : (
                           <>
                             <Tag tone="amber">{t("sd.notyet")}</Tag>
-                            {onAcceptForSponsor && (
+                            {onAcceptForSponsor && !awaitsApproval(d) && (
                               <button
                                 className="gr-mini"
                                 style={{ marginLeft: 6 }}
@@ -497,7 +528,15 @@ export default function SponsorDetail({
                           <Tag tone="amber">{t("sd.pending")}</Tag>
                         )}
                       </td>
-                      <td>{d.emailSentAt ? <Tag tone="green">{t("sd.sent")}</Tag> : <Tag>{t("sd.notsent")}</Tag>}</td>
+                      <td>
+                        {awaitsApproval(d) && d.pendingMail ? (
+                          <Tag tone="amber">{t("ba.held")}</Tag>
+                        ) : d.emailSentAt ? (
+                          <Tag tone="green">{t("sd.sent")}</Tag>
+                        ) : (
+                          <Tag>{t("sd.notsent")}</Tag>
+                        )}
+                      </td>
                       <td className="gr-rowbtns">
                         {canEdit && (
                           <button

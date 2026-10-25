@@ -132,6 +132,8 @@
 .gr-hint { display:block; font-size:12px; color:var(--pink-deep); margin-top:3px; }
 .gr-field input, .gr-field select, .gr-field textarea { width:100%; padding:9px 12px;
   border:1px solid var(--line); border-radius:8px; font:14px 'IBM Plex Sans',sans-serif; background:#fff; }
+/* Read-only for now, not broken: a formula's benefits in the agreement form until they are opened up. */
+.gr-field input:disabled, .gr-field select:disabled { background:#F4F2EE; color:var(--ink); cursor:not-allowed; opacity:1; }
 .gr-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
 .gr-grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 14px; }
 @media (max-width:640px){ .gr-grid2,.gr-grid3 { grid-template-columns:1fr; } .gr-main{padding:20px 16px 50px;} .gr-header{padding:16px;} }
@@ -349,6 +351,15 @@
 .gr-blocked { background:#FEF6F5; }
 .gr-blockbanner { background:#FBEAE7; color:var(--red); border-radius:8px; padding:10px 14px;
   font-size:13.5px; font-weight:600; margin:0 0 14px; }
+
+/* The agreement form's benefits: a heading with the button that opens them up,
+   and what differs from the formula once they are. */
+.gr-benefitshead { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+  border-top:1px dashed var(--line); padding-top:12px; margin:4px 0 4px; }
+.gr-benefitshead .gr-label { margin:0; }
+.gr-benefitdiff { background:#FBEBDD; color:var(--orange-deep); border-radius:8px; padding:10px 14px;
+  font-size:13.5px; margin:6px 0 12px; }
+.gr-benefitdiff ul { margin:6px 0; padding-left:18px; font-weight:600; }
 
 .gr-settle { border:1px dashed var(--line); border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#F8FBFD; }
 .gr-settle .gr-field:last-of-type { margin-bottom:6px; }

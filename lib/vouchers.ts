@@ -61,8 +61,6 @@ export function dealFromFormula(f: Formula, sponsorId: string, editionId: string
     vipGuests: f.vipGuests,
     drinkValue: f.drinkValue,
     drinkVouchers: f.drinkVouchers || [],
-    foodDrinkValue: f.foodDrinkValue,
-    baseFoodDrink: f.foodDrinkValue,
     folderMention: f.folderMention,
     websiteMention: f.websiteMention,
     posterMention: f.posterMention || "none",

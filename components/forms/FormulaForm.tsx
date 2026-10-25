@@ -71,7 +71,7 @@ export default function FormulaForm({
           </label>
         </div>
       </Field>
-      <BenefitFields v={f} set={set} t={t} lang={lang} />
+      <BenefitFields v={f} set={set} noFood t={t} lang={lang} />
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onCancel}>
           {t("common.cancel")}

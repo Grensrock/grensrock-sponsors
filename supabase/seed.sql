@@ -78,10 +78,10 @@ insert into formulas (edition_id, name, cost, vip_friday, vip_saturday, vip_gues
                       drink_value, food_drink_value, base_food_drink,
                       folder_mention, website_mention, poster_mention, ledboarding,
                       fence_covers, color) values
-  ('ed000000-0000-0000-0000-000000000026', 'Goud',   2500, 4, 4, 2, 550, 250, 250, 'full',    'logo', 'logo', '{vip,stage}', 6, '#c9a227'),
-  ('ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 1, 275, 100, 100, 'half',    'logo', 'name', '{vip}',       2, '#9ea3a8'),
+  ('ed000000-0000-0000-0000-000000000026', 'Goud',   2500, 4, 4, 2, 550,   0,   0, 'full',    'logo', 'logo', '{vip,stage}', 6, '#c9a227'),
+  ('ed000000-0000-0000-0000-000000000026', 'Zilver', 1250, 2, 2, 1, 275,   0,   0, 'half',    'logo', 'name', '{vip}',       2, '#9ea3a8'),
   ('ed000000-0000-0000-0000-000000000026', 'Brons',   500, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0, '#a9713b'),
-  ('ed000000-0000-0000-0000-000000000025', 'Goud',   2400, 4, 4, 2, 550, 200, 200, 'full',    'logo', 'logo', '{vip}',       6, '#c9a227'),
+  ('ed000000-0000-0000-0000-000000000025', 'Goud',   2400, 4, 4, 2, 550,   0,   0, 'full',    'logo', 'logo', '{vip}',       6, '#c9a227'),
   ('ed000000-0000-0000-0000-000000000025', 'Brons',   450, 1, 1, 0, 110,   0,   0, 'quarter', 'name', 'none', '{}',          0, '');
 
 -- ---------- sponsors ----------

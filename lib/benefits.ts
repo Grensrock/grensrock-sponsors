@@ -9,8 +9,8 @@
    This side lists what differs, for the form, the approval dialog and the
    admins' mail, comparing exactly what the trigger compares:
      - not the cost, nor how a voucher value is split into vouchers;
-     - the food & drink the agreement includes (baseFoodDrink), not what
-       the sponsor topped up on top of it in the portal;
+     - not food & drink vouchers: those always come on top of the formula,
+       paid for by the sponsor, so anyone may add them (0027);
      - LED zones as a set;
      - no formula of the edition (Op maat, none picked) as no benefits.
    ============================================================ */
@@ -55,7 +55,6 @@ export function benefitChanges(
   count("bf.vipsat", f.vipSaturday, deal.vipSaturday);
   count("bf.vipguest", f.vipGuests, deal.vipGuests);
   money("bn.drink", f.drinkValue, deal.drinkValue);
-  money("bn.food", f.foodDrinkValue, deal.baseFoodDrink);
   mention("bf.folder", FOLDER_OPTS, f.folderMention, deal.folderMention);
   mention("bf.poster", POSTER_OPTS, f.posterMention, deal.posterMention);
   mention("bf.website", WEBSITE_OPTS, f.websiteMention, deal.websiteMention);
@@ -73,7 +72,7 @@ export const changeLines = (changes: BenefitChange[]) =>
 /** Whether two versions of one agreement give the same benefits: what decides
     whether the database looks at them again on a save. */
 export const sameBenefits = (a: Partial<Deal>, b: Partial<Deal>) =>
-  benefitChanges(a, { ...b, foodDrinkValue: b.baseFoodDrink } as FormulaFields).length === 0;
+  benefitChanges(a, b as FormulaFields).length === 0;
 
 /** The formula an agreement names, as its edition has it now; null for Op maat or none. */
 export const formulaOf = (deal: Partial<Pick<Deal, "editionId" | "formulaName">>, editions: Edition[]): Formula | null =>

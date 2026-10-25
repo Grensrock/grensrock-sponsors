@@ -374,6 +374,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "bf.vipsat": ["VIP-tickets zaterdag", "VIP tickets Saturday"],
   "bf.vipguest": ["VIP-tickets gasten", "VIP tickets guests"],
   "bf.drinkvalue": ["Drankbonnen (waarde in €)", "Drink vouchers (value in €)"],
+  "bf.foodextra": ["Komt bovenop de formule en wordt bij de bijdrage gefactureerd.", "Comes on top of the formula and is invoiced with the contribution."],
+  "bf.foodincl": [
+    "{amount} daarvan zat nog in de formule van deze overeenkomst; de rest wordt bij de bijdrage gefactureerd.",
+    "{amount} of it was still in this agreement's formula; the rest is invoiced with the contribution.",
+  ],
   "bf.food": ["Eten & drinken (waarde in €)", "Food & drinks tickets (value in €)"],
   "bf.folder": ["Festivalfolder", "Festival folder"],
   "bf.poster": ["Festivalaffiche", "Festival poster"],
@@ -382,7 +387,6 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "bf.led": ["LED-boarding (selecteer alles wat van toepassing is)", "LED boarding (select all that apply)"],
   /* Shorter names for the same benefits, for a line saying what differs from the formula (lib/benefits.ts). */
   "bn.drink": ["Drankbonnen", "Drink vouchers"],
-  "bn.food": ["Bonnen eten & drinken", "Food & drink vouchers"],
   "bn.led": ["LED-boarding", "LED boarding"],
   "df.refexample": ["bv. PO-2026-0481", "e.g. PO-2026-0481"],
   "pick.change": ["Wijzigen", "Change"],

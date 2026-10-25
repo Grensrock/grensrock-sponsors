@@ -3,6 +3,7 @@
 import VoucherEditor from "@/components/forms/VoucherEditor";
 import Field from "@/components/ui/Field";
 import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS, label } from "@/lib/constants";
+import { eur } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import type { FormulaFields, Language, LedZone, TranslateFn } from "@/types";
 
@@ -15,6 +16,7 @@ export default function BenefitFields({
   set,
   showVouchers,
   locked,
+  noFood,
   t = (k) => k,
   lang = "nl",
 }: {
@@ -25,6 +27,8 @@ export default function BenefitFields({
       until someone chooses to change them. How a value is split into vouchers
       stays open — that isn't a benefit of its own. */
   locked?: boolean;
+  /** For a formula: food & drink vouchers always come on top of one (0027). */
+  noFood?: boolean;
   t?: TranslateFn;
   /** For the option labels and the voucher editor, which are shared with the sponsor portal. */
   lang?: Language;
@@ -63,21 +67,22 @@ export default function BenefitFields({
           onChange={(rows) => set("drinkVouchers", rows)}
         />
       )}
-      <Field label={t("bf.food")}>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={v.foodDrinkValue}
-          disabled={locked}
-          onChange={(e) => {
-            const val = e.target.value === "" ? "" : Math.max(0, Number(e.target.value));
-            set("foodDrinkValue", val);
-            set("baseFoodDrink", Number(val) || 0);
-          }}
-        />
-      </Field>
-      {showVouchers && Number(v.foodDrinkValue) > 0 && (
+      {/* Never locked: food & drink isn't a benefit of the formula but something
+          the sponsor buys on top, billed through foodDrinkExtra — so what an
+          older agreement still had included (baseFoodDrink) stays as it was. */}
+      {!noFood && (
+        <Field
+          label={t("bf.food")}
+          hint={
+            Number(v.baseFoodDrink) > 0
+              ? t("bf.foodincl", { amount: eur(v.baseFoodDrink) })
+              : t("bf.foodextra")
+          }
+        >
+          <input type="number" min="0" step="0.01" value={v.foodDrinkValue} onChange={num("foodDrinkValue")} />
+        </Field>
+      )}
+      {!noFood && showVouchers && Number(v.foodDrinkValue) > 0 && (
         <VoucherEditor
           amount={v.foodDrinkValue}
           rows={v.foodDrinkVouchers || []}

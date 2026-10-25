@@ -2522,7 +2522,6 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               <th className="gr-r">{t("c.cost")}</th>
                               <th className="gr-r">{t("th.vipfsg")}</th>
                               <th className="gr-r">{t("th.drinks")}</th>
-                              <th className="gr-r">{t("th.fooddrink")}</th>
                               <th>{t("th.folder")}</th>
                               <th>{t("th.website")}</th>
                               <th>{t("th.poster")}</th>
@@ -2549,7 +2548,6 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   {f.vipFriday || 0} / {f.vipSaturday || 0} / {f.vipGuests || 0}
                                 </td>
                                 <td className="gr-r">{Number(f.drinkValue) > 0 ? eur(f.drinkValue) : "—"}</td>
-                                <td className="gr-r">{Number(f.foodDrinkValue) > 0 ? eur(f.foodDrinkValue) : "—"}</td>
                                 <td>
                                   {normFolder(f.folderMention) !== "none"
                                     ? label(FOLDER_OPTS, normFolder(f.folderMention), uiLang)

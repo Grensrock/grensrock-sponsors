@@ -201,7 +201,9 @@ export const emptyDeal: Omit<Deal, "id"> = {
 
 /* What picking a formula copies onto an agreement — the agreement form's
    formula buttons and the agreement import both start from this. A copy,
-   not a link: changing the formula later leaves the agreement alone. */
+   not a link: changing the formula later leaves the agreement alone.
+   Food & drink is never in a formula (0027), so picking one leaves what
+   was filled in for it as it is. */
 export const dealFieldsFromFormula = (f: Formula): Partial<Deal> => ({
   formulaName: f.name,
   cost: f.cost,
@@ -210,8 +212,6 @@ export const dealFieldsFromFormula = (f: Formula): Partial<Deal> => ({
   vipGuests: f.vipGuests,
   drinkValue: f.drinkValue,
   drinkVouchers: f.drinkVouchers || [],
-  foodDrinkValue: f.foodDrinkValue,
-  baseFoodDrink: f.foodDrinkValue,
   folderMention: f.folderMention,
   websiteMention: f.websiteMention,
   posterMention: f.posterMention || "none",

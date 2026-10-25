@@ -15,6 +15,7 @@ import {
   type AgreementField,
   type ColumnMap,
 } from "@/lib/import-helpers";
+import { AGREEMENT_TEMPLATE, downloadTemplate } from "@/lib/import-template";
 import { eur } from "@/lib/money";
 import { normNameKey, normStr, normVatKey } from "@/lib/normalize";
 import type { Deal, Edition, Language, Sponsor, SponsorDecline, TranslateFn } from "@/types";
@@ -76,6 +77,23 @@ export default function AgreementImportModal({
   const sortedEditions = [...editions].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
   const mapped = (f: AgreementField) => (map[f] ?? -1) >= 0;
 
+  /* Under the column notes in the template: every edition's formula names,
+     cheapest first as in the form, since a name that doesn't match exactly
+     is the likeliest reason for a skipped row. */
+  const formulaGuide = () => [
+    [t("tpl.formulasby")],
+    [t("c.edition"), t("c.status"), t("tpl.formulas")],
+    ...sortedEditions.map((e) => [
+      e.name,
+      t(e.active ? "ov.active" : "ov.inactive"),
+      [...(e.formulas || [])]
+        .sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0))
+        .map((f) => f.name)
+        .concat(OP_MAAT)
+        .join(", "),
+    ]),
+  ];
+
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -134,20 +152,18 @@ export default function AgreementImportModal({
       }
       const name = sponsor.companyName;
 
-      let edition = fixedEdition;
-      if (has("edition")) {
-        const asked = get(row, "edition");
-        edition = matchEdition(asked, editions) || undefined;
-        if (!edition) {
-          skipped.push({
-            line,
-            name: asked ? `${name} — ${asked}` : name,
-            reason: asked ? "ai.r.edition" : "ai.r.noedition",
-          });
-          return;
-        }
+      /* The row's own edition, else the one picked for the file — so a
+         template's Editie column can stay empty when it is all one edition. */
+      const named = get(row, "edition");
+      const edition = named ? matchEdition(named, editions) : fixedEdition;
+      if (!edition) {
+        skipped.push({
+          line,
+          name: named ? `${name} — ${named}` : name,
+          reason: named ? "ai.r.edition" : "ai.r.noedition",
+        });
+        return;
       }
-      if (!edition) return; // unreachable: without a column, analysis needs a chosen edition
 
       /* One agreement per sponsor and edition (unique in the database). */
       const key = pairKey({ sponsorId: sponsor.id, editionId: edition.id });
@@ -254,6 +270,16 @@ export default function AgreementImportModal({
       {!headers ? (
         <>
           <p className="gr-muted">{t("ai.intro")}</p>
+          <p className="gr-muted">
+            {t("tpl.hint")}{" "}
+            <button
+              type="button"
+              className="gr-mini"
+              onClick={() => downloadTemplate("grensrock-template-agreements.xlsx", AGREEMENT_TEMPLATE, t, formulaGuide())}
+            >
+              {t("tpl.download")}
+            </button>
+          </p>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} className="gr-file" />
           {err && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>
@@ -284,19 +310,20 @@ export default function AgreementImportModal({
               </Field>
             ))}
           </div>
-          {/* Most lists are one edition's; only ask when the file doesn't say. */}
-          {!mapped("edition") && (
-            <Field label={t("ai.edition")} hint={t("ai.editionhint")}>
-              <select value={editionId} onChange={(e) => setEditionId(e.target.value)}>
-                <option value="">{t("df.select")}</option>
-                {sortedEditions.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.active ? e.name : `${e.name} (${t("ov.inactive")})`}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
+          {/* For the rows that don't name their edition: every row, without an Editie column. */}
+          <Field
+            label={t(mapped("edition") ? "ai.editionrest" : "ai.edition")}
+            hint={t(mapped("edition") ? "ai.editionresthint" : "ai.editionhint")}
+          >
+            <select value={editionId} onChange={(e) => setEditionId(e.target.value)}>
+              <option value="">{t("df.select")}</option>
+              {sortedEditions.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.active ? e.name : `${e.name} (${t("ov.inactive")})`}
+                </option>
+              ))}
+            </select>
+          </Field>
           {[
             !mapped("sponsor") && "im.selsponsor",
             !mapped("edition") && !editionId && "ai.seledition",

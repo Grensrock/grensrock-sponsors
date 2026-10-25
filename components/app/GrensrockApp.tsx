@@ -31,6 +31,7 @@ import SponsorPortal from "@/components/views/SponsorPortal";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
 import { formatAddress } from "@/lib/address";
 import { auditActorLabel } from "@/lib/audit-engine";
+import { formulaStyle } from "@/lib/color";
 import * as auditApi from "@/lib/api/audit";
 import * as contactsApi from "@/lib/api/contacts";
 import * as logosApi from "@/lib/api/logos";
@@ -50,6 +51,7 @@ import {
   COMM_LABELS,
   FOLDER_OPTS,
   LANGS,
+  OP_MAAT,
   POSTER_OPTS,
   TEAM_LANGS,
   VOUCHER_STATUS,
@@ -1639,6 +1641,13 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const ovKind = ovTotal - ovCash;
   const ovBillable = ovDeals.filter(needsInvoice);
   const ovInvoiced = ovBillable.filter((d) => d.invoiceCreated).length;
+  /* The edition's formulas, cheapest first like the agreement form's buttons,
+     each with how many agreements took it; whatever matches none of them
+     (Op maat, or a formula renamed since) is counted as custom. */
+  const ovFormulas = [...(overviewEdition?.formulas || [])]
+    .sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0))
+    .map((f) => ({ formula: f, count: ovDeals.filter((d) => d.formulaName === f.name).length }));
+  const ovCustom = ovDeals.length - ovFormulas.reduce((s, x) => s + x.count, 0);
 
   if (!loaded)
     return (
@@ -1967,6 +1976,26 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     {t("ov.invoiced")}
                   </div>
                 </div>
+                {ovFormulas.length > 0 && (
+                  <>
+                    <h3 className="gr-subhead">{t("ov.performula")}</h3>
+                    <div className="gr-statrow" style={{ marginTop: 10 }}>
+                      {ovFormulas.map(({ formula: f, count }) => (
+                        <div key={f.name} className="gr-stat gr-fstat" style={formulaStyle(f)}>
+                          <span>{count}</span>
+                          <i className="gr-fdot" />
+                          <strong>{f.name}</strong> · {eur(f.cost)}
+                        </div>
+                      ))}
+                      {ovCustom > 0 && (
+                        <div className="gr-stat" style={{ borderLeftColor: "var(--line)" }}>
+                          <span>{ovCustom}</span>
+                          <strong style={{ color: "var(--ink)" }}>{OP_MAAT}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
                 <div className="gr-actions" style={{ justifyContent: "flex-start" }}>
                   <button className="gr-btn" onClick={() => setModal({ type: "deal" })}>
                     {t("ov.newagreement")}
@@ -2322,7 +2351,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                   admin && setModal({ type: "formula", payload: { editionId: ed.id, formula: f } })
                                 }
                               >
-                                <td>
+                                <td style={formulaStyle(f)}>
+                                  <i className="gr-fdot" />
                                   <strong>{f.name}</strong>
                                 </td>
                                 <td className="gr-r">{eur(f.cost)}</td>
@@ -3210,6 +3240,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               )}
                             </td>
                             <td>
+                              {(() => {
+                                const f = edition?.formulas?.find((x) => x.name === d.formulaName);
+                                return f && <i className="gr-fdot" style={formulaStyle(f)} />;
+                              })()}
                               {d.formulaName || <span className="gr-muted">{t("th.custom")}</span>}
                               {d.requestedAt && !d.confirmedAt && (
                                 <>
@@ -4163,6 +4197,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             t={t}
             lang={uiLang}
             initial={modal.payload.formula}
+            usedColors={(editions.find((e) => e.id === modal.payload.editionId)?.formulas || [])
+              .filter((f) => f.name !== modal.payload.formula?.name)
+              .map((f) => f.color || "")}
             onSave={(f) => saveFormula(modal.payload.editionId, f, modal.payload.formula?.name)}
             onCancel={() => setModal(null)}
           />

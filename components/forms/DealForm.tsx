@@ -5,6 +5,7 @@ import BenefitFields from "@/components/forms/BenefitFields";
 import SponsorForm from "@/components/forms/SponsorForm";
 import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
+import { formulaStyle } from "@/lib/color";
 import { OP_MAAT, SETTLEMENTS, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
@@ -71,7 +72,7 @@ export default function DealForm({
   const [newSponsorDraft, setNewSponsorDraft] = useState<Partial<Sponsor> | null>(null); // null | prefill object
   const set = (k: string, val: unknown) => setD((p) => ({ ...p, [k]: val }) as DealFormState);
   const edition = editions.find((e) => e.id === d.editionId);
-  /* Cheapest formula first, so the picker reads as a ladder. */
+  /* Cheapest formula first, so the buttons read as a ladder. */
   const formulas = [...(edition?.formulas || [])].sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
 
   const applyFormula = (name: string) => {
@@ -179,7 +180,7 @@ export default function DealForm({
         </p>
       )}
       {d.editionId && (
-        <div className="gr-grid2">
+        <>
           <Field
             label={t("df.formula")}
             hint={
@@ -189,23 +190,45 @@ export default function DealForm({
                   ? t("df.fnone")
                   : t("df.fprefill")
             }
+            group
           >
-            <select value={d.formulaName} onChange={(e) => applyFormula(e.target.value)}>
-              <option value="">{t("df.select")}</option>
-              {formulas.map((f) => (
-                <option key={f.name} value={f.name}>
-                  {f.name} ({eur(f.cost)})
-                </option>
-              ))}
-              <option value={OP_MAAT}>
-                {OP_MAAT} ({t("df.custom")})
-              </option>
-            </select>
+            {/* One button per formula, in its own colour. Picking the one that is
+                already on would prefill again and undo whatever was adjusted
+                since, so that click does nothing. */}
+            <div className="gr-fpick">
+              {formulas.map((f) => {
+                const on = d.formulaName === f.name;
+                return (
+                  <button
+                    key={f.name}
+                    type="button"
+                    className={"gr-fbtn" + (on ? " on" : "")}
+                    style={formulaStyle(f)}
+                    aria-pressed={on}
+                    onClick={() => !on && applyFormula(f.name)}
+                  >
+                    {f.name}
+                    <small>{eur(f.cost)}</small>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className={"gr-fbtn gr-fbtn-custom" + (d.formulaName === OP_MAAT ? " on" : "")}
+                aria-pressed={d.formulaName === OP_MAAT}
+                onClick={() => applyFormula(OP_MAAT)}
+              >
+                {OP_MAAT}
+                <small>{t("df.custom")}</small>
+              </button>
+            </div>
           </Field>
-          <Field label={t("df.cost")}>
-            <input type="number" min="0" step="0.01" value={d.cost} onChange={(e) => set("cost", e.target.value)} />
-          </Field>
-        </div>
+          <div className="gr-grid2">
+            <Field label={t("df.cost")}>
+              <input type="number" min="0" step="0.01" value={d.cost} onChange={(e) => set("cost", e.target.value)} />
+            </Field>
+          </div>
+        </>
       )}
       {d.editionId && <BenefitFields v={d} set={set} showVouchers t={t} lang={lang} />}
       {d.editionId && (

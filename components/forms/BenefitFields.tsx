@@ -14,12 +14,17 @@ export default function BenefitFields({
   v,
   set,
   showVouchers,
+  locked,
   t = (k) => k,
   lang = "nl",
 }: {
   v: FormulaFields;
   set: BenefitSetter;
   showVouchers?: boolean;
+  /** Shown but not editable: the agreement form keeps a formula's benefits so
+      until someone chooses to change them. How a value is split into vouchers
+      stays open — that isn't a benefit of its own. */
+  locked?: boolean;
   t?: TranslateFn;
   /** For the option labels and the voucher editor, which are shared with the sponsor portal. */
   lang?: Language;
@@ -30,17 +35,24 @@ export default function BenefitFields({
     <>
       <div className="gr-grid3">
         <Field label={t("bf.vipfri")}>
-          <input type="number" min="0" value={v.vipFriday} onChange={num("vipFriday")} />
+          <input type="number" min="0" value={v.vipFriday} onChange={num("vipFriday")} disabled={locked} />
         </Field>
         <Field label={t("bf.vipsat")}>
-          <input type="number" min="0" value={v.vipSaturday} onChange={num("vipSaturday")} />
+          <input type="number" min="0" value={v.vipSaturday} onChange={num("vipSaturday")} disabled={locked} />
         </Field>
         <Field label={t("bf.vipguest")}>
-          <input type="number" min="0" value={v.vipGuests} onChange={num("vipGuests")} />
+          <input type="number" min="0" value={v.vipGuests} onChange={num("vipGuests")} disabled={locked} />
         </Field>
       </div>
       <Field label={t("bf.drinkvalue")}>
-        <input type="number" min="0" step="0.01" value={v.drinkValue} onChange={num("drinkValue")} />
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={v.drinkValue}
+          onChange={num("drinkValue")}
+          disabled={locked}
+        />
       </Field>
       {showVouchers && Number(v.drinkValue) > 0 && (
         <VoucherEditor
@@ -57,6 +69,7 @@ export default function BenefitFields({
           min="0"
           step="0.01"
           value={v.foodDrinkValue}
+          disabled={locked}
           onChange={(e) => {
             const val = e.target.value === "" ? "" : Math.max(0, Number(e.target.value));
             set("foodDrinkValue", val);
@@ -75,7 +88,11 @@ export default function BenefitFields({
       )}
       <div className="gr-grid3">
         <Field label={t("bf.folder")}>
-          <select value={normFolder(v.folderMention)} onChange={(e) => set("folderMention", e.target.value)}>
+          <select
+            value={normFolder(v.folderMention)}
+            onChange={(e) => set("folderMention", e.target.value)}
+            disabled={locked}
+          >
             {Object.keys(FOLDER_OPTS).map((k) => (
               <option key={k} value={k}>
                 {label(FOLDER_OPTS, k, lang)}
@@ -84,7 +101,11 @@ export default function BenefitFields({
           </select>
         </Field>
         <Field label={t("bf.poster")}>
-          <select value={v.posterMention || "none"} onChange={(e) => set("posterMention", e.target.value)}>
+          <select
+            value={v.posterMention || "none"}
+            onChange={(e) => set("posterMention", e.target.value)}
+            disabled={locked}
+          >
             {Object.keys(POSTER_OPTS).map((k) => (
               <option key={k} value={k}>
                 {label(POSTER_OPTS, k, lang)}
@@ -93,7 +114,7 @@ export default function BenefitFields({
           </select>
         </Field>
         <Field label={t("bf.website")}>
-          <select value={v.websiteMention} onChange={(e) => set("websiteMention", e.target.value)}>
+          <select value={v.websiteMention} onChange={(e) => set("websiteMention", e.target.value)} disabled={locked}>
             {Object.keys(WEBSITE_OPTS).map((k) => (
               <option key={k} value={k}>
                 {label(WEBSITE_OPTS, k, lang)}
@@ -103,7 +124,7 @@ export default function BenefitFields({
         </Field>
       </div>
       <Field label={t("bf.fence")}>
-        <input type="number" min="0" value={v.fenceCovers || 0} onChange={num("fenceCovers")} />
+        <input type="number" min="0" value={v.fenceCovers || 0} onChange={num("fenceCovers")} disabled={locked} />
       </Field>
       <Field group label={t("bf.led")}>
         <div className="gr-checkrow">
@@ -111,10 +132,11 @@ export default function BenefitFields({
             const zones = normLed(v.ledboarding);
             const on = zones.includes(k);
             return (
-              <label key={k} className={"gr-check" + (on ? " on" : "")}>
+              <label key={k} className={"gr-check" + (on ? " on" : "") + (locked ? " gr-check-disabled" : "")}>
                 <input
                   type="checkbox"
                   checked={on}
+                  disabled={locked}
                   onChange={(e) => set("ledboarding", e.target.checked ? [...zones, k] : zones.filter((z) => z !== k))}
                 />
                 {label(LED_ZONES, k, lang)}

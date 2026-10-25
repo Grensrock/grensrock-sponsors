@@ -1,3 +1,4 @@
+import { benefitChanges, changeLines } from "@/lib/benefits";
 import { LED_ZONES, OP_MAAT, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { renderEmailHtml } from "@/lib/email/layout";
@@ -5,7 +6,7 @@ import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { drinkPoolValue, voucherText } from "@/lib/vouchers";
-import type { Contact, Deal, Edition, Language, Sponsor, User } from "@/types";
+import type { Contact, Deal, Edition, FormulaFields, Language, Sponsor, TeamLanguage, User } from "@/types";
 
 /* ---------- portal invitation text ----------
    A personal note the team copies and sends themselves. It doesn't replace
@@ -433,39 +434,93 @@ Grensrock`;
    Sent to each admin when an agreement is created — by a team member in
    the app, or by a sponsor picking a formula in the portal — so a new one
    doesn't have to be spotted in the list. Team-facing, so NL/EN in the
-   admin's own language, like buildAccessGranted above. */
+   admin's own language, like buildAccessGranted above.
+
+   A team member who set the benefits apart from the formula leaves the
+   agreement waiting for an admin (0026), and then that is what the mail is
+   for. It says so first — in the subject, and at the top of the text with
+   each difference on a line — so it can't be read as just another new
+   agreement. */
+type AdminDeal = Pick<Deal, "formulaName" | "cost" | "settlement"> & Partial<Deal>;
+
+/* `formula` is what the benefits are held against: null for Op maat, or a
+   formula the edition doesn't have (any more). */
+function approvalBlock(lang: TeamLanguage, deal: AdminDeal, formula: FormulaFields | null) {
+  const nl = lang === "nl";
+  const lines = changeLines(benefitChanges(deal, formula, lang))
+    .map((l) => `• ${l}`)
+    .join("\n");
+  const head = formula
+    ? nl
+      ? `⚠ GOEDKEURING NODIG — de voordelen wijken af van formule ${deal.formulaName}`
+      : `⚠ APPROVAL NEEDED — the benefits differ from formula ${deal.formulaName}`
+    : nl
+      ? "⚠ GOEDKEURING NODIG — deze overeenkomst volgt geen formule"
+      : "⚠ APPROVAL NEEDED — this agreement follows no formula";
+  const intro = formula
+    ? nl
+      ? `Formule ${deal.formulaName} → deze overeenkomst:`
+      : `Formula ${deal.formulaName} → this agreement:`
+    : nl
+      ? "Alle voordelen zijn met de hand ingevuld:"
+      : "Every benefit was filled in by hand:";
+  const then = nl
+    ? "De sponsor krijgt deze overeenkomst pas nadat een admin dit goedkeurt. In de app vindt u ze onder Overeenkomsten → Wacht op goedkeuring."
+    : "The sponsor only gets this agreement once an admin approves this. In the app you'll find it under Agreements → Waiting for approval.";
+  return `${head}\n\n${intro}\n${lines}\n\n${then}`;
+}
+
+function agreementFacts(lang: TeamLanguage, deal: AdminDeal, sponsorName: string, editionName: string) {
+  const nl = lang === "nl";
+  const custom = !deal.formulaName.trim() || deal.formulaName === OP_MAAT;
+  const formula = custom ? (nl ? "op maat" : "custom") : deal.formulaName;
+  return nl
+    ? `Sponsor: ${sponsorName}
+Editie: ${editionName}
+Formule: ${formula}
+Bijdrage: ${eur(deal.cost)}
+Afrekening: ${label(SETTLEMENTS, deal.settlement, lang)}`
+    : `Sponsor: ${sponsorName}
+Edition: ${editionName}
+Formula: ${formula}
+Contribution: ${eur(deal.cost)}
+Settlement: ${label(SETTLEMENTS, deal.settlement, lang)}`;
+}
+
 export function buildAgreementCreated(
   admin: User,
-  deal: Pick<Deal, "formulaName" | "cost" | "settlement">,
+  deal: AdminDeal,
   sponsorName: string,
   editionName: string,
   createdBy: { name: string; viaPortal: boolean },
   appUrl: string,
+  /** Set when the agreement waits for an admin's approval of its benefits. */
+  waiting?: { formula: FormulaFields | null } | null,
 ) {
-  const lang = admin.language === "en" ? "en" : "nl";
+  const lang: TeamLanguage = admin.language === "en" ? "en" : "nl";
   const nl = lang === "nl";
-  const custom = !deal.formulaName.trim() || deal.formulaName === OP_MAAT;
-  const formula = custom ? (nl ? "op maat" : "custom") : deal.formulaName;
   const by = createdBy.viaPortal
     ? nl
       ? `${createdBy.name || "de sponsor"}, via het sponsorportaal`
       : `${createdBy.name || "the sponsor"}, via the sponsor portal`
     : createdBy.name || (nl ? "een teamlid" : "a team member");
 
-  const subject = nl
-    ? `Nieuwe overeenkomst: ${sponsorName} (${editionName})`
-    : `New agreement: ${sponsorName} (${editionName})`;
+  const subject = waiting
+    ? nl
+      ? `Goedkeuring nodig: nieuwe overeenkomst ${sponsorName} (${editionName})`
+      : `Approval needed: new agreement ${sponsorName} (${editionName})`
+    : nl
+      ? `Nieuwe overeenkomst: ${sponsorName} (${editionName})`
+      : `New agreement: ${sponsorName} (${editionName})`;
+
+  const review = waiting ? `\n\n${approvalBlock(lang, deal, waiting.formula)}` : "";
 
   const body = nl
     ? `Dag ${userName(admin)},
 
-Er is een nieuwe overeenkomst aangemaakt.
+Er is een nieuwe overeenkomst aangemaakt.${review}
 
-Sponsor: ${sponsorName}
-Editie: ${editionName}
-Formule: ${formula}
-Bijdrage: ${eur(deal.cost)}
-Afrekening: ${label(SETTLEMENTS, deal.settlement, lang)}
+${agreementFacts(lang, deal, sponsorName, editionName)}
 Aangemaakt door: ${by}
 
 Link: ${appUrl}
@@ -473,14 +528,58 @@ Link: ${appUrl}
 Grensrock`
     : `Hi ${userName(admin)},
 
-A new agreement has been created.
+A new agreement has been created.${review}
 
-Sponsor: ${sponsorName}
-Edition: ${editionName}
-Formula: ${formula}
-Contribution: ${eur(deal.cost)}
-Settlement: ${label(SETTLEMENTS, deal.settlement, lang)}
+${agreementFacts(lang, deal, sponsorName, editionName)}
 Created by: ${by}
+
+Link: ${appUrl}
+
+Grensrock`;
+
+  return { subject, body };
+}
+
+/* ---------- changed benefits on an existing agreement, for the admins ----------
+   The same wait as above, when the benefits are changed on an agreement
+   that already existed — one a sponsor requested in the portal and the
+   team confirms, or one that was already sent. */
+export function buildBenefitsChanged(
+  admin: User,
+  deal: AdminDeal,
+  sponsorName: string,
+  editionName: string,
+  changedBy: string,
+  formula: FormulaFields | null,
+  appUrl: string,
+) {
+  const lang: TeamLanguage = admin.language === "en" ? "en" : "nl";
+  const nl = lang === "nl";
+  const by = changedBy || (nl ? "Een teamlid" : "A team member");
+
+  const subject = nl
+    ? `Goedkeuring nodig: voordelen aangepast voor ${sponsorName} (${editionName})`
+    : `Approval needed: benefits changed for ${sponsorName} (${editionName})`;
+
+  const body = nl
+    ? `Dag ${userName(admin)},
+
+${by} paste de voordelen van een bestaande overeenkomst aan.
+
+${approvalBlock(lang, deal, formula)}
+
+${agreementFacts(lang, deal, sponsorName, editionName)}
+
+Link: ${appUrl}
+
+Grensrock`
+    : `Hi ${userName(admin)},
+
+${by} changed the benefits of an existing agreement.
+
+${approvalBlock(lang, deal, formula)}
+
+${agreementFacts(lang, deal, sponsorName, editionName)}
 
 Link: ${appUrl}
 

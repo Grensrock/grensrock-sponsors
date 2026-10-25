@@ -5,13 +5,15 @@ import EmailInput from "@/components/ui/EmailInput";
 import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import Tag from "@/components/ui/Tag";
+import { fmtDateTime } from "@/lib/acceptance";
 import { sendAgreementEmail } from "@/lib/api/deals";
+import { awaitsApproval } from "@/lib/benefits";
 import { ACCEPT_PATH, LANGS, emptyContact, uid } from "@/lib/constants";
 import { contactName, contactsFor, sponsorContacts } from "@/lib/contacts";
 import { buildEmail, renderAgreementHtml } from "@/lib/email-templates";
 import { emailToStore, sameEmail, validateEmail } from "@/lib/email-validate";
 import { userName } from "@/lib/users";
-import type { Contact, Deal, Edition, Language, Sponsor, TranslateFn, User } from "@/types";
+import type { Contact, Deal, Edition, Language, PendingMail, Sponsor, TranslateFn, User } from "@/types";
 
 /* ---------- Sending the confirmation email / contract ----------
    The team picks who it goes to, reads it, edits it if they want, and
@@ -21,7 +23,11 @@ import type { Contact, Deal, Edition, Language, Sponsor, TranslateFn, User } fro
    recipients are not incidental: a contact with no portal access can
    read the mail but cannot act on it. The route fixes that at send time
    (see app/api/deals/send-agreement) — this modal only says so, rather
-   than making the team go and activate people first. */
+   than making the team go and activate people first.
+
+   While the agreement's benefits wait for an admin (0026), a team member's
+   Send prepares the mail instead: the route holds it, and it goes out when
+   an admin approves. An admin's Send is that approval, and sends. */
 
 const canMail = (c: Contact) => !!validateEmail(c.email)?.valid;
 
@@ -40,7 +46,10 @@ export default function EmailModal({
   onClose,
   onMarkSent,
   onSent,
+  onHeld,
   onAddContact,
+  admin,
+  prepared,
   t = (k) => k,
 }: {
   deal: Deal;
@@ -54,16 +63,28 @@ export default function EmailModal({
   onMarkSent: (edited: boolean) => void;
   /** The send succeeded; the agreement is already marked sent server-side. */
   onSent: (sentAt: string) => void;
+  /** The mail was held until the benefits are approved, not sent. */
+  onHeld?: () => void;
+  admin?: boolean;
+  /** A mail written before, to start from: the one held on the agreement, or
+      one that was held but could not go out on approval. */
+  prepared?: Partial<PendingMail> | null;
   /** Saves a brand-new contact on this sponsor and hands it back with its real id. */
   onAddContact: (sponsorId: string, contact: Contact) => Promise<Contact | null>;
   t?: TranslateFn;
 }) {
   const all = sponsorContacts(sponsor).filter(canMail);
+  const waiting = awaitsApproval(deal);
+  const holds = waiting && !admin;
+  const start = prepared || (waiting ? deal.pendingMail : null);
 
   /* The contract is invoicing-related, so it starts aimed at the invoicing
      contacts, falling back to whoever receives general information. It is only
-     a starting point now — the team can tick anyone. */
+     a starting point now — the team can tick anyone. A mail written before
+     starts where it was left. */
   const [picked, setPicked] = useState<string[]>(() => {
+    const before = (start?.contactIds || []).filter((id) => all.some((c) => c.id === id));
+    if (before.length) return before;
     const invoice = contactsFor(sponsor, "invoice").filter(canMail);
     const info = contactsFor(sponsor, "info").filter(canMail);
     return (invoice.length ? invoice : info).map((c) => c.id);
@@ -112,7 +133,9 @@ export default function EmailModal({
      throwing away work while they are looking at it. The draft keeps the
      language it was written in, which the button in the mail is worded in,
      even if the recipients change under it. */
-  const [draft, setDraft] = useState<{ subject: string; body: string; lang: Language } | null>(null);
+  const [draft, setDraft] = useState<{ subject: string; body: string; lang: Language } | null>(() =>
+    start?.subject && start?.body ? { subject: start.subject, body: start.body, lang: start.language || "nl" } : null,
+  );
   const subject = draft ? draft.subject : built.subject;
   const body = draft ? draft.body : built.body;
   const lang = draft ? draft.lang : built.lang;
@@ -122,7 +145,9 @@ export default function EmailModal({
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState<{ to: string[]; cc: string | null; warnings: string[] } | null>(null);
+  const [done, setDone] = useState<{ to: string[]; cc: string | null; warnings: string[]; held: boolean } | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
   const [adding, setAdding] = useState(all.length === 0);
 
@@ -148,8 +173,9 @@ export default function EmailModal({
     setErr("");
     try {
       const res = await sendAgreementEmail(deal.id, recipients.map((c) => c.id), subject, body, lang);
-      setDone({ to: res.to, cc: res.cc, warnings: res.warnings });
-      onSent(res.sentAt);
+      setDone({ to: res.to, cc: res.cc, warnings: res.warnings, held: res.held });
+      if (res.held) onHeld?.();
+      else onSent(res.sentAt);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -164,9 +190,11 @@ export default function EmailModal({
            do here but say what happened. */
         <>
           <p className="gr-blockbanner" style={{ background: "#E7F4EC", color: "var(--green)" }}>
-            {done.cc
-              ? t("em.senttocc", { to: done.to.join(", "), cc: done.cc })
-              : t("em.sentto", { to: done.to.join(", ") })}
+            {done.held
+              ? t("em.heldto", { to: done.to.join(", ") })
+              : done.cc
+                ? t("em.senttocc", { to: done.to.join(", "), cc: done.cc })
+                : t("em.sentto", { to: done.to.join(", ") })}
           </p>
           {done.warnings.map((w, i) => (
             <p key={i} className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
@@ -181,6 +209,20 @@ export default function EmailModal({
         </>
       ) : (
         <>
+          {waiting && (
+            <p className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
+              {holds ? t("em.holdintro") : t("em.adminapproves")}
+              {holds && deal.pendingMail && (
+                <>
+                  {" "}
+                  {t("em.alreadyheld", {
+                    by: deal.pendingMail.heldBy || "?",
+                    when: fmtDateTime(deal.pendingMail.heldAt),
+                  })}
+                </>
+              )}
+            </p>
+          )}
           {all.length === 0 && <p className="gr-blockbanner">{t("em.nocontactsyet")}</p>}
 
           {all.length > 0 && (
@@ -291,29 +333,32 @@ export default function EmailModal({
           {/* Sending it some other way, kept apart from Send. In one row with it,
               a phone stacked "Mark as sent" directly above Send, and what it
               meant was only a tooltip, which a phone never shows — so it read
-              as a second send button that sends nothing. */}
-          <div className="gr-sendalt">
-            <div className="gr-sendalt-row">
-              <button className="gr-mini" onClick={copy}>
-                {copied ? t("em.copied") : t("em.copy")}
-              </button>
-              {recipients.length > 0 && (
-                <a className="gr-mini gr-btn-link" href={mailto}>
-                  {t("vo.openmail")}
-                </a>
-              )}
+              as a second send button that sends nothing. Not offered while the
+              benefits wait: each would be a way round the approval. */}
+          {!waiting && (
+            <div className="gr-sendalt">
+              <div className="gr-sendalt-row">
+                <button className="gr-mini" onClick={copy}>
+                  {copied ? t("em.copied") : t("em.copy")}
+                </button>
+                {recipients.length > 0 && (
+                  <a className="gr-mini gr-btn-link" href={mailto}>
+                    {t("vo.openmail")}
+                  </a>
+                )}
+              </div>
+              <div className="gr-sendalt-row">
+                <button className="gr-mini" onClick={() => onMarkSent(!!draft)}>
+                  {t("vo.marksent")}
+                </button>
+                <span className="gr-muted">{t("em.marksenthint")}</span>
+              </div>
             </div>
-            <div className="gr-sendalt-row">
-              <button className="gr-mini" onClick={() => onMarkSent(!!draft)}>
-                {t("vo.marksent")}
-              </button>
-              <span className="gr-muted">{t("em.marksenthint")}</span>
-            </div>
-          </div>
+          )}
 
           <div className="gr-actions">
             <button className="gr-btn" onClick={send} disabled={busy || recipients.length === 0}>
-              {busy ? t("em.sending") : t("em.send")}
+              {busy ? t(holds ? "em.holding" : "em.sending") : t(holds ? "em.hold" : "em.send")}
             </button>
           </div>
         </>

@@ -167,14 +167,9 @@ export function buildEmail(
             "Name mention on the festival poster",
           ),
     );
+  /* "banner(s)" reads the same in all three languages */
   if (Number(deal.fenceCovers) > 0)
-    benefits.push(
-      B(
-        `${deal.fenceCovers} hoes(sen) voor nadar- of Heras-hekken`,
-        `${deal.fenceCovers} housse(s) pour barrières Nadar ou clôtures Heras`,
-        `${deal.fenceCovers} cover(s) for Nadar barriers or Heras fences`,
-      ),
-    );
+    benefits.push(`${deal.fenceCovers} banner${Number(deal.fenceCovers) === 1 ? "" : "s"}`);
   const zones = normLed(deal.ledboarding);
   if (zones.length > 0) {
     const zoneList = zones.map((z) => label(LED_ZONES, z, lang)).join(" + ");

@@ -377,11 +377,7 @@ export default function SponsorDetail({
                     <th>{t("th.website")}</th>
                     <th>{t("th.poster")}</th>
                     <th>{t("th.led")}</th>
-                    <th className="gr-r">
-                      {t("th.covers")}
-                      <br />
-                      nadar/heras
-                    </th>
+                    <th className="gr-r">{t("th.covers")}</th>
                     <th>{t("c.accepted")}</th>
                     <th>{t("th.invoice")}</th>
                     <th>{t("sd.email")}</th>

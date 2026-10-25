@@ -236,7 +236,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "th.website": ["Website", "Website"],
   "th.poster": ["Affiche", "Poster"],
   "th.led": ["LED", "LED"],
-  "th.covers": ["Hoezen nadar/heras", "Covers nadar/heras"],
+  "th.covers": ["Banners", "Banners"],
   "th.invoice": ["Factuur", "Invoice"],
   "th.archived": ["gearchiveerd", "archived"],
   "th.custom": ["op maat", "custom"],
@@ -363,7 +363,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "bf.folder": ["Festivalfolder", "Festival folder"],
   "bf.poster": ["Festivalaffiche", "Festival poster"],
   "bf.website": ["Website", "Website"],
-  "bf.fence": ["Nadar-/herashoezen", "Fence covers (Nadar/Heras)"],
+  "bf.fence": ["Banners", "Banners"],
   "bf.led": ["LED-boarding (selecteer alles wat van toepassing is)", "LED boarding (select all that apply)"],
   "df.refexample": ["bv. PO-2026-0481", "e.g. PO-2026-0481"],
   "pick.change": ["Wijzigen", "Change"],
@@ -857,8 +857,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   ],
 
   "ex.managerhint": [
-    "Laad één afbeelding op per type zichtbaarheid. Sponsors zien de afbeeldingen die bij hun eigen overeenkomst horen, zodat ze weten hoe hun logo op de affiche, de ledboarding of een hoes er echt uitziet.",
-    "Upload one picture per type of return. Sponsors see the pictures that apply to their own agreement, so they know what their logo on the poster, the LED boarding or a fence cover actually looks like.",
+    "Laad één afbeelding op per type zichtbaarheid. Sponsors zien de afbeeldingen die bij hun eigen overeenkomst horen, zodat ze weten hoe hun logo op de affiche, de ledboarding of een banner er echt uitziet.",
+    "Upload one picture per type of return. Sponsors see the pictures that apply to their own agreement, so they know what their logo on the poster, the LED boarding or a banner actually looks like.",
   ],
 
   /* ---------- tickoweb ---------- */

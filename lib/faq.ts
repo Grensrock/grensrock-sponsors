@@ -631,6 +631,16 @@ const TEAM_FAQ: TeamSection[] = [
           en: "No. Deleting a sponsor also deletes its contact persons, agreements and vouchers; it can't be undone. Vouchers that already exist in Tickoweb stay there: cancel them there yourself. **Admin → Audit log** does show who changed what and when.",
         },
       },
+      {
+        q: {
+          nl: "Hoe maak ik een back-up van alle gegevens?",
+          en: "How do I make a backup of all data?",
+        },
+        a: {
+          nl: "Open **Beheer → Back-up** en klik **Back-up downloaden**. Je krijgt één Excel-bestand met een tabblad per soort gegevens: sponsors, contactpersonen, overeenkomsten, afzeggingen, edities, formules, bonnen, de lijst van logo's, het team, de instellingen en de audit log. Het eerste tabblad zegt wanneer en door wie de back-up gemaakt is en hoeveel rijen elk tabblad telt.\n\nDe logobestanden zelf zitten er niet in, enkel de lijst ervan.\n\nHet bestand bevat de gegevens van alle sponsors en contactpersonen en de codes van de bonnen: bewaar het op een veilige plek en deel het niet.",
+          en: "Open **Admin → Backup** and click **Download backup**. You get one Excel file with a sheet for each kind of data: sponsors, contact persons, agreements, declines, editions, formulas, vouchers, the list of logos, the team, the settings and the audit log. The first sheet says when and by whom the backup was made and how many rows each sheet holds.\n\nThe logo files themselves aren't in it, only their list.\n\nThe file holds the details of every sponsor and contact person and the voucher codes: keep it somewhere safe and don't share it.",
+        },
+      },
     ],
   },
 ];

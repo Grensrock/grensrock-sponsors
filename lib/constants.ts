@@ -30,7 +30,7 @@ export const LANGS: Record<Language, string> = { nl: "Nederlands", fr: "Françai
 /* team app: NL + EN only */
 export const TEAM_LANGS: Record<TeamLanguage, string> = { nl: "Nederlands", en: "English" };
 /* grouped under the Admin panel */
-export const ADMIN_TABS = ["editions", "team", "audit"];
+export const ADMIN_TABS = ["editions", "team", "audit", "backup"];
 
 /* ---------- contacts ---------- */
 export type CommKey = "info" | "invoice";

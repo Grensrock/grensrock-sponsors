@@ -21,6 +21,7 @@ import { MailLink, PhoneLink } from "@/components/ui/ContactLink";
 import Modal from "@/components/ui/Modal";
 import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
+import Backup from "@/components/views/Backup";
 import CopyUserInvite from "@/components/views/CopyUserInvite";
 import Faq from "@/components/views/Faq";
 import FolderOverview from "@/components/views/FolderOverview";
@@ -1985,6 +1986,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 ["editions", t("nav.editions")],
                 ["team", t("nav.team")],
                 ["audit", t("nav.audit")],
+                ["backup", t("nav.backup")],
               ] as Array<[string, string]>
             ).map(([k, l]) => (
               <button
@@ -3940,6 +3942,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             />
           </section>
         )}
+
+        {/* ---------- BACKUP ---------- */}
+        {tab === "backup" && admin && <Backup by={userName(me)} notify={notify} t={t} />}
 
         {/* ---------- TEAM ---------- */}
         {tab === "team" && admin && (

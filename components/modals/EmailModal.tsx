@@ -50,6 +50,7 @@ export default function EmailModal({
   onAddContact,
   admin,
   prepared,
+  uiLang = "nl",
   t = (k) => k,
 }: {
   deal: Deal;
@@ -71,6 +72,8 @@ export default function EmailModal({
   prepared?: Partial<PendingMail> | null;
   /** Saves a brand-new contact on this sponsor and hands it back with its real id. */
   onAddContact: (sponsorId: string, contact: Contact) => Promise<Contact | null>;
+  /** The language the team works in here, for the modal's own words; not the mail's. */
+  uiLang?: Language;
   t?: TranslateFn;
 }) {
   const all = sponsorContacts(sponsor).filter(canMail);
@@ -184,7 +187,7 @@ export default function EmailModal({
   };
 
   return (
-    <Modal title={t("em.title")} onClose={onClose} wide>
+    <Modal title={t("em.title")} onClose={onClose} wide lang={uiLang} confirmOutsideClick>
       {done ? (
         /* Sent. The agreement is already marked, so there is nothing left to
            do here but say what happened. */

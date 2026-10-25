@@ -590,6 +590,7 @@ export default function SponsorPortal({
               }
               onClose={() => setEditingContact(null)}
               lang={lang}
+              confirmOutsideClick
             >
               {/* Closes once the save is back, not before: a failed save leaves
                   the form, and what was typed in it, open to try again. */}
@@ -1147,6 +1148,7 @@ export default function SponsorPortal({
               title={T("Ticket doorgeven", "Transmettre le ticket", "Pass on ticket")}
               onClose={() => setAssigning(null)}
               lang={lang}
+              confirmOutsideClick
             >
               <p className="gr-muted">
                 {voucherLabel(VOUCHER_TYPES[assigning.type], lang, assigning.type)}

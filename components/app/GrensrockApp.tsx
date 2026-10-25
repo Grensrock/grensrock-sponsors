@@ -4234,7 +4234,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
 
       {/* ---------- modals ---------- */}
       {modal?.type === "sponsor" && (
-        <Modal title={t(modal.payload ? "md.editsponsor" : "md.newsponsor")} onClose={() => setModal(null)} lang={uiLang}>
+        <Modal title={t(modal.payload ? "md.editsponsor" : "md.newsponsor")} onClose={() => setModal(null)} lang={uiLang} confirmOutsideClick>
           <SponsorForm
             initial={modal.payload}
             defaultResponsibleId={me?.id}
@@ -4253,6 +4253,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           title={t(modal.payload.contact ? "md.editcontact" : "md.newcontact")}
           onClose={() => setModal(null)}
           lang={uiLang}
+          confirmOutsideClick
         >
           <ContactForm
             initial={modal.payload.contact}
@@ -4361,7 +4362,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         </Modal>
       )}
       {modal?.type === "vatlookup" && (
-        <Modal title={t("md.vatlookup")} onClose={() => setModal(null)} lang={uiLang}>
+        <Modal title={t("md.vatlookup")} onClose={() => setModal(null)} lang={uiLang} confirmOutsideClick>
           <VatLookupSettings
             value={data.settings?.vatLookup || defaultVatLookup}
             onSave={(cfg) => saveSettings({ vatLookup: cfg })}
@@ -4371,7 +4372,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         </Modal>
       )}
       {modal?.type === "tickoweb" && (
-        <Modal title={t("md.tickoweb")} onClose={() => setModal(null)} wide lang={uiLang}>
+        <Modal title={t("md.tickoweb")} onClose={() => setModal(null)} wide lang={uiLang} confirmOutsideClick>
           <TickowebSettings
             t={t}
             lang={uiLang}
@@ -4382,7 +4383,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         </Modal>
       )}
       {modal?.type === "user" && (
-        <Modal title={t(modal.payload ? "md.editaccount" : "md.newaccount")} onClose={() => setModal(null)} lang={uiLang}>
+        <Modal title={t(modal.payload ? "md.editaccount" : "md.newaccount")} onClose={() => setModal(null)} lang={uiLang} confirmOutsideClick>
           <UserForm
             t={t}
             lang={uiLang}
@@ -4420,12 +4421,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         />
       )}
       {modal?.type === "edition" && (
-        <Modal title={t(modal.payload ? "md.editedition" : "md.newedition")} onClose={() => setModal(null)} lang={uiLang}>
+        <Modal title={t(modal.payload ? "md.editedition" : "md.newedition")} onClose={() => setModal(null)} lang={uiLang} confirmOutsideClick>
           <EditionForm initial={modal.payload} onSave={saveEdition} onCancel={() => setModal(null)} t={t} />
         </Modal>
       )}
       {modal?.type === "formula" && (
-        <Modal title={t(modal.payload.formula ? "md.editformula" : "md.newformula")} onClose={() => setModal(null)} wide lang={uiLang}>
+        <Modal title={t(modal.payload.formula ? "md.editformula" : "md.newformula")} onClose={() => setModal(null)} wide lang={uiLang} confirmOutsideClick>
           <FormulaForm
             t={t}
             lang={uiLang}
@@ -4439,7 +4440,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         </Modal>
       )}
       {modal?.type === "deal" && (
-        <Modal title={modal.payload?.id ? t("df.edittitle") : t("df.newtitle")} onClose={() => setModal(null)} wide>
+        <Modal title={modal.payload?.id ? t("df.edittitle") : t("df.newtitle")} onClose={() => setModal(null)} wide lang={uiLang} confirmOutsideClick>
           <DealForm
             key={modal.payload?.id || "new"}
             initial={modal.payload}
@@ -4462,7 +4463,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         </Modal>
       )}
       {modal?.type === "decline" && (
-        <Modal title={t("dc.title")} onClose={() => setModal(null)} lang={uiLang}>
+        <Modal title={t("dc.title")} onClose={() => setModal(null)} lang={uiLang} confirmOutsideClick>
           <DeclineForm
             sponsor={sponsors.find((x) => x.id === modal.payload.sponsorId)}
             editions={sortedEditions.filter(
@@ -4485,6 +4486,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           return (
             <EmailModal
               t={t}
+              uiLang={uiLang}
               deal={d}
               sponsor={s}
               edition={e}

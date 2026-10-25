@@ -6,7 +6,7 @@ import SponsorForm from "@/components/forms/SponsorForm";
 import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
 import { formulaStyle } from "@/lib/color";
-import { OP_MAAT, SETTLEMENTS, emptyDeal } from "@/lib/constants";
+import { OP_MAAT, SETTLEMENTS, dealFieldsFromFormula, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { eur, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
@@ -86,23 +86,7 @@ export default function DealForm({
       set("formulaName", "");
       return;
     }
-    setD((p) => ({
-      ...p,
-      formulaName: f.name,
-      cost: f.cost,
-      vipFriday: f.vipFriday,
-      vipSaturday: f.vipSaturday,
-      vipGuests: f.vipGuests,
-      drinkValue: f.drinkValue,
-      drinkVouchers: f.drinkVouchers || [],
-      foodDrinkValue: f.foodDrinkValue,
-      baseFoodDrink: f.foodDrinkValue,
-      folderMention: f.folderMention,
-      websiteMention: f.websiteMention,
-      posterMention: f.posterMention || "none",
-      ledboarding: f.ledboarding,
-      fenceCovers: f.fenceCovers || 0,
-    }));
+    setD((p) => ({ ...p, ...dealFieldsFromFormula(f) }));
   };
 
   /* A sponsor has at most one agreement per edition (unique in the database),

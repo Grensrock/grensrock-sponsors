@@ -1,4 +1,5 @@
-import { normStr } from "@/lib/normalize";
+import { normNameKey, normStr } from "@/lib/normalize";
+import type { Edition } from "@/types";
 
 /* ---------- Sponsor import (xlsx / csv) ---------- */
 
@@ -71,28 +72,20 @@ export const HEADER_SYNONYMS: Record<ImportField, string[]> = {
 
 export type ColumnMap<K extends string> = Partial<Record<K, number>>;
 
-export function autoMap(headers: string[]): ColumnMap<ImportField> {
-  const map: ColumnMap<ImportField> = {};
+/* Walks the fields in `order`, giving each the first header that contains one
+   of its synonyms and that no earlier field took. The order matters: a
+   generic word ("naam", "sponsor") must come after the fields whose headers
+   also contain it. */
+function mapBySynonyms<K extends string>(
+  headers: string[],
+  order: K[],
+  synonyms: Record<K, string[]>,
+): ColumnMap<K> {
+  const map: ColumnMap<K> = {};
   const used = new Set<number>();
-  // contact* fields first so "contact naam" doesn't get claimed by companyName's "naam"
-  const order: ImportField[] = [
-    "contactFirstName",
-    "contactLastName",
-    "contactPhone",
-    "contactEmail",
-    "contactLanguage",
-    "vatNumber",
-    "postalCode",
-    "houseNumber",
-    "street",
-    "city",
-    "entityType",
-    "companyName",
-  ];
   for (const field of order) {
-    const syns = HEADER_SYNONYMS[field];
     let hit = -1;
-    for (const syn of syns) {
+    for (const syn of synonyms[field]) {
       hit = headers.findIndex((h, i) => !used.has(i) && normStr(h).toLowerCase().includes(syn));
       if (hit >= 0) break;
     }
@@ -100,6 +93,28 @@ export function autoMap(headers: string[]): ColumnMap<ImportField> {
     if (hit >= 0) used.add(hit);
   }
   return map;
+}
+
+export function autoMap(headers: string[]): ColumnMap<ImportField> {
+  // contact* fields first so "contact naam" doesn't get claimed by companyName's "naam"
+  return mapBySynonyms(
+    headers,
+    [
+      "contactFirstName",
+      "contactLastName",
+      "contactPhone",
+      "contactEmail",
+      "contactLanguage",
+      "vatNumber",
+      "postalCode",
+      "houseNumber",
+      "street",
+      "city",
+      "entityType",
+      "companyName",
+    ],
+    HEADER_SYNONYMS,
+  );
 }
 
 /* ---------- Contact import (xlsx / csv) ---------- */
@@ -140,26 +155,88 @@ export const CONTACT_SYNONYMS: Record<ContactField, string[]> = {
 export const isYes = (v: unknown) => /^(ja|yes|oui|x|1|true|waar|y)$/i.test(normStr(v));
 
 export function autoMapContacts(headers: string[]): ColumnMap<ContactField> {
-  const map: ColumnMap<ContactField> = {};
-  const used = new Set<number>();
-  const order: ContactField[] = [
-    "company",
-    "firstName",
-    "email",
-    "phone",
-    "language",
-    "info",
-    "invoice",
-    "lastName",
-  ];
-  for (const field of order) {
-    let hit = -1;
-    for (const syn of CONTACT_SYNONYMS[field]) {
-      hit = headers.findIndex((h, i) => !used.has(i) && normStr(h).toLowerCase().includes(syn));
-      if (hit >= 0) break;
-    }
-    map[field] = hit;
-    if (hit >= 0) used.add(hit);
+  return mapBySynonyms(
+    headers,
+    ["company", "firstName", "email", "phone", "language", "info", "invoice", "lastName"],
+    CONTACT_SYNONYMS,
+  );
+}
+
+/* ---------- Agreement import (xlsx / csv) ---------- */
+
+export type AgreementField = "sponsor" | "vatNumber" | "edition" | "formula" | "amount" | "notes";
+
+/* Each field with the TEAM_TEXT key of its label, as for IMPORT_FIELDS. */
+export const AGREEMENT_FIELDS: Array<[AgreementField, string]> = [
+  ["sponsor", "imf.company"],
+  ["vatNumber", "imf.vatNumber"],
+  ["edition", "aif.edition"],
+  ["formula", "aif.formula"],
+  ["amount", "aif.amount"],
+  ["notes", "aif.notes"],
+];
+
+export const AGREEMENT_SYNONYMS: Record<AgreementField, string[]> = {
+  sponsor: ["sponsor", "bedrijfsnaam", "bedrijf", "company", "firma", "organisatie", "société", "societe", "naam", "name"],
+  vatNumber: ["btw", "vat", "tva", "ondernemingsnummer"],
+  edition: ["editie", "edition", "édition", "jaar", "year", "année"],
+  formula: ["formule", "formula", "pakket", "package", "forfait"],
+  amount: ["bedrag", "amount", "prijs", "price", "montant", "kostprijs", "cost"],
+  notes: ["opmerking", "notitie", "notes", "note", "remarque", "commentaar", "comment"],
+};
+
+export function autoMapAgreements(headers: string[]): ColumnMap<AgreementField> {
+  // sponsor last: "Sponsorformule" or "Bedrag sponsoring" belong to the others
+  return mapBySynonyms(
+    headers,
+    ["vatNumber", "edition", "formula", "amount", "notes", "sponsor"],
+    AGREEMENT_SYNONYMS,
+  );
+}
+
+/** What a formula cell can say instead of a formula's name. */
+export const isCustomFormula = (v: unknown) =>
+  /^(op maat|maatwerk|custom|sur mesure)$/i.test(normStr(v));
+
+/**
+ * The edition a cell names: its exact name, or else a year ("2026") that
+ * exactly one edition starts in or carries in its name. Null when it is
+ * neither, or when the year fits more than one.
+ */
+export function matchEdition(cell: unknown, editions: Edition[]): Edition | null {
+  const key = normNameKey(cell);
+  if (!key) return null;
+  const named = editions.find((e) => normNameKey(e.name) === key);
+  if (named) return named;
+  if (!/^\d{4}$/.test(key)) return null;
+  const inYear = editions.filter((e) => (e.startDate || "").startsWith(key) || e.name.includes(key));
+  return inYear.length === 1 ? inYear[0] : null;
+}
+
+/**
+ * An amount from a spreadsheet cell. Excel hands real numbers over as they
+ * are; typed text is read the Belgian way first ("€ 1.250,50"), falling back
+ * to a decimal point ("1250.50") when there is no comma. Null for an empty
+ * cell, NaN for one that isn't an amount.
+ */
+export function parseAmount(cell: unknown): number | null {
+  if (typeof cell === "number") return cell;
+  const raw = normStr(cell).replace(/[€\s ]|eur/gi, "");
+  if (!raw) return null;
+  if (!/^-?[\d.,]+$/.test(raw)) return NaN;
+  const lastComma = raw.lastIndexOf(","),
+    lastDot = raw.lastIndexOf(".");
+  let plain: string;
+  if (lastComma >= 0 && lastDot >= 0) {
+    // both: whichever comes last is the decimal mark
+    plain = lastComma > lastDot ? raw.replace(/\./g, "").replace(",", ".") : raw.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    plain = raw.replace(",", ".");
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(raw)) {
+    // "1.250" is a thousand two hundred and fifty, not one and a quarter
+    plain = raw.replace(/\./g, "");
+  } else {
+    plain = raw;
   }
-  return map;
+  return /^-?\d+(\.\d+)?$/.test(plain) ? Number(plain) : NaN;
 }

@@ -14,6 +14,7 @@ import PickLogo from "@/components/ui/PickLogo";
 import Tag from "@/components/ui/Tag";
 import VatInput from "@/components/ui/VatInput";
 import { fmtDateTime, isAccepted } from "@/lib/acceptance";
+import { awaitsApproval } from "@/lib/benefits";
 import {
   COMM_LABELS,
   VOUCHER_STATUS,
@@ -27,6 +28,7 @@ import { contactName, primaryContact, sponsorContacts } from "@/lib/contacts";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { sponsorFaq } from "@/lib/faq";
+import { formulaColor } from "@/lib/color";
 import { eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
 import { validateVat, vatToStore } from "@/lib/vat";
 import {
@@ -35,6 +37,7 @@ import {
   returnTypesOf,
   ticketLines,
   visibilityLines,
+  voucherText,
 } from "@/lib/vouchers";
 import type {
   Contact,
@@ -102,17 +105,19 @@ export default function SponsorPortal({
   children?: ReactNode;
 }) {
   /* Agreements on active editions still waiting for the sponsor's acceptance.
-     Computed before the state so the portal can open straight on them. */
+     Computed before the state so the portal can open straight on them. One
+     whose benefits an admin still has to approve isn't ready to be accepted
+     (0026 refuses it too): it shows as awaiting confirmation until then. */
   const toAccept: DealWithEdition[] = deals
-    .filter((d) => d.sponsorId === sponsor.id && !isAccepted(d))
+    .filter((d) => d.sponsorId === sponsor.id && !isAccepted(d) && !awaitsApproval(d))
     .map((d) => ({ ...d, edition: editions.find((e) => e.id === d.editionId) }))
     .filter((d) => d.edition?.active);
 
   const [sub, setSub] = useState(toAccept.length > 0 ? "sponsoring" : "info");
   /* The banner's button. The portal already opens on this tab when something
-     waits for acceptance, so switching to it did nothing at all — and on a phone
-     the agreement sits screens further down, under the voucher editors. The tab
-     is rendered first (flushSync) so the box exists to scroll to. */
+     waits for acceptance, so switching to it alone did nothing at all; it
+     scrolls the agreement into view too. The tab is rendered first (flushSync)
+     so the box exists to scroll to. */
   const goToAccept = () => {
     flushSync(() => setSub("sponsoring"));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -129,6 +134,8 @@ export default function SponsorPortal({
   const [editingContact, setEditingContact] = useState<Partial<Contact> | null>(null);
   const [readTerms, setReadTerms] = useState<Record<string, boolean>>({});
   const [topUpDraft, setTopUpDraft] = useState<Record<string, NumLike>>({});
+  /* Agreements whose voucher split the sponsor opened with its button */
+  const [splitOpen, setSplitOpen] = useState<Record<string, boolean>>({});
   const [assigning, setAssigning] = useState<Voucher | null>(null);
   const [assignDraft, setAssignDraft] = useState({ name: "", email: "" });
   const openAssign = (v: Voucher) => {
@@ -586,6 +593,7 @@ export default function SponsorPortal({
               }
               onClose={() => setEditingContact(null)}
               lang={lang}
+              confirmOutsideClick
             >
               {/* Closes once the save is back, not before: a failed save leaves
                   the form, and what was typed in it, open to try again. */}
@@ -626,6 +634,7 @@ export default function SponsorPortal({
                         className={
                           "gr-formulacard" + (chosen?.editionId === ed.id && chosen?.name === f.name ? " on" : "")
                         }
+                        style={f.color ? { borderTopColor: formulaColor(f) } : undefined}
                       >
                         <h5>{f.name}</h5>
                         <div className="gr-formulaprice">{eur(f.cost)}</div>
@@ -669,127 +678,6 @@ export default function SponsorPortal({
                 </div>
               ))}
 
-              {splittable.map(({ deal: d, drink, food, canTopUp }) => (
-                <div key={d.id} className="gr-choosebox">
-                  <h4 className="gr-h3">
-                    {d.formulaName || T("Uw sponsoring", "Votre sponsoring", "Your sponsorship")}
-                    {" — "}
-                    {d.edition ? d.edition.name : ""}
-                  </h4>
-
-                  {/* FIRST: offer to top up the food & drink value. Goes straight into foodDrinkValue. */}
-                  {canTopUp && (
-                    <div className="gr-topup">
-                      <span className="gr-label">
-                        {T(
-                          "Extra eten- & drankbonnen toevoegen",
-                          "Ajouter des bons food & boissons",
-                          "Add extra food & drink tickets",
-                        )}
-                      </span>
-                      <p className="gr-muted" style={{ margin: "0 0 10px" }}>
-                        {T(
-                          `Uw formule bevat ${eur(d.baseFoodDrink || 0)} aan eten- en drankbonnen. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
-                          `Votre formule comprend ${eur(d.baseFoodDrink || 0)} de bons food & boissons. Vous souhaitez l'augmenter ? Indiquez la valeur totale ci-dessous — la différence s'ajoute à votre contribution.`,
-                          `Your formula includes ${eur(d.baseFoodDrink || 0)} in food & drink tickets. Want to add more? Enter the total value below — the difference is added to your contribution.`,
-                        )}
-                      </p>
-                      <div className="gr-inline-field" style={{ maxWidth: 280 }}>
-                        <span className="gr-muted">€</span>
-                        <input
-                          type="number"
-                          min={d.baseFoodDrink || 0}
-                          step="0.01"
-                          value={topUpDraft[d.id] ?? (d.foodDrinkValue || 0)}
-                          onChange={(e) => setTopUpDraft({ ...topUpDraft, [d.id]: e.target.value })}
-                          placeholder="0,00"
-                        />
-                        <button
-                          className="gr-btn"
-                          disabled={
-                            busy[`topup:${d.id}`] ||
-                            Number(topUpDraft[d.id] ?? d.foodDrinkValue) === Number(d.foodDrinkValue) ||
-                            Number(topUpDraft[d.id] ?? d.foodDrinkValue) < Number(d.baseFoodDrink || 0)
-                          }
-                          onClick={() => {
-                            const val = Math.max(
-                              Number(d.baseFoodDrink || 0),
-                              Number(topUpDraft[d.id] ?? d.foodDrinkValue) || 0,
-                            );
-                            void track(`topup:${d.id}`, () => inOrder(() => onUpdateExtra(d.id, { foodDrinkValue: val })));
-                          }}
-                        >
-                          {busy[`topup:${d.id}`] ? WORKING : T("Bijwerken", "Mettre à jour", "Update")}
-                        </button>
-                      </div>
-                      {foodDrinkExtra(d) > 0 && (
-                        <p style={{ margin: "8px 0 0", color: "var(--orange-deep)", fontWeight: 600, fontSize: 13 }}>
-                          {T("Extra bijdrage", "Contribution supplémentaire", "Additional contribution")}:{" "}
-                          {eur(foodDrinkExtra(d))}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* THEN: divide the vouchers into portions */}
-                  {(drink || food) && (
-                    <>
-                      <p className="gr-muted" style={{ marginTop: canTopUp ? 16 : 0 }}>
-                        {T(
-                          "U kiest zelf in hoeveel bonnen uw bedrag wordt opgesplitst, zolang de bonnen nog niet aangemaakt zijn. Drankbonnen en bonnen voor eten & drinken blijven apart.",
-                          "Vous choisissez vous-même en combien de bons votre montant est réparti, tant que les bons ne sont pas encore créés. Les bons boissons et les bons food & boissons restent séparés.",
-                          "You choose how many vouchers your amount is split into, as long as the vouchers haven't been created yet. Drink vouchers and food & drink vouchers stay separate.",
-                        )}
-                      </p>
-                      {drink && (
-                        <>
-                          <span className="gr-label">{T("Drankbonnen", "Bons boissons", "Drink vouchers")}</span>
-                          <VoucherEditor
-                            amount={drinkPoolValue(d)}
-                            rows={d.drinkVouchers || []}
-                            lang={lang}
-                            saveOnBlur
-                            onChange={(rows) => inOrder(() => onUpdateSplit(d.id, "drink", rows))}
-                          />
-                        </>
-                      )}
-                      {food && (
-                        <>
-                          <span className="gr-label">
-                            {T("Eten & drinken", "Food & boissons", "Food & drinks")}
-                            {foodDrinkExtra(d) > 0 && (
-                              <>
-                                {" "}
-                                <Tag tone="amber">{T("incl. extra", "incl. supplément", "incl. extra")}</Tag>
-                              </>
-                            )}
-                          </span>
-                          <VoucherEditor
-                            amount={d.foodDrinkValue}
-                            rows={d.foodDrinkVouchers || []}
-                            lang={lang}
-                            saveOnBlur
-                            onChange={(rows) => inOrder(() => onUpdateSplit(d.id, "food", rows))}
-                          />
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))}
-
-              {lockedSplits.map((d) => (
-                <p key={d.id} className="gr-muted" style={{ marginBottom: 12 }}>
-                  {T("Een deel van uw bonnen voor", "Une partie de vos bons pour", "Some of your vouchers for")}{" "}
-                  {d.edition?.name}{" "}
-                  {T(
-                    "is al aangemaakt en kan niet meer verdeeld worden. Contacteer ons als er toch iets moet wijzigen.",
-                    "a déjà été créée et ne peut plus être répartie. Contactez-nous si quelque chose doit changer.",
-                    "have already been created and can no longer be divided. Contact us if something still needs to change.",
-                  )}
-                </p>
-              ))}
-
               {/* The thank-you takes the accept box's place, and its id, so a
                   sponsor who scrolled down to accept sees the answer right there. */}
               {acceptedNow.map((id) => {
@@ -813,12 +701,12 @@ export default function SponsorPortal({
                 );
               })}
 
-              {/* Below the top-up and the voucher split on purpose, though on a
-                  phone that is a long way down (the banner scrolls here). Both
-                  are part of the terms being accepted (SNAPSHOT_FIELDS in
-                  lib/acceptance), so the page has the sponsor settle them first;
-                  changed afterwards, the agreement shows the team as changed
-                  since acceptance. */}
+              {/* Above the top-up and the voucher split: the sponsor reads the
+                  agreement first, and those two are optional. A split made
+                  afterwards is fine (changedSinceAcceptance leaves it out), but
+                  a top-up raises the contribution, so after accepting it shows
+                  the team the agreement as changed; hence the line pointing
+                  down to it. */}
               {toAccept.map((d) => (
                 <div key={d.id} id={acceptBoxId(d.id)} className="gr-acceptbox">
                   <h4 className="gr-h3">
@@ -881,6 +769,16 @@ export default function SponsorPortal({
                       </>
                     )}
                   </dl>
+
+                  {splittable.some((x) => x.deal.id === d.id && x.canTopUp) && (
+                    <p className="gr-muted" style={{ marginBottom: 10 }}>
+                      {T(
+                        "Wilt u extra eten- & drankbonnen toevoegen? Doe dat dan vóór u aanvaardt, verderop onder 'Uw bonnen'.",
+                        "Vous souhaitez ajouter des bons food & boissons ? Faites-le avant d'accepter, plus bas sous « Vos bons ».",
+                        "Want to add extra food & drink vouchers? Do that before you accept, further down under 'Your vouchers'.",
+                      )}
+                    </p>
+                  )}
 
                   <label className={"gr-check" + (readTerms[d.id] ? " on" : "")}>
                     <input
@@ -945,7 +843,7 @@ export default function SponsorPortal({
                             <tr key={d.id}>
                               <td>
                                 {d.edition ? d.edition.name : "?"}
-                                {d.requestedAt && !d.confirmedAt && (
+                                {((d.requestedAt && !d.confirmedAt) || awaitsApproval(d)) && (
                                   <>
                                     {" "}
                                     <Tag tone="amber">
@@ -999,6 +897,167 @@ export default function SponsorPortal({
                   </div>
                 )
               )}
+
+              {(splittable.length > 0 || lockedSplits.length > 0) && (
+                <h4 className="gr-subhead">{T("Uw bonnen", "Vos bons", "Your vouchers")}</h4>
+              )}
+
+              {splittable.map(({ deal: d, drink, food, canTopUp }) => (
+                <div key={d.id} className="gr-choosebox">
+                  <h4 className="gr-h3">
+                    {d.formulaName || T("Uw sponsoring", "Votre sponsoring", "Your sponsorship")}
+                    {" — "}
+                    {d.edition ? d.edition.name : ""}
+                  </h4>
+
+                  {/* FIRST: offer to top up the food & drink value. Goes straight into foodDrinkValue. */}
+                  {canTopUp && (
+                    <div className="gr-topup">
+                      <span className="gr-label">
+                        {T(
+                          "Extra eten- & drankbonnen toevoegen",
+                          "Ajouter des bons food & boissons",
+                          "Add extra food & drink tickets",
+                        )}
+                      </span>
+                      {/* Formulas carry no food & drink any more (0027); an older
+                          agreement may still have some included. */}
+                      <p className="gr-muted" style={{ margin: "0 0 10px" }}>
+                        {Number(d.baseFoodDrink) > 0
+                          ? T(
+                              `Uw formule bevat ${eur(d.baseFoodDrink || 0)} aan eten- en drankbonnen. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
+                              `Votre formule comprend ${eur(d.baseFoodDrink || 0)} de bons food & boissons. Vous souhaitez l'augmenter ? Indiquez la valeur totale ci-dessous — la différence s'ajoute à votre contribution.`,
+                              `Your formula includes ${eur(d.baseFoodDrink || 0)} in food & drink tickets. Want to add more? Enter the total value below — the difference is added to your contribution.`,
+                            )
+                          : T(
+                              "Eten- en drankbonnen komen bovenop uw formule. Vul hieronder de totale waarde in die u wenst — die wordt bij uw bijdrage geteld.",
+                              "Les bons food & boissons s'ajoutent à votre formule. Indiquez ci-dessous la valeur totale souhaitée — elle s'ajoute à votre contribution.",
+                              "Food & drink tickets come on top of your formula. Enter the total value you'd like below — it is added to your contribution.",
+                            )}
+                      </p>
+                      <div className="gr-inline-field" style={{ maxWidth: 280 }}>
+                        <span className="gr-muted">€</span>
+                        <input
+                          type="number"
+                          min={d.baseFoodDrink || 0}
+                          step="0.01"
+                          value={topUpDraft[d.id] ?? (d.foodDrinkValue || 0)}
+                          onChange={(e) => setTopUpDraft({ ...topUpDraft, [d.id]: e.target.value })}
+                          placeholder="0,00"
+                        />
+                        <button
+                          className="gr-btn"
+                          disabled={
+                            busy[`topup:${d.id}`] ||
+                            Number(topUpDraft[d.id] ?? d.foodDrinkValue) === Number(d.foodDrinkValue) ||
+                            Number(topUpDraft[d.id] ?? d.foodDrinkValue) < Number(d.baseFoodDrink || 0)
+                          }
+                          onClick={() => {
+                            const val = Math.max(
+                              Number(d.baseFoodDrink || 0),
+                              Number(topUpDraft[d.id] ?? d.foodDrinkValue) || 0,
+                            );
+                            void track(`topup:${d.id}`, () => inOrder(() => onUpdateExtra(d.id, { foodDrinkValue: val })));
+                          }}
+                        >
+                          {busy[`topup:${d.id}`] ? WORKING : T("Bijwerken", "Mettre à jour", "Update")}
+                        </button>
+                      </div>
+                      {foodDrinkExtra(d) > 0 && (
+                        <p style={{ margin: "8px 0 0", color: "var(--orange-deep)", fontWeight: 600, fontSize: 13 }}>
+                          {T("Extra bijdrage", "Contribution supplémentaire", "Additional contribution")}:{" "}
+                          {eur(foodDrinkExtra(d))}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* THEN: divide the vouchers into portions. Behind a button,
+                      with the split as it stands shown until then: most
+                      sponsors keep it. An empty split stays empty until the
+                      editor opens (it fills in a default when it mounts), and
+                      counts as one voucher for the whole amount (expectedVouchers). */}
+                  {(drink || food) && (
+                    <>
+                      <p className="gr-muted" style={{ marginTop: canTopUp ? 16 : 0 }}>
+                        {T(
+                          "U kiest zelf in hoeveel bonnen uw bedrag wordt opgesplitst, zolang de bonnen nog niet aangemaakt zijn. Drankbonnen en bonnen voor eten & drinken blijven apart.",
+                          "Vous choisissez vous-même en combien de bons votre montant est réparti, tant que les bons ne sont pas encore créés. Les bons boissons et les bons food & boissons restent séparés.",
+                          "You choose how many vouchers your amount is split into, as long as the vouchers haven't been created yet. Drink vouchers and food & drink vouchers stay separate.",
+                        )}
+                      </p>
+                      {!splitOpen[d.id] && (
+                        <>
+                          <ul className="gr-benefitlist" style={{ margin: "6px 0 12px" }}>
+                            {drink && (
+                              <li>
+                                {T("Drankbonnen", "Bons boissons", "Drink vouchers")}:{" "}
+                                {voucherText(d.drinkVouchers) || `1 × ${eur(drinkPoolValue(d))}`}
+                              </li>
+                            )}
+                            {food && (
+                              <li>
+                                {T("Eten & drinken", "Food & boissons", "Food & drinks")}:{" "}
+                                {voucherText(d.foodDrinkVouchers) || `1 × ${eur(d.foodDrinkValue)}`}
+                              </li>
+                            )}
+                          </ul>
+                          <button
+                            className="gr-btn-ghost"
+                            onClick={() => setSplitOpen((o) => ({ ...o, [d.id]: true }))}
+                          >
+                            {T("Bonnen verdelen", "Répartir les bons", "Divide vouchers")}
+                          </button>
+                        </>
+                      )}
+                      {splitOpen[d.id] && drink && (
+                        <>
+                          <span className="gr-label">{T("Drankbonnen", "Bons boissons", "Drink vouchers")}</span>
+                          <VoucherEditor
+                            amount={drinkPoolValue(d)}
+                            rows={d.drinkVouchers || []}
+                            lang={lang}
+                            saveOnBlur
+                            onChange={(rows) => inOrder(() => onUpdateSplit(d.id, "drink", rows))}
+                          />
+                        </>
+                      )}
+                      {splitOpen[d.id] && food && (
+                        <>
+                          <span className="gr-label">
+                            {T("Eten & drinken", "Food & boissons", "Food & drinks")}
+                            {foodDrinkExtra(d) > 0 && (
+                              <>
+                                {" "}
+                                <Tag tone="amber">{T("incl. extra", "incl. supplément", "incl. extra")}</Tag>
+                              </>
+                            )}
+                          </span>
+                          <VoucherEditor
+                            amount={d.foodDrinkValue}
+                            rows={d.foodDrinkVouchers || []}
+                            lang={lang}
+                            saveOnBlur
+                            onChange={(rows) => inOrder(() => onUpdateSplit(d.id, "food", rows))}
+                          />
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {lockedSplits.map((d) => (
+                <p key={d.id} className="gr-muted" style={{ marginBottom: 12 }}>
+                  {T("Een deel van uw bonnen voor", "Une partie de vos bons pour", "Some of your vouchers for")}{" "}
+                  {d.edition?.name}{" "}
+                  {T(
+                    "is al aangemaakt en kan niet meer verdeeld worden. Contacteer ons als er toch iets moet wijzigen.",
+                    "a déjà été créée et ne peut plus être répartie. Contactez-nous si quelque chose doit changer.",
+                    "have already been created and can no longer be divided. Contact us if something still needs to change.",
+                  )}
+                </p>
+              ))}
 
               {history[0] && returnTypesOf(history[0]).length > 0 && (
                 <>
@@ -1142,6 +1201,7 @@ export default function SponsorPortal({
               title={T("Ticket doorgeven", "Transmettre le ticket", "Pass on ticket")}
               onClose={() => setAssigning(null)}
               lang={lang}
+              confirmOutsideClick
             >
               <p className="gr-muted">
                 {voucherLabel(VOUCHER_TYPES[assigning.type], lang, assigning.type)}

@@ -5,7 +5,10 @@ import BenefitFields from "@/components/forms/BenefitFields";
 import SponsorForm from "@/components/forms/SponsorForm";
 import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
-import { OP_MAAT, SETTLEMENTS, emptyDeal } from "@/lib/constants";
+import { fmtDateTime } from "@/lib/acceptance";
+import { awaitsApproval, benefitChanges, changeLines, sameBenefits } from "@/lib/benefits";
+import { formulaStyle } from "@/lib/color";
+import { OP_MAAT, SETTLEMENTS, dealFieldsFromFormula, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { eur, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
@@ -39,6 +42,7 @@ export default function DealForm({
   onDelete,
   onAddSponsor,
   onOpenDeal,
+  admin,
   t = (k) => k,
   lang = "nl",
 }: {
@@ -58,6 +62,8 @@ export default function DealForm({
   /* Creating a sponsor is a round-trip to the database now, so this may be async. */
   onAddSponsor: (s: Sponsor) => Sponsor | Promise<Sponsor>;
   onOpenDeal?: (d: Deal) => void;
+  /** An admin's own change to the benefits needs nobody's approval (0026). */
+  admin?: boolean;
   t?: TranslateFn;
   lang?: Language;
 }) {
@@ -71,8 +77,26 @@ export default function DealForm({
   const [newSponsorDraft, setNewSponsorDraft] = useState<Partial<Sponsor> | null>(null); // null | prefill object
   const set = (k: string, val: unknown) => setD((p) => ({ ...p, [k]: val }) as DealFormState);
   const edition = editions.find((e) => e.id === d.editionId);
-  /* Cheapest formula first, so the picker reads as a ladder. */
+  /* Cheapest formula first, so the buttons read as a ladder. */
   const formulas = [...(edition?.formulas || [])].sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0));
+  const formula = formulas.find((x) => x.name === d.formulaName) || null;
+  const changes = benefitChanges(d, formula, lang === "en" ? "en" : "nl");
+
+  /* A formula's benefits are what Grensrock offers for its price, so they stay
+     as the formula has them until someone deliberately opens them up — and
+     doing that as a team member puts the agreement up for an admin's approval
+     (0026). An agreement that already differs opens as it was left; Op maat
+     has no formula to keep to, so it is always open. */
+  const [opened, setOpened] = useState(() => !!initial?.id && changes.length > 0);
+  const locked = !opened && d.formulaName !== OP_MAAT;
+  /* Whether saving has the database look at the benefits again — always for a
+     new agreement. An older one that differs but isn't touched now stays as
+     it was, so it isn't told it needs an approval it won't be asked for. */
+  const reviewed =
+    !initial?.id ||
+    d.formulaName !== initial.formulaName ||
+    d.editionId !== initial.editionId ||
+    !sameBenefits(d, initial);
 
   const applyFormula = (name: string) => {
     if (name === OP_MAAT) {
@@ -85,23 +109,14 @@ export default function DealForm({
       set("formulaName", "");
       return;
     }
-    setD((p) => ({
-      ...p,
-      formulaName: f.name,
-      cost: f.cost,
-      vipFriday: f.vipFriday,
-      vipSaturday: f.vipSaturday,
-      vipGuests: f.vipGuests,
-      drinkValue: f.drinkValue,
-      drinkVouchers: f.drinkVouchers || [],
-      foodDrinkValue: f.foodDrinkValue,
-      baseFoodDrink: f.foodDrinkValue,
-      folderMention: f.folderMention,
-      websiteMention: f.websiteMention,
-      posterMention: f.posterMention || "none",
-      ledboarding: f.ledboarding,
-      fenceCovers: f.fenceCovers || 0,
-    }));
+    setD((p) => ({ ...p, ...dealFieldsFromFormula(f) }));
+    setOpened(false);
+  };
+  /* The formula's benefits again, but not its price: that is agreed apart. */
+  const resetBenefits = () => {
+    if (!formula) return;
+    setD((p) => ({ ...p, ...dealFieldsFromFormula(formula), cost: p.cost }));
+    setOpened(false);
   };
 
   /* A sponsor has at most one agreement per edition (unique in the database),
@@ -179,7 +194,7 @@ export default function DealForm({
         </p>
       )}
       {d.editionId && (
-        <div className="gr-grid2">
+        <>
           <Field
             label={t("df.formula")}
             hint={
@@ -189,25 +204,94 @@ export default function DealForm({
                   ? t("df.fnone")
                   : t("df.fprefill")
             }
+            group
           >
-            <select value={d.formulaName} onChange={(e) => applyFormula(e.target.value)}>
-              <option value="">{t("df.select")}</option>
-              {formulas.map((f) => (
-                <option key={f.name} value={f.name}>
-                  {f.name} ({eur(f.cost)})
-                </option>
-              ))}
-              <option value={OP_MAAT}>
-                {OP_MAAT} ({t("df.custom")})
-              </option>
-            </select>
+            {/* One button per formula, in its own colour. Picking the one that is
+                already on would prefill again and undo whatever was adjusted
+                since, so that click does nothing. */}
+            <div className="gr-fpick">
+              {formulas.map((f) => {
+                const on = d.formulaName === f.name;
+                return (
+                  <button
+                    key={f.name}
+                    type="button"
+                    className={"gr-fbtn" + (on ? " on" : "")}
+                    style={formulaStyle(f)}
+                    aria-pressed={on}
+                    onClick={() => !on && applyFormula(f.name)}
+                  >
+                    {f.name}
+                    <small>{eur(f.cost)}</small>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className={"gr-fbtn gr-fbtn-custom" + (d.formulaName === OP_MAAT ? " on" : "")}
+                aria-pressed={d.formulaName === OP_MAAT}
+                onClick={() => applyFormula(OP_MAAT)}
+              >
+                {OP_MAAT}
+                <small>{t("df.custom")}</small>
+              </button>
+            </div>
           </Field>
-          <Field label={t("df.cost")}>
-            <input type="number" min="0" step="0.01" value={d.cost} onChange={(e) => set("cost", e.target.value)} />
-          </Field>
-        </div>
+          <div className="gr-grid2">
+            <Field label={t("df.cost")}>
+              <input type="number" min="0" step="0.01" value={d.cost} onChange={(e) => set("cost", e.target.value)} />
+            </Field>
+          </div>
+        </>
       )}
-      {d.editionId && <BenefitFields v={d} set={set} showVouchers t={t} lang={lang} />}
+      {d.editionId && (
+        <>
+          <div className="gr-benefitshead">
+            <span className="gr-label">{t("df.benefits")}</span>
+            {locked ? (
+              <button type="button" className="gr-mini" onClick={() => setOpened(true)}>
+                {t("df.changebenefits")}
+              </button>
+            ) : (
+              formula &&
+              changes.length > 0 && (
+                <button type="button" className="gr-mini" onClick={resetBenefits}>
+                  {t("df.resetbenefits", { formula: formula.name })}
+                </button>
+              )
+            )}
+          </div>
+          {awaitsApproval(initial) ? (
+            <p className="gr-muted">{t("df.waiting", { when: fmtDateTime(initial?.benefitsChangedAt) })}</p>
+          ) : (
+            initial?.benefitsApprovedAt &&
+            changes.length > 0 && (
+              <p className="gr-muted">
+                {t("df.approvedby", {
+                  name: initial.benefitsApprovedBy || "?",
+                  when: fmtDateTime(initial.benefitsApprovedAt),
+                })}
+              </p>
+            )
+          )}
+          {changes.length > 0 ? (
+            <div className="gr-benefitdiff" role="status">
+              {formula ? t("df.differs", { formula: formula.name }) : t("df.byhand")}
+              <ul>
+                {changeLines(changes).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              {reviewed && (admin ? t("df.adminapproves") : t("df.needsapproval"))}
+            </div>
+          ) : formula ? (
+            <p className="gr-muted">{t("df.asformula", { formula: formula.name })}</p>
+          ) : (
+            d.formulaName !== OP_MAAT && <p className="gr-muted">{t("df.pickfirst")}</p>
+          )}
+          <BenefitFields v={d} set={set} showVouchers locked={locked} t={t} lang={lang} />
+        </>
+      )}
       {d.editionId && (
         <div className="gr-settle">
           <Field label={t("df.settled")}>

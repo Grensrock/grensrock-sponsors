@@ -10,7 +10,7 @@ import {
   voucherRowsToJson,
   type Row,
 } from "@/lib/api/util";
-import type { Acceptance, Deal, Settlement, VoucherRow } from "@/types";
+import type { Acceptance, Deal, Language, PendingMail, Settlement, VoucherRow } from "@/types";
 
 /* ============================================================
    deals (agreements)
@@ -23,7 +23,7 @@ import type { Acceptance, Deal, Settlement, VoucherRow } from "@/types";
    ============================================================ */
 
 const COLUMNS =
-  "id, sponsor_id, edition_id, formula_name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, fence_covers, notes, settlement, in_kind_description, in_kind_value, ref_required, invoice_reference, invoice_created, invoice_number, email_sent_at, created_at, requested_at, requested_by, confirmed_at, responsible, acceptance";
+  "id, sponsor_id, edition_id, formula_name, cost, vip_friday, vip_saturday, vip_guests, drink_value, drink_vouchers, food_drink_value, base_food_drink, food_drink_vouchers, folder_mention, website_mention, poster_mention, ledboarding, fence_covers, notes, settlement, in_kind_description, in_kind_value, ref_required, invoice_reference, invoice_created, invoice_number, email_sent_at, created_at, requested_at, requested_by, confirmed_at, responsible, acceptance, benefits_changed_at, benefits_approved_at, benefits_approved_by, pending_mail";
 
 export function rowToDeal(row: Row): Deal {
   return {
@@ -50,9 +50,15 @@ export function rowToDeal(row: Row): Deal {
     confirmedAt: (row.confirmed_at as string) ?? null,
     responsible: orEmpty(row.responsible),
     acceptance: (row.acceptance as Acceptance) ?? null,
+    benefitsChangedAt: (row.benefits_changed_at as string) ?? null,
+    benefitsApprovedAt: (row.benefits_approved_at as string) ?? null,
+    benefitsApprovedBy: orEmpty(row.benefits_approved_by),
+    pendingMail: (row.pending_mail as PendingMail) ?? null,
   };
 }
 
+/* The benefits' approval and the held mail are not in here: the database
+   sets the first (0026) and the mail routes the second. */
 export function dealToRow(d: Partial<Deal>): Row {
   const r: Row = formulaFieldsToRow(d);
   if (d.sponsorId !== undefined) r.sponsor_id = d.sponsorId;
@@ -96,6 +102,19 @@ export async function createDeal(d: Partial<Deal>): Promise<Deal> {
       .single(),
   );
   return rowToDeal(row as Row);
+}
+
+/** One insert for the whole list, so an import goes in entirely or not at all
+    — a clash on one row never leaves half a file behind. */
+export async function createDeals(list: Array<Partial<Deal>>): Promise<Deal[]> {
+  if (list.length === 0) return [];
+  const rows = unwrap<Row[]>(
+    await supabase
+      .from("deals")
+      .insert(list.map((d) => ({ ...dealToRow(d), sponsor_id: d.sponsorId, edition_id: d.editionId })))
+      .select(COLUMNS),
+  );
+  return (rows as Row[]).map(rowToDeal);
 }
 
 export async function updateDeal(id: string, patch: Partial<Deal>): Promise<Deal> {
@@ -177,18 +196,55 @@ export async function teamAcceptDeal(dealId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/* ----- telling the admins about a new agreement ----- */
+
+/**
+ * Mails the admins that this agreement was just created, or that its benefits
+ * were just set apart from the formula and wait for their approval. Call it
+ * once, right after the save that did either — the route refuses an agreement
+ * that is neither brand new nor newly waiting.
+ *
+ * Throws on failure. The agreement exists regardless, so callers should only
+ * log that, not undo or block anything.
+ */
+export async function notifyAdmins(dealId: string): Promise<void> {
+  const res = await fetch("/api/deals/notify-created", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dealId }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.error || "Could not notify the admins.");
+  }
+}
+
 /* ----- sending the confirmation email ----- */
 
 export interface SendAgreementResult {
+  /** "" when the mail was held rather than sent. */
   sentAt: string;
-  /** Addresses the message actually went to, as stored on the contacts. */
+  /** The benefits wait for an admin, so the mail is held until they approve
+      them and nothing went out yet (0026). */
+  held: boolean;
+  /** Addresses the message actually went to, as stored on the contacts — or,
+      when held, the ones it will go to. */
   to: string[];
+  /** The sponsor's responsible, if they were put in Cc and got their copy. */
+  cc: string | null;
   /** Non-fatal problems worth telling the team about; the mail still went. */
   warnings: string[];
 }
 
+const toSendResult = (data: Record<string, unknown>) => ({
+  to: Array.isArray(data.to) ? data.to.map(String) : [],
+  cc: data.cc ? String(data.cc) : null,
+  warnings: Array.isArray(data.warnings) ? data.warnings.map(String) : [],
+});
+
 /**
- * Emails an agreement's confirmation to the chosen contacts and marks it sent.
+ * Emails an agreement's confirmation to the chosen contacts and marks it sent
+ * — or, while its benefits wait for an admin, holds it until they approve.
  *
  * Only the ids of the recipients travel — the route reads their addresses from
  * the contacts rows, so an edited body can never redirect the message. Throws
@@ -199,17 +255,45 @@ export async function sendAgreementEmail(
   contactIds: string[],
   subject: string,
   body: string,
+  language: Language,
 ): Promise<SendAgreementResult> {
   const res = await fetch("/api/deals/send-agreement", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dealId, contactIds, subject, body }),
+    body: JSON.stringify({ dealId, contactIds, subject, body, language }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || "Could not send the email.");
   return {
-    sentAt: String(data.sentAt || new Date().toISOString()),
-    to: Array.isArray(data.to) ? data.to.map(String) : [],
-    warnings: Array.isArray(data.warnings) ? data.warnings.map(String) : [],
+    sentAt: data.held ? "" : String(data.sentAt || new Date().toISOString()),
+    held: !!data.held,
+    ...toSendResult(data),
+  };
+}
+
+/* ----- approving benefits that differ from the formula ----- */
+
+export interface ApproveBenefitsResult {
+  /** The held mail, as it went out; null when none was held, or it failed. */
+  sent: Omit<SendAgreementResult, "held"> | null;
+  /** The approval stands, but the held mail could not be sent. */
+  mailError: string | null;
+}
+
+/**
+ * Admin only. Approves the agreement's benefits and sends the mail that was
+ * held for it, if any. Throws only when the approval itself failed.
+ */
+export async function approveBenefits(dealId: string): Promise<ApproveBenefitsResult> {
+  const res = await fetch("/api/deals/approve-benefits", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dealId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Could not approve the benefits.");
+  return {
+    sent: data.sent ? { sentAt: String(data.sent.sentAt || ""), ...toSendResult(data.sent) } : null,
+    mailError: data.mailError ? String(data.mailError) : null,
   };
 }

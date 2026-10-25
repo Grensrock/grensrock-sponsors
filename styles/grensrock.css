@@ -132,6 +132,8 @@
 .gr-hint { display:block; font-size:12px; color:var(--pink-deep); margin-top:3px; }
 .gr-field input, .gr-field select, .gr-field textarea { width:100%; padding:9px 12px;
   border:1px solid var(--line); border-radius:8px; font:14px 'IBM Plex Sans',sans-serif; background:#fff; }
+/* Read-only for now, not broken: a formula's benefits in the agreement form until they are opened up. */
+.gr-field input:disabled, .gr-field select:disabled { background:#F4F2EE; color:var(--ink); cursor:not-allowed; opacity:1; }
 .gr-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
 .gr-grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 14px; }
 @media (max-width:640px){ .gr-grid2,.gr-grid3 { grid-template-columns:1fr; } .gr-main{padding:20px 16px 50px;} .gr-header{padding:16px;} }
@@ -197,6 +199,56 @@
 .gr-formulaprice { font-family:'Montserrat',sans-serif; font-weight:800; font-size:22px; margin-bottom:8px; }
 .gr-formulacard ul { margin:0 0 14px; padding-left:18px; font-size:13px; line-height:1.7; flex:1; }
 .gr-formulacard .gr-btn { width:100%; }
+
+/* ---------- formula colours (lib/color.ts) ----------
+   Everything drawn in a formula's colour (.gr-fbtn, .gr-fdot, .gr-fcard) reads it from --fc, with --fc-ink the
+   text that stays legible on it; formulaStyle() sets both inline. */
+.gr-swatches { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.gr-swatch { position:relative; width:30px; height:30px; flex:none; padding:0; border-radius:50%;
+  border:2px solid #fff; box-shadow:0 0 0 1px var(--line); cursor:pointer; overflow:hidden; }
+.gr-swatch:hover { box-shadow:0 0 0 1px var(--ink); }
+.gr-swatch.on { box-shadow:0 0 0 2px var(--ink); }
+.gr-swatch-custom { background:conic-gradient(#B3362B,#C9C463,#4FA05F,#4A90C4,#C9518D,#B3362B); }
+.gr-field .gr-swatch-custom input { position:absolute; inset:0; width:100%; height:100%; opacity:0;
+  padding:0; border:0; cursor:pointer; }
+
+.gr-fpick { display:flex; flex-wrap:wrap; gap:8px; }
+.gr-fbtn { display:flex; flex-direction:column; align-items:flex-start; gap:1px; min-width:112px;
+  padding:8px 14px 7px; border:1px solid color-mix(in srgb, var(--fc) 45%, #fff); border-left:5px solid var(--fc);
+  border-radius:8px; background:color-mix(in srgb, var(--fc) 10%, #fff); color:var(--ink);
+  font:600 14px 'IBM Plex Sans',sans-serif; text-align:left; cursor:pointer; }
+.gr-fbtn small { font-weight:500; font-size:12px; color:var(--mut); }
+.gr-fbtn:hover { border-color:var(--fc); }
+.gr-fbtn.on { background:var(--fc); border-color:var(--fc); color:var(--fc-ink); box-shadow:0 1px 3px rgba(28,26,28,.25); }
+.gr-fbtn.on small { color:inherit; opacity:.85; }
+.gr-fbtn:active:not(.on) { transform:translateY(1px) scale(.98); }
+/* Op maat isn't a formula of the edition, so it has no colour of its own. */
+.gr-fbtn-custom { --fc:#1C1A1C; --fc-ink:#fff; background:#fff; border:1px dashed var(--line); border-left:5px solid var(--line); }
+@media (prefers-reduced-motion: reduce) { .gr-fbtn:active:not(.on) { transform:none; } }
+
+.gr-fdot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--fc);
+  margin-right:7px; vertical-align:baseline; flex:none; }
+
+/* Overview: a card per formula, like the portal's, its head tinted in the
+   formula's colour. */
+.gr-subhead-row { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.gr-subhead-row .gr-mini { letter-spacing:0; text-transform:none; color:var(--ink); white-space:nowrap; }
+/* A grid rather than the portal's flex row, so a card that wraps onto a row of
+   its own keeps the width of the others instead of stretching across. */
+.gr-formulacards.gr-fcards { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); margin-bottom:6px; }
+.gr-root .gr-formulacard.gr-fcard { border-top-color:var(--fc); }
+.gr-fcard-head { margin:-14px -16px 12px; padding:12px 16px 10px; border-radius:6px 6px 0 0;
+  background:color-mix(in srgb, var(--fc) 12%, #fff); }
+.gr-fcard-title { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.gr-fcard-title h5 { margin:0 0 2px; min-width:0; overflow-wrap:anywhere; }
+.gr-fcard-head .gr-formulaprice { margin:0; }
+.gr-fcard-count { font-size:12px; color:var(--mut); white-space:nowrap; }
+.gr-fcard-count b { font-family:'Montserrat',sans-serif; font-weight:800; font-size:15px; color:var(--ink); }
+.gr-fcard .gr-label { margin:2px 0 3px; }
+.gr-root .gr-formulacard.gr-fcard ul { flex:none; margin-bottom:10px; }
+.gr-fcard li::marker { color:var(--fc); }
+.gr-fcard .gr-muted { margin:0; }
+.gr-root .gr-fcard-custom { border-top-style:dashed; }
 
 .gr-gridaddr { display:grid; grid-template-columns:3fr 1fr; gap:0 14px; }
 @media (max-width:640px){ .gr-gridaddr { grid-template-columns:1fr; } }
@@ -300,6 +352,15 @@
 .gr-blockbanner { background:#FBEAE7; color:var(--red); border-radius:8px; padding:10px 14px;
   font-size:13.5px; font-weight:600; margin:0 0 14px; }
 
+/* The agreement form's benefits: a heading with the button that opens them up,
+   and what differs from the formula once they are. */
+.gr-benefitshead { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+  border-top:1px dashed var(--line); padding-top:12px; margin:4px 0 4px; }
+.gr-benefitshead .gr-label { margin:0; }
+.gr-benefitdiff { background:#FBEBDD; color:var(--orange-deep); border-radius:8px; padding:10px 14px;
+  font-size:13.5px; margin:6px 0 12px; }
+.gr-benefitdiff ul { margin:6px 0; padding-left:18px; font-weight:600; }
+
 .gr-settle { border:1px dashed var(--line); border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#F8FBFD; }
 .gr-settle .gr-field:last-of-type { margin-bottom:6px; }
 
@@ -401,15 +462,11 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
   border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:8px;
   background:#fff; padding:9px 12px; font-size:14px; }
 
-.gr-emailpreview { border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:8px; }
-.gr-email-subject { font-weight:600; padding:10px 14px; border-bottom:1px solid var(--line); }
-.gr-emailpreview pre { margin:0; padding:14px; font:13px/1.55 'IBM Plex Sans',sans-serif;
-  white-space:pre-wrap; max-height:340px; overflow-y:auto; }
+/* The agreement mail as the sponsor gets it (MailPreview in EmailModal), on
+   the mail's own backdrop so its white card reads as one. */
+.gr-mailpreview { display:block; width:100%; border:1px solid var(--line); border-radius:8px; background:#F1EEE8; }
 
-/* The message is edited in place rather than previewed beside a form: it is
-   plain text, so the textarea already shows exactly what will be sent. Same
-   type as .gr-emailpreview pre above, so switching to it changes nothing but
-   the caret. */
+/* The plain text the mail is laid out from, swapped in for the preview. */
 .gr-emailedit { font:13px/1.55 'IBM Plex Sans',sans-serif; resize:vertical; min-height:220px; }
 .gr-inlineform { border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:8px;
   background:#fff; padding:12px 14px 2px; margin:0 0 12px; }

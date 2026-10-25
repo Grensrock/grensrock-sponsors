@@ -50,11 +50,19 @@ const sameForm = (v: unknown): unknown => {
   return v;
 };
 
+/* How the amounts are split into vouchers is frozen with the rest, but it is
+   not a change of terms: the portal has the sponsor divide them below the
+   agreement, often after accepting. The amounts themselves (drinkValue,
+   foodDrinkValue, so a top-up too) still count. */
+const SPLIT_FIELDS: Array<keyof Deal> = ["drinkVouchers", "foodDrinkVouchers"];
+
 /* Have the terms been altered since the sponsor accepted them? */
 export const changedSinceAcceptance = (d?: Partial<Deal> | null) => {
   if (!isAccepted(d)) return false;
   const snap = (d?.acceptance?.snapshot || {}) as Partial<Deal>;
-  return SNAPSHOT_FIELDS.some((k) => JSON.stringify(sameForm(d?.[k])) !== JSON.stringify(sameForm(snap[k])));
+  return SNAPSHOT_FIELDS.filter((k) => !SPLIT_FIELDS.includes(k)).some(
+    (k) => JSON.stringify(sameForm(d?.[k])) !== JSON.stringify(sameForm(snap[k])),
+  );
 };
 
 export const fmtDateTime = (iso?: string | null) => {

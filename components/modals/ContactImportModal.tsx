@@ -15,6 +15,7 @@ import {
   type ColumnMap,
   type ContactField,
 } from "@/lib/import-helpers";
+import { CONTACT_TEMPLATE, downloadTemplate } from "@/lib/import-template";
 import { normLang, normNameKey, normStr } from "@/lib/normalize";
 import type { Contact, Language, Sponsor, TranslateFn } from "@/types";
 
@@ -120,7 +121,9 @@ export default function ContactImportModal({
         return;
       }
 
-      const anyPref = [map.info, map.invoice].some((x) => (x ?? -1) >= 0);
+      /* Per row, not per column: a template always has both columns, and a
+         row that leaves them empty means "the default", not "nothing". */
+      const anyPref = !!(get(row, "info") || get(row, "invoice"));
       create.push({
         sponsorId: sponsor.id,
         sponsorName: sponsor.companyName,
@@ -181,10 +184,20 @@ export default function ContactImportModal({
   }
 
   return (
-    <Modal title={t("im.importct")} onClose={onClose} wide lang={lang}>
+    <Modal title={t("im.importct")} onClose={onClose} wide lang={lang} confirmOutsideClick>
       {!headers ? (
         <>
           <p className="gr-muted">{t("im.introct")}</p>
+          <p className="gr-muted">
+            {t("tpl.hint")}{" "}
+            <button
+              type="button"
+              className="gr-mini"
+              onClick={() => downloadTemplate("grensrock-template-contacts.xlsx", CONTACT_TEMPLATE, t)}
+            >
+              {t("tpl.download")}
+            </button>
+          </p>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} className="gr-file" />
           {err && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>

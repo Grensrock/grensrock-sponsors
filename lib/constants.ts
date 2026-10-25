@@ -30,7 +30,7 @@ export const LANGS: Record<Language, string> = { nl: "Nederlands", fr: "Françai
 /* team app: NL + EN only */
 export const TEAM_LANGS: Record<TeamLanguage, string> = { nl: "Nederlands", en: "English" };
 /* grouped under the Admin panel */
-export const ADMIN_TABS = ["editions", "team", "audit"];
+export const ADMIN_TABS = ["editions", "team", "audit", "backup"];
 
 /* ---------- contacts ---------- */
 export type CommKey = "info" | "invoice";
@@ -146,6 +146,7 @@ export const emptyEdition: Omit<Edition, "id"> = {
 
 export const emptyFormula: Formula = {
   name: "",
+  color: "",
   cost: "",
   vipFriday: 0,
   vipSaturday: 0,
@@ -192,7 +193,31 @@ export const emptyDeal: Omit<Deal, "id"> = {
   requestedBy: "",
   confirmedAt: null,
   acceptance: null, // { acceptedAt, name, email, contactId, snapshot }
+  benefitsChangedAt: null,
+  benefitsApprovedAt: null,
+  benefitsApprovedBy: "",
+  pendingMail: null,
 };
+
+/* What picking a formula copies onto an agreement — the agreement form's
+   formula buttons and the agreement import both start from this. A copy,
+   not a link: changing the formula later leaves the agreement alone.
+   Food & drink is never in a formula (0027), so picking one leaves what
+   was filled in for it as it is. */
+export const dealFieldsFromFormula = (f: Formula): Partial<Deal> => ({
+  formulaName: f.name,
+  cost: f.cost,
+  vipFriday: f.vipFriday,
+  vipSaturday: f.vipSaturday,
+  vipGuests: f.vipGuests,
+  drinkValue: f.drinkValue,
+  drinkVouchers: f.drinkVouchers || [],
+  folderMention: f.folderMention,
+  websiteMention: f.websiteMention,
+  posterMention: f.posterMention || "none",
+  ledboarding: f.ledboarding,
+  fenceCovers: f.fenceCovers || 0,
+});
 
 export const emptyUser: Omit<User, "id"> = {
   firstName: "",
@@ -248,8 +273,7 @@ export type ReturnExampleType =
   | "poster"
   | "folder"
   | "ledboarding"
-  | "barrier"
-  | "heras";
+  | "banner";
 
 export const RETURN_EXAMPLES: Record<ReturnExampleType, Record<Language, string>> = {
   websiteLogo: { nl: "Logo op de website", fr: "Logo sur le site web", en: "Logo on the website" },
@@ -265,8 +289,7 @@ export const RETURN_EXAMPLES: Record<ReturnExampleType, Record<Language, string>
     fr: "Mention sur le ledboarding",
     en: "Mention on the LED boarding",
   },
-  barrier: { nl: "Hoes voor nadarhek", fr: "Housse pour barrière Nadar", en: "Crowd control barrier cover" },
-  heras: { nl: "Hoes voor Heras-hek", fr: "Housse pour clôture Heras", en: "Heras fence cover" },
+  banner: { nl: "Banner", fr: "Banner", en: "Banner" },
 };
 
 /* Fully custom agreement (not backed by a formula) */

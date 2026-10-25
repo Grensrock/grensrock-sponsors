@@ -1,5 +1,7 @@
 /* Agreements ("deals") and the benefit fields they share with formulas. */
 
+import type { Language } from "./contact";
+
 /* Number inputs in the prototype keep "" while the user clears a field, so the
    numeric benefit fields are stored as number-or-empty-string. Every read site
    wraps them in Number(...). */
@@ -35,7 +37,7 @@ export interface FormulaFields {
   websiteMention: WebsiteMention;
   posterMention: PosterMention;
   ledboarding: LedZone[];
-  /** Covers for the festival's fencing, Nadar or Heras — one count since 0020. */
+  /** Banners. Stored as fence_covers: they started out as Nadar and Heras fence covers (0020). */
   fenceCovers: NumLike;
 }
 
@@ -75,6 +77,27 @@ export interface Deal extends FormulaFields {
   confirmedAt: string | null;
   responsible?: string;
   acceptance: Acceptance | null;
+  /** When the benefits were last set apart from the formula's; null while they
+      match it. Set by the database, never by the app (0026). */
+  benefitsChangedAt: string | null;
+  /** The admin's approval of that. While benefitsChangedAt is set and this is
+      null, the agreement waits and the sponsor can't accept it. */
+  benefitsApprovedAt: string | null;
+  benefitsApprovedBy: string;
+  /** The agreement mail written while it waited, sent once it is approved. */
+  pendingMail: PendingMail | null;
+}
+
+/* What the preview's Send hands the route while the benefits wait for an
+   admin: the route holds it on the agreement and sends it, exactly as
+   written, when they are approved (app/api/deals/approve-benefits). */
+export interface PendingMail {
+  contactIds: string[];
+  subject: string;
+  body: string;
+  language: Language;
+  heldAt: string;
+  heldBy: string;
 }
 
 /* What the deal form works with: a partially filled agreement, plus the

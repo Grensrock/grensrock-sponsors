@@ -241,9 +241,9 @@ const SPONSOR_FAQ: SponsorSection[] = [
           en: "Can I add extra food and drink tickets?",
         },
         a: {
-          nl: "Ja, zolang die bonnen nog niet aangemaakt zijn. Vul in het tabblad **Sponsoring** de totale waarde in die u wenst en klik **Bijwerken**. Het verschil met wat uw formule bevat, komt bij uw bijdrage.",
-          fr: "Oui, tant que ces bons n'ont pas encore été créés. Dans l'onglet **Sponsoring**, indiquez la valeur totale souhaitée et cliquez sur **Mettre à jour**. La différence avec ce que comprend votre formule s'ajoute à votre contribution.",
-          en: "Yes, as long as those tickets haven't been created yet. In the **Sponsorship** tab, enter the total value you'd like and click **Update**. The difference with what your formula includes is added to your contribution.",
+          nl: "Ja, zolang die bonnen nog niet aangemaakt zijn. Vul in het tabblad **Sponsoring** de totale waarde in die u wenst en klik **Bijwerken**. Ze komen bovenop uw formule: wat u bijneemt, komt bij uw bijdrage.",
+          fr: "Oui, tant que ces bons n'ont pas encore été créés. Dans l'onglet **Sponsoring**, indiquez la valeur totale souhaitée et cliquez sur **Mettre à jour**. Ils s'ajoutent à votre formule : ce que vous ajoutez s'ajoute à votre contribution.",
+          en: "Yes, as long as those tickets haven't been created yet. In the **Sponsorship** tab, enter the total value you'd like and click **Update**. They come on top of your formula: what you add is added to your contribution.",
         },
       },
     ],
@@ -258,9 +258,9 @@ const SPONSOR_FAQ: SponsorSection[] = [
           en: "How do I divide my vouchers?",
         },
         a: {
-          nl: "In het tabblad **Sponsoring** kiest u zelf in hoeveel bonnen uw bedrag wordt opgesplitst, bijvoorbeeld één grote bon of meerdere kleinere. Drankbonnen en bonnen voor eten & drinken blijven apart. Uw verdeling wordt bewaard zodra u het veld verlaat.\n\nZodra wij de bonnen aangemaakt hebben, ligt de verdeling vast. Moet er dan nog iets veranderen, neem dan contact met ons op.",
-          fr: "Dans l'onglet **Sponsoring**, vous choisissez vous-même en combien de bons votre montant est réparti, par exemple un seul gros bon ou plusieurs plus petits. Les bons boissons et les bons food & boissons restent séparés. Votre répartition est enregistrée dès que vous quittez le champ.\n\nUne fois les bons créés par nos soins, la répartition est définitive. Si quelque chose doit encore changer, contactez-nous.",
-          en: "In the **Sponsorship** tab you choose how many vouchers your amount is split into, for example one large voucher or several smaller ones. Drink vouchers and food & drink vouchers stay separate. Your split is saved as soon as you leave the field.\n\nOnce we've created the vouchers, the split is fixed. If something still needs to change, get in touch with us.",
+          nl: "In het tabblad **Sponsoring** klikt u onder **Uw bonnen** op **Bonnen verdelen**. Daar kiest u zelf in hoeveel bonnen uw bedrag wordt opgesplitst, bijvoorbeeld één grote bon of meerdere kleinere. Drankbonnen en bonnen voor eten & drinken blijven apart. Uw verdeling wordt bewaard zodra u het veld verlaat.\n\nZodra wij de bonnen aangemaakt hebben, ligt de verdeling vast. Moet er dan nog iets veranderen, neem dan contact met ons op.",
+          fr: "Dans l'onglet **Sponsoring**, cliquez sur **Répartir les bons** sous **Vos bons**. Vous y choisissez vous-même en combien de bons votre montant est réparti, par exemple un seul gros bon ou plusieurs plus petits. Les bons boissons et les bons food & boissons restent séparés. Votre répartition est enregistrée dès que vous quittez le champ.\n\nUne fois les bons créés par nos soins, la répartition est définitive. Si quelque chose doit encore changer, contactez-nous.",
+          en: "In the **Sponsorship** tab, click **Divide vouchers** under **Your vouchers**. There you choose how many vouchers your amount is split into, for example one large voucher or several smaller ones. Drink vouchers and food & drink vouchers stay separate. Your split is saved as soon as you leave the field.\n\nOnce we've created the vouchers, the split is fixed. If something still needs to change, get in touch with us.",
         },
       },
       {
@@ -476,8 +476,29 @@ const TEAM_FAQ: TeamSection[] = [
       {
         q: { nl: "Hoe registreer ik een overeenkomst?", en: "How do I register an agreement?" },
         a: {
-          nl: "1. Klik **+ Nieuwe overeenkomst**, of **+ Overeenkomst** op de sponsorpagina.\n2. Kies de sponsor, de editie en een formule. De formule vult kostprijs en voordelen in; je kan ze daarna nog aanpassen. Een andere formule kiezen overschrijft wat je al aanpaste.\n3. Kies hoe de bijdrage wordt afgehandeld: factuur, in natura of een combinatie.\n4. Vul indien nodig de referentie voor de factuur en notities in. Notities komen in de mail aan de sponsor en horen bij wat die aanvaardt.\n5. Klik **Overeenkomst opslaan**. Het venster voor de bevestigingsmail opent meteen.",
-          en: "1. Click **+ New agreement**, or the agreement button on the sponsor page.\n2. Pick the sponsor, the edition and a formula. The formula fills in the cost and benefits; you can still change them afterwards. Picking another formula overwrites what you changed.\n3. Choose how the contribution is settled: invoice, in kind or a combination.\n4. Fill in the invoice reference and notes if needed. Notes go into the email to the sponsor and are part of what they accept.\n5. Click save. The confirmation email window opens straight away.",
+          nl: "1. Klik **+ Nieuwe overeenkomst**, of **+ Overeenkomst** op de sponsorpagina.\n2. Kies de sponsor, de editie en een formule. De formule vult kostprijs en voordelen in. De kostprijs kan je aanpassen; de voordelen blijven zoals in de formule, tenzij je **Voordelen aanpassen** kiest. Een andere formule kiezen overschrijft wat je al aanpaste.\n3. Kies hoe de bijdrage wordt afgehandeld: factuur, in natura of een combinatie.\n4. Vul indien nodig de referentie voor de factuur en notities in. Notities komen in de mail aan de sponsor en horen bij wat die aanvaardt.\n5. Klik **Overeenkomst opslaan**. Het venster voor de bevestigingsmail opent meteen.",
+          en: "1. Click **+ New agreement**, or the agreement button on the sponsor page.\n2. Pick the sponsor, the edition and a formula. The formula fills in the cost and benefits. You can change the cost; the benefits stay as in the formula unless you choose **Change the benefits**. Picking another formula overwrites what you changed.\n3. Choose how the contribution is settled: invoice, in kind or a combination.\n4. Fill in the invoice reference and notes if needed. Notes go into the email to the sponsor and are part of what they accept.\n5. Click save. The confirmation email window opens straight away.",
+        },
+      },
+      {
+        q: {
+          nl: "Ik wil de sponsor andere voordelen geven dan de formule.",
+          en: "I want to give the sponsor other benefits than the formula.",
+        },
+        a: {
+          nl: "Dat kan, maar een admin moet het goedkeuren voor de sponsor de overeenkomst krijgt.\n\n1. Klik in de overeenkomst **Voordelen aanpassen** en wijzig wat nodig is. Je ziet meteen wat afwijkt van de formule; **Terug naar formule** zet alles terug.\n2. Klik **Overeenkomst opslaan**. De admins krijgen een mail met wat er afwijkt.\n3. Zet de bevestigingsmail klaar zoals altijd en klik **Klaarzetten tot goedkeuring**.\n\nZodra een admin goedkeurt, vertrekt die mail naar de sponsor, met jou in cc. Tot dan staat de overeenkomst op **wacht op goedkeuring** en kan de sponsor ze niet aanvaarden. Ook **Op maat**, of geen formule, telt als afwijkend zodra er voordelen in staan.\n\nBonnen eten & drinken vallen hier niet onder: die zitten nooit in een formule en komen altijd bovenop de bijdrage. Die vul je vrij in, zonder goedkeuring.",
+          en: "You can, but an admin has to approve it before the sponsor gets the agreement.\n\n1. In the agreement, click **Change the benefits** and change what's needed. You'll see straight away what differs from the formula; **Back to formula** puts it all back.\n2. Save the agreement. The admins get an email with what differs.\n3. Prepare the confirmation email as always and click **Prepare until approved**.\n\nAs soon as an admin approves, that email goes to the sponsor, with you in cc. Until then the agreement shows **waiting for approval** and the sponsor can't accept it. **Op maat**, or no formula, counts as different too as soon as it gives any benefits.\n\nFood & drink vouchers don't count here: they're never in a formula and always come on top of the contribution. You fill them in freely, without approval.",
+        },
+      },
+      {
+        q: {
+          nl: "Een overeenkomst wacht op mijn goedkeuring.",
+          en: "An agreement is waiting for my approval.",
+        },
+        adminOnly: true,
+        a: {
+          nl: "Een teamlid gaf een sponsor andere voordelen dan de formule. Je kreeg daarover een mail, en op het **Overzicht** staat een melding.\n\n1. Klik bij de melding **Bekijken**, of kies in **Overeenkomsten** de status **Wacht op goedkeuring**.\n2. Klik **Goedkeuren**. Je ziet wat er afwijkt en naar wie de klaargezette mail gaat.\n3. Bevestig. De mail vertrekt naar de sponsor, met de verantwoordelijke in cc. Stond er nog geen mail klaar, dan opent het venster om ze zelf te versturen.\n\nNiet akkoord? Open de overeenkomst en pas de voordelen aan, of zet ze **Terug naar formule**. Wat je als admin opslaat, is meteen goedgekeurd.",
+          en: "A team member gave a sponsor other benefits than the formula. You got an email about it, and there's a notice on the **Overview**.\n\n1. Click **View** in the notice, or pick the status **Waiting for approval** in **Agreements**.\n2. Click **Approve**. You'll see what differs and who the prepared email goes to.\n3. Confirm. The email goes to the sponsor, with the responsible in cc. If no email was prepared yet, the window opens to send it yourself.\n\nNot okay? Open the agreement and change the benefits, or put them **Back to formula**. What you save as an admin is approved straight away.",
         },
       },
       {
@@ -506,8 +527,8 @@ const TEAM_FAQ: TeamSection[] = [
           en: "An agreement shows \"⚠ changed\".",
         },
         a: {
-          nl: "De overeenkomst is aangepast nadat de sponsor ze aanvaardde.\n\n1. Klik in het tabblad **Sponsoring** van de sponsor op **⚠ gewijzigd**. Je ziet de voorwaarden zoals aanvaard naast de huidige.\n2. Klik **Opnieuw laten aanvaarden** en bevestig. De aanvaarding wordt gewist.\n3. Verstuur de bevestigingsmail opnieuw.",
-          en: "The agreement was changed after the sponsor accepted it.\n\n1. In the sponsor's **Sponsoring** tab, click the ⚠ marker. You'll see the terms as accepted next to the current ones.\n2. Ask for it to be accepted again and confirm. The acceptance is cleared.\n3. Send the confirmation email again.",
+          nl: "De overeenkomst is aangepast nadat de sponsor ze aanvaardde. Hoe de sponsor de bonnen verdeelt telt daarbij niet mee, extra eten- & drankbonnen wel.\n\n1. Klik in het tabblad **Sponsoring** van de sponsor op **⚠ gewijzigd**. Je ziet de voorwaarden zoals aanvaard naast de huidige.\n2. Klik **Opnieuw laten aanvaarden** en bevestig. De aanvaarding wordt gewist.\n3. Verstuur de bevestigingsmail opnieuw.",
+          en: "The agreement was changed after the sponsor accepted it. How the sponsor divides the vouchers doesn't count, extra food & drink vouchers do.\n\n1. In the sponsor's **Sponsoring** tab, click the ⚠ marker. You'll see the terms as accepted next to the current ones.\n2. Ask for it to be accepted again and confirm. The acceptance is cleared.\n3. Send the confirmation email again.",
         },
       },
       {
@@ -608,6 +629,16 @@ const TEAM_FAQ: TeamSection[] = [
         a: {
           nl: "Nee. Een sponsor verwijderen wist ook zijn contactpersonen, overeenkomsten en bonnen; dat kan niet ongedaan gemaakt worden. Bonnen die al in Tickoweb bestaan, blijven daar bestaan: annuleer ze daar zelf. In **Beheer → Audit log** zie je wel wie wat wanneer wijzigde.",
           en: "No. Deleting a sponsor also deletes its contact persons, agreements and vouchers; it can't be undone. Vouchers that already exist in Tickoweb stay there: cancel them there yourself. **Admin → Audit log** does show who changed what and when.",
+        },
+      },
+      {
+        q: {
+          nl: "Hoe maak ik een back-up van alle gegevens?",
+          en: "How do I make a backup of all data?",
+        },
+        a: {
+          nl: "Open **Beheer → Back-up** en klik **Back-up downloaden**. Je krijgt één Excel-bestand met een tabblad per soort gegevens: sponsors, contactpersonen, overeenkomsten, afzeggingen, edities, formules, bonnen, de lijst van logo's, het team, de instellingen en de audit log. Het eerste tabblad zegt wanneer en door wie de back-up gemaakt is en hoeveel rijen elk tabblad telt.\n\nDe logobestanden zelf zitten er niet in, enkel de lijst ervan.\n\nHet bestand bevat de gegevens van alle sponsors en contactpersonen en de codes van de bonnen: bewaar het op een veilige plek en deel het niet.",
+          en: "Open **Admin → Backup** and click **Download backup**. You get one Excel file with a sheet for each kind of data: sponsors, contact persons, agreements, declines, editions, formulas, vouchers, the list of logos, the team, the settings and the audit log. The first sheet says when and by whom the backup was made and how many rows each sheet holds.\n\nThe logo files themselves aren't in it, only their list.\n\nThe file holds the details of every sponsor and contact person and the voucher codes: keep it somewhere safe and don't share it.",
         },
       },
     ],

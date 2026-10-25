@@ -19,8 +19,13 @@ export const normLang = (v: unknown): Language => {
   return "nl";
 };
 
-export const normEntity = (v: unknown) =>
-  /pers|natuur|individu|physique/.test(normStr(v).toLowerCase()) ? "person" : "legal";
+/* The legal forms are ruled out first: "rechtspersoon" and "personne morale"
+   both contain "pers", and would otherwise come out as a person. */
+export const normEntity = (v: unknown) => {
+  const s = normStr(v).toLowerCase();
+  if (/recht|legal|moral|bedrijf|company|vennootschap|soci/.test(s)) return "legal";
+  return /pers|natuur|individu|physique/.test(s) ? "person" : "legal";
+};
 
 /* Migrate older saved data: ledboarding was a single value, folderMention a yes/no */
 export const normLed = (v: unknown): LedZone[] =>

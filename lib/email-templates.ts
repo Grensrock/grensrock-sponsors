@@ -1,10 +1,12 @@
-import { LED_ZONES, label } from "@/lib/constants";
+import { benefitChanges, changeLines } from "@/lib/benefits";
+import { LED_ZONES, OP_MAAT, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
+import { renderEmailHtml } from "@/lib/email/layout";
 import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { drinkPoolValue, voucherText } from "@/lib/vouchers";
-import type { Contact, Deal, Edition, Language, Sponsor, User } from "@/types";
+import type { Contact, Deal, Edition, FormulaFields, Language, Sponsor, TeamLanguage, User } from "@/types";
 
 /* ---------- portal invitation text ----------
    A personal note the team copies and sends themselves. It doesn't replace
@@ -68,7 +70,7 @@ export function buildEmail(
   edition: Edition,
   contact?: Contact | Contact[] | null,
   acceptUrl?: string,
-): { subject: string; body: string } {
+): { subject: string; body: string; lang: Language } {
   /* One text goes to everyone it is addressed to, so the recipients are taken
      as a list: the language and the "your address" line follow the first, and
      the greeting names all of them. "Beste Jan" arriving in Piet's inbox reads
@@ -166,14 +168,9 @@ export function buildEmail(
             "Name mention on the festival poster",
           ),
     );
+  /* "banner(s)" reads the same in all three languages */
   if (Number(deal.fenceCovers) > 0)
-    benefits.push(
-      B(
-        `${deal.fenceCovers} hoes(sen) voor nadar- of Heras-hekken`,
-        `${deal.fenceCovers} housse(s) pour barrières Nadar ou clôtures Heras`,
-        `${deal.fenceCovers} cover(s) for Nadar barriers or Heras fences`,
-      ),
-    );
+    benefits.push(`${deal.fenceCovers} banner${Number(deal.fenceCovers) === 1 ? "" : "s"}`);
   const zones = normLed(deal.ledboarding);
   if (zones.length > 0) {
     const zoneList = zones.map((z) => label(LED_ZONES, z, lang)).join(" + ");
@@ -286,6 +283,7 @@ ${contribution}
 Inbegrepen:
 ${list || "  • (geen voordelen geselecteerd)"}
 ${notes ? "\nOpmerkingen:\n" + notes + "\n" : ""}
+Facturatie:
 ${settlementBlock}
 
 ${confirm}
@@ -304,6 +302,7 @@ ${contribution}
 Inclus :
 ${list || "  • (aucun avantage sélectionné)"}
 ${notes ? "\nRemarques :\n" + notes + "\n" : ""}
+Facturation :
 ${settlementBlock}
 
 ${confirm}
@@ -322,6 +321,7 @@ ${contribution}
 Included:
 ${list || "  • (no benefits selected)"}
 ${notes ? "\nNotes:\n" + notes + "\n" : ""}
+Invoicing:
 ${settlementBlock}
 
 ${confirm}
@@ -331,7 +331,25 @@ ${deal.responsible || "The Grensrock team"}
 Grensrock`,
   );
 
-  return { subject, body };
+  return { subject, body, lang };
+}
+
+/* ---------- the agreement, laid out ----------
+   Built from the text rather than beside buildEmail, because the text is
+   what the team may edit before it goes out: the preview and the route
+   both lay out the approved text through here, so what the modal shows is
+   what arrives. `acceptUrl` is the link as it stands in that text — the
+   bare one in the preview, a recipient's personal one in their copy. */
+export function renderAgreementHtml(body: string, subject: string, lang: Language, acceptUrl?: string) {
+  const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang];
+  return renderEmailHtml({
+    text: body,
+    lang,
+    heading: subject,
+    buttons: acceptUrl
+      ? { [acceptUrl]: B("Overeenkomst bekijken en aanvaarden", "Consulter et accepter l'accord", "Review and accept the agreement") }
+      : {},
+  });
 }
 
 /* ---------- team invitation text ----------
@@ -412,6 +430,164 @@ Grensrock`;
   return { subject, body };
 }
 
+/* ---------- new agreement, for the admins ----------
+   Sent to each admin when an agreement is created — by a team member in
+   the app, or by a sponsor picking a formula in the portal — so a new one
+   doesn't have to be spotted in the list. Team-facing, so NL/EN in the
+   admin's own language, like buildAccessGranted above.
+
+   A team member who set the benefits apart from the formula leaves the
+   agreement waiting for an admin (0026), and then that is what the mail is
+   for. It says so first — in the subject, and at the top of the text with
+   each difference on a line — so it can't be read as just another new
+   agreement. */
+type AdminDeal = Pick<Deal, "formulaName" | "cost" | "settlement"> & Partial<Deal>;
+
+/* `formula` is what the benefits are held against: null for Op maat, or a
+   formula the edition doesn't have (any more). */
+function approvalBlock(lang: TeamLanguage, deal: AdminDeal, formula: FormulaFields | null) {
+  const nl = lang === "nl";
+  const lines = changeLines(benefitChanges(deal, formula, lang))
+    .map((l) => `• ${l}`)
+    .join("\n");
+  const head = formula
+    ? nl
+      ? `⚠ GOEDKEURING NODIG — de voordelen wijken af van formule ${deal.formulaName}`
+      : `⚠ APPROVAL NEEDED — the benefits differ from formula ${deal.formulaName}`
+    : nl
+      ? "⚠ GOEDKEURING NODIG — deze overeenkomst volgt geen formule"
+      : "⚠ APPROVAL NEEDED — this agreement follows no formula";
+  const intro = formula
+    ? nl
+      ? `Formule ${deal.formulaName} → deze overeenkomst:`
+      : `Formula ${deal.formulaName} → this agreement:`
+    : nl
+      ? "Alle voordelen zijn met de hand ingevuld:"
+      : "Every benefit was filled in by hand:";
+  const then = nl
+    ? "De sponsor krijgt deze overeenkomst pas nadat een admin dit goedkeurt. In de app vindt u ze onder Overeenkomsten → Wacht op goedkeuring."
+    : "The sponsor only gets this agreement once an admin approves this. In the app you'll find it under Agreements → Waiting for approval.";
+  return `${head}\n\n${intro}\n${lines}\n\n${then}`;
+}
+
+function agreementFacts(lang: TeamLanguage, deal: AdminDeal, sponsorName: string, editionName: string) {
+  const nl = lang === "nl";
+  const custom = !deal.formulaName.trim() || deal.formulaName === OP_MAAT;
+  const formula = custom ? (nl ? "op maat" : "custom") : deal.formulaName;
+  return nl
+    ? `Sponsor: ${sponsorName}
+Editie: ${editionName}
+Formule: ${formula}
+Bijdrage: ${eur(deal.cost)}
+Afrekening: ${label(SETTLEMENTS, deal.settlement, lang)}`
+    : `Sponsor: ${sponsorName}
+Edition: ${editionName}
+Formula: ${formula}
+Contribution: ${eur(deal.cost)}
+Settlement: ${label(SETTLEMENTS, deal.settlement, lang)}`;
+}
+
+export function buildAgreementCreated(
+  admin: User,
+  deal: AdminDeal,
+  sponsorName: string,
+  editionName: string,
+  createdBy: { name: string; viaPortal: boolean },
+  appUrl: string,
+  /** Set when the agreement waits for an admin's approval of its benefits. */
+  waiting?: { formula: FormulaFields | null } | null,
+) {
+  const lang: TeamLanguage = admin.language === "en" ? "en" : "nl";
+  const nl = lang === "nl";
+  const by = createdBy.viaPortal
+    ? nl
+      ? `${createdBy.name || "de sponsor"}, via het sponsorportaal`
+      : `${createdBy.name || "the sponsor"}, via the sponsor portal`
+    : createdBy.name || (nl ? "een teamlid" : "a team member");
+
+  const subject = waiting
+    ? nl
+      ? `Goedkeuring nodig: nieuwe overeenkomst ${sponsorName} (${editionName})`
+      : `Approval needed: new agreement ${sponsorName} (${editionName})`
+    : nl
+      ? `Nieuwe overeenkomst: ${sponsorName} (${editionName})`
+      : `New agreement: ${sponsorName} (${editionName})`;
+
+  const review = waiting ? `\n\n${approvalBlock(lang, deal, waiting.formula)}` : "";
+
+  const body = nl
+    ? `Dag ${userName(admin)},
+
+Er is een nieuwe overeenkomst aangemaakt.${review}
+
+${agreementFacts(lang, deal, sponsorName, editionName)}
+Aangemaakt door: ${by}
+
+Link: ${appUrl}
+
+Grensrock`
+    : `Hi ${userName(admin)},
+
+A new agreement has been created.${review}
+
+${agreementFacts(lang, deal, sponsorName, editionName)}
+Created by: ${by}
+
+Link: ${appUrl}
+
+Grensrock`;
+
+  return { subject, body };
+}
+
+/* ---------- changed benefits on an existing agreement, for the admins ----------
+   The same wait as above, when the benefits are changed on an agreement
+   that already existed — one a sponsor requested in the portal and the
+   team confirms, or one that was already sent. */
+export function buildBenefitsChanged(
+  admin: User,
+  deal: AdminDeal,
+  sponsorName: string,
+  editionName: string,
+  changedBy: string,
+  formula: FormulaFields | null,
+  appUrl: string,
+) {
+  const lang: TeamLanguage = admin.language === "en" ? "en" : "nl";
+  const nl = lang === "nl";
+  const by = changedBy || (nl ? "Een teamlid" : "A team member");
+
+  const subject = nl
+    ? `Goedkeuring nodig: voordelen aangepast voor ${sponsorName} (${editionName})`
+    : `Approval needed: benefits changed for ${sponsorName} (${editionName})`;
+
+  const body = nl
+    ? `Dag ${userName(admin)},
+
+${by} paste de voordelen van een bestaande overeenkomst aan.
+
+${approvalBlock(lang, deal, formula)}
+
+${agreementFacts(lang, deal, sponsorName, editionName)}
+
+Link: ${appUrl}
+
+Grensrock`
+    : `Hi ${userName(admin)},
+
+${by} changed the benefits of an existing agreement.
+
+${approvalBlock(lang, deal, formula)}
+
+${agreementFacts(lang, deal, sponsorName, editionName)}
+
+Link: ${appUrl}
+
+Grensrock`;
+
+  return { subject, body };
+}
+
 /* ---------- sponsor portal: set a password ----------
    Sent when a contact is given portal access, and again whenever they ask
    for a new link from the login form. The same message serves both: to the
@@ -476,7 +652,14 @@ Then sign in with your email address (${contact.email}) and the password you cho
 Grensrock`,
   );
 
-  return { subject, body };
+  const html = renderEmailHtml({
+    text: body,
+    lang,
+    heading: B("Kies uw wachtwoord", "Choisissez votre mot de passe", "Choose your password"),
+    buttons: { [url]: B("Wachtwoord kiezen", "Choisir un mot de passe", "Choose a password") },
+  });
+
+  return { subject, body, html };
 }
 
 /* ---------- sponsor portal: sign in with a link ----------
@@ -539,5 +722,12 @@ Didn't ask for this? Then there's nothing to do. Without the link nothing about 
 Grensrock`,
   );
 
-  return { subject, body };
+  const html = renderEmailHtml({
+    text: body,
+    lang,
+    heading: B("Uw aanmeldlink", "Votre lien de connexion", "Your sign-in link"),
+    buttons: { [url]: B("Aanmelden", "Se connecter", "Sign in") },
+  });
+
+  return { subject, body, html };
 }

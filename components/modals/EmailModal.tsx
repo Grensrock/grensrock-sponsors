@@ -5,12 +5,15 @@ import EmailInput from "@/components/ui/EmailInput";
 import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import Tag from "@/components/ui/Tag";
+import { fmtDateTime } from "@/lib/acceptance";
 import { sendAgreementEmail } from "@/lib/api/deals";
+import { awaitsApproval } from "@/lib/benefits";
 import { ACCEPT_PATH, LANGS, emptyContact, uid } from "@/lib/constants";
 import { contactName, contactsFor, sponsorContacts } from "@/lib/contacts";
-import { buildEmail } from "@/lib/email-templates";
+import { buildEmail, renderAgreementHtml } from "@/lib/email-templates";
 import { emailToStore, sameEmail, validateEmail } from "@/lib/email-validate";
-import type { Contact, Deal, Edition, Sponsor, TranslateFn } from "@/types";
+import { userName } from "@/lib/users";
+import type { Contact, Deal, Edition, Language, PendingMail, Sponsor, TranslateFn, User } from "@/types";
 
 /* ---------- Sending the confirmation email / contract ----------
    The team picks who it goes to, reads it, edits it if they want, and
@@ -20,7 +23,11 @@ import type { Contact, Deal, Edition, Sponsor, TranslateFn } from "@/types";
    recipients are not incidental: a contact with no portal access can
    read the mail but cannot act on it. The route fixes that at send time
    (see app/api/deals/send-agreement) — this modal only says so, rather
-   than making the team go and activate people first. */
+   than making the team go and activate people first.
+
+   While the agreement's benefits wait for an admin (0026), a team member's
+   Send prepares the mail instead: the route holds it, and it goes out when
+   an admin approves. An admin's Send is that approval, and sends. */
 
 const canMail = (c: Contact) => !!validateEmail(c.email)?.valid;
 
@@ -35,36 +42,66 @@ export default function EmailModal({
   deal,
   sponsor,
   edition,
+  responsible,
   onClose,
   onMarkSent,
   onSent,
+  onHeld,
   onAddContact,
+  admin,
+  prepared,
+  uiLang = "nl",
   t = (k) => k,
 }: {
   deal: Deal;
   sponsor: Sponsor;
   edition: Edition;
+  /** The sponsor's responsible, who is put in Cc. */
+  responsible?: User | null;
   onClose: () => void;
   /** Records the mail as sent without sending it. `edited` says the text was
       changed here, which is worth a question first: closing on it drops the edit. */
   onMarkSent: (edited: boolean) => void;
   /** The send succeeded; the agreement is already marked sent server-side. */
   onSent: (sentAt: string) => void;
+  /** The mail was held until the benefits are approved, not sent. */
+  onHeld?: () => void;
+  admin?: boolean;
+  /** A mail written before, to start from: the one held on the agreement, or
+      one that was held but could not go out on approval. */
+  prepared?: Partial<PendingMail> | null;
   /** Saves a brand-new contact on this sponsor and hands it back with its real id. */
   onAddContact: (sponsorId: string, contact: Contact) => Promise<Contact | null>;
+  /** The language the team works in here, for the modal's own words; not the mail's. */
+  uiLang?: Language;
   t?: TranslateFn;
 }) {
   const all = sponsorContacts(sponsor).filter(canMail);
+  const waiting = awaitsApproval(deal);
+  const holds = waiting && !admin;
+  const start = prepared || (waiting ? deal.pendingMail : null);
 
   /* The contract is invoicing-related, so it starts aimed at the invoicing
      contacts, falling back to whoever receives general information. It is only
-     a starting point now — the team can tick anyone. */
+     a starting point now — the team can tick anyone. A mail written before
+     starts where it was left. */
   const [picked, setPicked] = useState<string[]>(() => {
+    const before = (start?.contactIds || []).filter((id) => all.some((c) => c.id === id));
+    if (before.length) return before;
     const invoice = contactsFor(sponsor, "invoice").filter(canMail);
     const info = contactsFor(sponsor, "info").filter(canMail);
     return (invoice.length ? invoice : info).map((c) => c.id);
   });
   const recipients = all.filter((c) => picked.includes(c.id));
+
+  /* Mirrors the route: no Cc without a usable address, nor for someone who is
+     already one of the recipients. */
+  const cc =
+    responsible &&
+    validateEmail(responsible.email)?.valid &&
+    !recipients.some((c) => sameEmail(c.email, responsible.email))
+      ? responsible
+      : null;
 
   /* Where the sponsor lands to accept. Shown bare here: on sending, each
      recipient's copy gets their own token on it, which signs them in and opens
@@ -75,7 +112,8 @@ export default function EmailModal({
      client pass disagree with the server's and React throws the tree away.
      This gives the server "" and the client the real origin, which is exactly
      what the hook is for. It never changes, hence the no-op subscribe. */
-  const acceptUrl = useSyncExternalStore(subscribeNever, readOrigin, readNoOrigin);
+  const origin = useSyncExternalStore(subscribeNever, readOrigin, readNoOrigin);
+  const acceptUrl = origin ? origin + ACCEPT_PATH : undefined;
 
   /* The contact being added below is ticked the moment it is saved, so the
      preview already counts them in: picking their language rewrites the mail
@@ -90,29 +128,38 @@ export default function EmailModal({
     sponsor,
     edition,
     pending ? [...recipients, pending] : recipients,
-    acceptUrl ? acceptUrl + ACCEPT_PATH : undefined,
+    acceptUrl,
   );
 
   /* null means "still following the agreement". Once the team types, their
      text stands — silently regenerating over an edit would be the modal
-     throwing away work while they are looking at it. */
-  const [draft, setDraft] = useState<{ subject: string; body: string } | null>(null);
+     throwing away work while they are looking at it. The draft keeps the
+     language it was written in, which the button in the mail is worded in,
+     even if the recipients change under it. */
+  const [draft, setDraft] = useState<{ subject: string; body: string; lang: Language } | null>(() =>
+    start?.subject && start?.body ? { subject: start.subject, body: start.body, lang: start.language || "nl" } : null,
+  );
   const subject = draft ? draft.subject : built.subject;
   const body = draft ? draft.body : built.body;
+  const lang = draft ? draft.lang : built.lang;
   const edit = (patch: Partial<{ subject: string; body: string }>) =>
-    setDraft({ subject, body, ...patch });
+    setDraft({ subject, body, lang, ...patch });
+  const [editing, setEditing] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState<{ to: string[]; warnings: string[] } | null>(null);
+  const [done, setDone] = useState<{ to: string[]; cc: string | null; warnings: string[]; held: boolean } | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
   const [adding, setAdding] = useState(all.length === 0);
 
   const to = recipients.map((c) => c.email).join(",");
-  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const ccParam = cc ? `cc=${encodeURIComponent(cc.email)}&` : "";
+  const mailto = `mailto:${encodeURIComponent(to)}?${ccParam}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`To: ${to}\nSubject: ${subject}\n\n${body}`);
+      await navigator.clipboard.writeText(`To: ${to}\n${cc ? `Cc: ${cc.email}\n` : ""}Subject: ${subject}\n\n${body}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -128,9 +175,10 @@ export default function EmailModal({
     setBusy(true);
     setErr("");
     try {
-      const res = await sendAgreementEmail(deal.id, recipients.map((c) => c.id), subject, body);
-      setDone({ to: res.to, warnings: res.warnings });
-      onSent(res.sentAt);
+      const res = await sendAgreementEmail(deal.id, recipients.map((c) => c.id), subject, body, lang);
+      setDone({ to: res.to, cc: res.cc, warnings: res.warnings, held: res.held });
+      if (res.held) onHeld?.();
+      else onSent(res.sentAt);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -139,13 +187,17 @@ export default function EmailModal({
   };
 
   return (
-    <Modal title={t("em.title")} onClose={onClose} wide>
+    <Modal title={t("em.title")} onClose={onClose} wide lang={uiLang} confirmOutsideClick>
       {done ? (
         /* Sent. The agreement is already marked, so there is nothing left to
            do here but say what happened. */
         <>
           <p className="gr-blockbanner" style={{ background: "#E7F4EC", color: "var(--green)" }}>
-            {t("em.sentto", { to: done.to.join(", ") })}
+            {done.held
+              ? t("em.heldto", { to: done.to.join(", ") })
+              : done.cc
+                ? t("em.senttocc", { to: done.to.join(", "), cc: done.cc })
+                : t("em.sentto", { to: done.to.join(", ") })}
           </p>
           {done.warnings.map((w, i) => (
             <p key={i} className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
@@ -160,6 +212,20 @@ export default function EmailModal({
         </>
       ) : (
         <>
+          {waiting && (
+            <p className="gr-blockbanner" style={{ background: "#FBEBDD", color: "var(--orange-deep)" }}>
+              {holds ? t("em.holdintro") : t("em.adminapproves")}
+              {holds && deal.pendingMail && (
+                <>
+                  {" "}
+                  {t("em.alreadyheld", {
+                    by: deal.pendingMail.heldBy || "?",
+                    when: fmtDateTime(deal.pendingMail.heldAt),
+                  })}
+                </>
+              )}
+            </p>
+          )}
           {all.length === 0 && <p className="gr-blockbanner">{t("em.nocontactsyet")}</p>}
 
           {all.length > 0 && (
@@ -226,65 +292,109 @@ export default function EmailModal({
               {needInvite.length > 0 && <> {t("em.willinvite")}</>}
             </p>
           )}
+          {recipients.length > 0 && cc && (
+            <p className="gr-muted">{t("em.cc", { name: userName(cc) || cc.email })}</p>
+          )}
           {recipients.length === 0 && all.length > 0 && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>
               {t("em.pickone")}
             </p>
           )}
 
-          {/* The preview is the editable message itself, rather than a render
-              of one — the mail is plain text, so there is nothing a read-only
-              copy would show that the textarea doesn't. */}
+          {/* The text is what gets edited, but the sponsor sees it laid out,
+              with the link as a button — so that is what the modal shows until
+              the team asks for the text. The preview is laid out from the same
+              text by the same function as the mail that goes out. */}
           <Field label={t("em.subject")}>
             <input value={subject} onChange={(e) => edit({ subject: e.target.value })} />
           </Field>
           <Field label={t("em.body")} hint={draft ? t("em.edited") : undefined}>
-            <textarea
-              className="gr-emailedit"
-              rows={16}
-              value={body}
-              onChange={(e) => edit({ body: e.target.value })}
-            />
+            {editing ? (
+              <textarea
+                className="gr-emailedit"
+                rows={16}
+                value={body}
+                onChange={(e) => edit({ body: e.target.value })}
+              />
+            ) : (
+              <MailPreview html={renderAgreementHtml(body, subject, lang, acceptUrl)} title={subject} />
+            )}
           </Field>
-          {draft && (
-            <button className="gr-mini" onClick={() => setDraft(null)}>
-              {t("em.rebuild")}
+          <div className="gr-sendalt-row">
+            <button className="gr-mini" onClick={() => setEditing((on) => !on)}>
+              {editing ? t("em.preview") : t("em.edit")}
             </button>
-          )}
+            {draft && (
+              <button className="gr-mini" onClick={() => setDraft(null)}>
+                {t("em.rebuild")}
+              </button>
+            )}
+          </div>
 
           {err && <p className="gr-blockbanner">{t("em.sendfailed")}: {err}</p>}
 
           {/* Sending it some other way, kept apart from Send. In one row with it,
               a phone stacked "Mark as sent" directly above Send, and what it
               meant was only a tooltip, which a phone never shows — so it read
-              as a second send button that sends nothing. */}
-          <div className="gr-sendalt">
-            <div className="gr-sendalt-row">
-              <button className="gr-mini" onClick={copy}>
-                {copied ? t("em.copied") : t("em.copy")}
-              </button>
-              {recipients.length > 0 && (
-                <a className="gr-mini gr-btn-link" href={mailto}>
-                  {t("vo.openmail")}
-                </a>
-              )}
+              as a second send button that sends nothing. Not offered while the
+              benefits wait: each would be a way round the approval. */}
+          {!waiting && (
+            <div className="gr-sendalt">
+              <div className="gr-sendalt-row">
+                <button className="gr-mini" onClick={copy}>
+                  {copied ? t("em.copied") : t("em.copy")}
+                </button>
+                {recipients.length > 0 && (
+                  <a className="gr-mini gr-btn-link" href={mailto}>
+                    {t("vo.openmail")}
+                  </a>
+                )}
+              </div>
+              <div className="gr-sendalt-row">
+                <button className="gr-mini" onClick={() => onMarkSent(!!draft)}>
+                  {t("vo.marksent")}
+                </button>
+                <span className="gr-muted">{t("em.marksenthint")}</span>
+              </div>
             </div>
-            <div className="gr-sendalt-row">
-              <button className="gr-mini" onClick={() => onMarkSent(!!draft)}>
-                {t("vo.marksent")}
-              </button>
-              <span className="gr-muted">{t("em.marksenthint")}</span>
-            </div>
-          </div>
+          )}
 
           <div className="gr-actions">
             <button className="gr-btn" onClick={send} disabled={busy || recipients.length === 0}>
-              {busy ? t("em.sending") : t("em.send")}
+              {busy ? t(holds ? "em.holding" : "em.sending") : t(holds ? "em.hold" : "em.send")}
             </button>
           </div>
         </>
       )}
     </Modal>
+  );
+}
+
+/* ---------- the mail as the sponsor sees it ----------
+   In a frame, so the mail's own styles neither leak into the app nor pick
+   up the app's. Sandboxed without scripts — there are none — and grown to
+   the mail's height rather than scrolling inside a modal that scrolls. The
+   frame has to share the page's origin for its height to be readable; with
+   no scripts allowed in it, that gives the mail nothing. Its links open
+   nothing: in the preview the accept link is the bare one, without a token. */
+function MailPreview({ html, title }: { html: string; title: string }) {
+  const [height, setHeight] = useState(520);
+  const measure = (frame: HTMLIFrameElement) => {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    setHeight(doc.documentElement.scrollHeight);
+    /* The web fonts arrive after the first layout and change line breaks. */
+    doc.fonts?.ready.then(() => setHeight(doc.documentElement.scrollHeight));
+  };
+  return (
+    <iframe
+      className="gr-mailpreview"
+      title={title}
+      srcDoc={html}
+      sandbox="allow-same-origin"
+      style={{ height }}
+      onLoad={(e) => measure(e.currentTarget)}
+    />
   );
 }
 

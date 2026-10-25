@@ -1318,6 +1318,22 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       );
       const created = await sponsorsApi.createSponsors(payload);
       setData((d) => ({ ...d, sponsors: [...d.sponsors, ...created] }));
+      /* Contacts are a table of their own, which createSponsors doesn't touch.
+         Names are unique within an import, so they find each row its sponsor. */
+      const idByName = new Map(created.map((s) => [normNameKey(s.companyName), s.id]));
+      const contacts = await contactsApi.createContacts(
+        list.flatMap((row) => {
+          const sponsorId = idByName.get(normNameKey(row.companyName));
+          return sponsorId ? row.contacts.map((contact) => ({ sponsorId, contact })) : [];
+        }),
+      );
+      setData((d) => ({
+        ...d,
+        sponsors: d.sponsors.map((s) => {
+          const mine = contacts.filter((c) => c.sponsorId === s.id).map(({ sponsorId: _s, ...c }) => c as Contact);
+          return mine.length ? { ...s, contacts: [...sponsorContacts(s), ...mine] } : s;
+        }),
+      }));
       setSaveErr(false);
     } catch (e) {
       failWith(e);

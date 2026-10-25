@@ -972,8 +972,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Columns were detected automatically — check them and adjust if needed.",
   ],
   "im.detectedct": [
-    'Automatisch herkend — pas aan waar nodig. Laat de voorkeurkolommen op "overslaan" staan om elke geïmporteerde contactpersoon enkel "informatie" te geven.',
-    'Detected automatically — adjust where needed. Leave the preference columns on "skip" to give every imported contact "information" only.',
+    'Automatisch herkend — pas aan waar nodig. Een contactpersoon zonder voorkeuren in het bestand krijgt enkel "informatie".',
+    'Detected automatically — adjust where needed. A contact without preferences in the file gets "information" only.',
   ],
   "im.skip": ["— overslaan —", "— skip —"],
   "im.column": ["Kolom {n}", "Column {n}"],
@@ -1038,6 +1038,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Staat de editie per rij in het bestand? Wijs dan hierboven de kolom Editie toe.",
     "Is the edition in the file, per row? Then map the Edition column above.",
   ],
+  "ai.editionrest": ["Editie voor rijen zonder editie", "Edition for rows without one"],
+  "ai.editionresthint": [
+    "Rijen die in het bestand een editie noemen, houden die van hen.",
+    "Rows that name an edition in the file keep their own.",
+  ],
   "ai.seledition": [
     "Kies de editie, of selecteer welke kolom de editie bevat.",
     "Pick the edition, or select which column contains it.",
@@ -1075,6 +1080,98 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "aif.formula": ["Formule", "Formula"],
   "aif.amount": ["Bedrag (€)", "Amount (€)"],
   "aif.notes": ["Notities", "Notes"],
+
+  /* ---------- import templates (lib/import-template.ts) ---------- */
+  "tpl.download": ["Sjabloon downloaden", "Download template"],
+  "tpl.hint": [
+    "Nog geen bestand? Begin van het sjabloon: de kolommen worden vanzelf herkend en het tweede tabblad legt elke kolom uit.",
+    "No file yet? Start from the template: its columns are recognised automatically, and its second sheet explains each one.",
+  ],
+  "tpl.datasheet": ["Gegevens", "Data"],
+  "tpl.guidesheet": ["Uitleg", "Instructions"],
+  "tpl.note": [
+    "Vul het eerste tabblad in, één rij per regel, onder de hoofdingen. Enkel dat tabblad wordt geïmporteerd; dit tabblad is uitleg. Kolommen die u niet nodig hebt, mag u leeg laten.",
+    "Fill in the first sheet, one row per line, under the headers. Only that sheet is imported; this one is instructions. Columns you don't need can stay empty.",
+  ],
+  "tpl.col": ["Kolom", "Column"],
+  "tpl.need": ["Verplicht", "Required"],
+  "tpl.help": ["Uitleg", "Notes"],
+  "tpl.need.yes": ["ja", "yes"],
+  "tpl.need.no": ["nee", "no"],
+  "tpl.need.depends": ["zie uitleg", "see notes"],
+  "tpl.formulasby": ["Formules per editie — gebruik de naam precies zo", "Formulas per edition — use the name exactly like this"],
+  "tpl.formulas": ["Formules", "Formulas"],
+  // sponsors
+  "tph.sp.companyName": [
+    "De naam van het bedrijf of de persoon. Een sponsor die al bestaat (zelfde BTW-nummer of naam) wordt overgeslagen.",
+    "The name of the company or person. A sponsor that already exists (same VAT number or name) is skipped.",
+  ],
+  "tph.sp.street": ["Bv. Grote Markt", "E.g. Grote Markt"],
+  "tph.sp.houseNumber": ["Bv. 7 of 12A", "E.g. 7 or 12A"],
+  "tph.sp.postalCode": ["Bv. 8930", "E.g. 8930"],
+  "tph.sp.city": ["Bv. Menen", "E.g. Menen"],
+  "tph.sp.vatNumber": [
+    "Bv. BE 0123.456.749. Een nummer dat ongeldig lijkt, wordt toch geïmporteerd — verbeter het nadien.",
+    "E.g. BE 0123.456.749. A number that looks invalid is still imported — correct it afterwards.",
+  ],
+  "tph.sp.entityType": [
+    '"rechtspersoon" (bedrijf, vereniging) of "persoon" (natuurlijke persoon). Leeg = rechtspersoon.',
+    '"legal" (company, association) or "person" (natural person). Empty = legal.',
+  ],
+  "tph.sp.contactFirstName": [
+    "Bv. Jan. Een contactpersoon is niet verplicht: vul een voornaam, achternaam, telefoon of e-mail in om er een aan te maken.",
+    "E.g. Jan. A contact isn't required: fill in a first name, last name, phone or email to create one.",
+  ],
+  "tph.sp.contactLastName": ["Bv. Peeters", "E.g. Peeters"],
+  "tph.sp.contactPhone": ["Bv. +32 56 12 34 56", "E.g. +32 56 12 34 56"],
+  "tph.sp.contactEmail": [
+    "Bv. jan@bedrijf.be. Een adres dat ongeldig lijkt, wordt toch geïmporteerd — verbeter het nadien.",
+    "E.g. jan@company.be. An address that looks invalid is still imported — correct it afterwards.",
+  ],
+  "tph.sp.contactLanguage": ["NL, FR of EN. Leeg = NL.", "NL, FR or EN. Empty = NL."],
+  // contacts
+  "tph.ct.company": [
+    "De naam van de sponsor, precies zoals die in de tool staat. Een onbekende sponsor wordt overgeslagen, niet aangemaakt.",
+    "The sponsor's name, exactly as it is in the tool. An unknown sponsor is skipped, not created.",
+  ],
+  "tph.ct.firstName": [
+    "Bv. Jan. Elke rij heeft minstens een voornaam, achternaam of e-mail nodig.",
+    "E.g. Jan. Every row needs at least a first name, last name or email.",
+  ],
+  "tph.ct.lastName": ["Bv. Peeters", "E.g. Peeters"],
+  "tph.ct.email": [
+    "Bv. jan@bedrijf.be. Is dat adres al een contactpersoon van die sponsor, dan wordt de rij overgeslagen.",
+    "E.g. jan@company.be. If that address is already a contact of the sponsor, the row is skipped.",
+  ],
+  "tph.ct.phone": ["Bv. +32 56 12 34 56", "E.g. +32 56 12 34 56"],
+  "tph.ct.language": ["NL, FR of EN. Leeg = NL.", "NL, FR or EN. Empty = NL."],
+  "tph.ct.info": [
+    '"ja" of "nee": ontvangt algemene informatie. Laat u beide voorkeuren leeg, dan krijgt de contactpersoon enkel informatie.',
+    '"yes" or "no": receives general information. Leave both preferences empty and the contact gets information only.',
+  ],
+  "tph.ct.invoice": ['"ja" of "nee": ontvangt de facturatie.', '"yes" or "no": receives the invoicing.'],
+  // agreements
+  "tph.ag.sponsor": [
+    "De naam van de sponsor, precies zoals die in de tool staat — of laat ze leeg en vul het BTW-nummer in. Een onbekende sponsor wordt overgeslagen, niet aangemaakt.",
+    "The sponsor's name, exactly as it is in the tool — or leave it empty and fill in the VAT number. An unknown sponsor is skipped, not created.",
+  ],
+  "tph.ag.vatNumber": [
+    "Bv. BE 0123.456.749. Gaat voor op de naam, zodat de sponsor ook gevonden wordt als zijn naam anders geschreven is.",
+    "E.g. BE 0123.456.749. Takes precedence over the name, so the sponsor is found even when its name is written differently.",
+  ],
+  "tph.ag.edition": [
+    "De naam van de editie of enkel het jaar, bv. 2026. Leeg = de editie die u bij het importeren kiest.",
+    "The edition's name or just its year, e.g. 2026. Empty = the edition you pick when importing.",
+  ],
+  "tph.ag.formula": [
+    'De naam van een formule van die editie (zie hieronder), of "Op maat". Leeg = op maat.',
+    'The name of one of that edition\'s formulas (see below), or "Op maat". Empty = custom.',
+  ],
+  "tph.ag.amount": [
+    "Bv. 1250 of 1.250,00. Vervangt de prijs van de formule; verplicht zonder formule of bij Op maat.",
+    "E.g. 1250 or 1,250.00. Replaces the formula's price; required without a formula or with Op maat.",
+  ],
+  "tph.ag.notes": ["Vrije tekst, bv. afspraken over de facturatie.", "Free text, e.g. what was agreed about invoicing."],
 };
 
 export const teamT = (key: string, lang: TeamLanguage, params?: Record<string, string | number>): string => {

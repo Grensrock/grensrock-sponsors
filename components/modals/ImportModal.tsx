@@ -8,6 +8,7 @@ import Tag from "@/components/ui/Tag";
 import { emptyContact, uid } from "@/lib/constants";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { IMPORT_FIELDS, autoMap, type ColumnMap, type ImportField } from "@/lib/import-helpers";
+import { SPONSOR_TEMPLATE, downloadTemplate } from "@/lib/import-template";
 import { normEntity, normLang, normNameKey, normStr, normVatKey } from "@/lib/normalize";
 import { validateVat, vatToStore } from "@/lib/vat";
 import type { Contact, EntityType, Language, Sponsor, TranslateFn } from "@/types";
@@ -195,6 +196,16 @@ export default function ImportModal({
       {!headers ? (
         <>
           <p className="gr-muted">{t("im.introsp")}</p>
+          <p className="gr-muted">
+            {t("tpl.hint")}{" "}
+            <button
+              type="button"
+              className="gr-mini"
+              onClick={() => downloadTemplate("grensrock-template-sponsors.xlsx", SPONSOR_TEMPLATE, t)}
+            >
+              {t("tpl.download")}
+            </button>
+          </p>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} className="gr-file" />
           {err && (
             <p className="gr-muted" style={{ color: "var(--red)" }}>

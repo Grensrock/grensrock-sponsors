@@ -199,7 +199,7 @@
 .gr-formulacard .gr-btn { width:100%; }
 
 /* ---------- formula colours (lib/color.ts) ----------
-   Everything drawn in a formula's colour reads it from --fc, with --fc-ink the
+   Everything drawn in a formula's colour (.gr-fbtn, .gr-fdot, .gr-fcard) reads it from --fc, with --fc-ink the
    text that stays legible on it; formulaStyle() sets both inline. */
 .gr-swatches { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .gr-swatch { position:relative; width:30px; height:30px; flex:none; padding:0; border-radius:50%;
@@ -226,8 +226,27 @@
 
 .gr-fdot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--fc);
   margin-right:7px; vertical-align:baseline; flex:none; }
-.gr-root .gr-stat.gr-fstat { border-left-color:var(--fc); background:color-mix(in srgb, var(--fc) 7%, #fff); }
-.gr-fstat strong { color:var(--ink); }
+
+/* Overview: a card per formula, like the portal's, its head tinted in the
+   formula's colour. */
+.gr-subhead-row { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.gr-subhead-row .gr-mini { letter-spacing:0; text-transform:none; color:var(--ink); white-space:nowrap; }
+/* A grid rather than the portal's flex row, so a card that wraps onto a row of
+   its own keeps the width of the others instead of stretching across. */
+.gr-formulacards.gr-fcards { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); margin-bottom:6px; }
+.gr-root .gr-formulacard.gr-fcard { border-top-color:var(--fc); }
+.gr-fcard-head { margin:-14px -16px 12px; padding:12px 16px 10px; border-radius:6px 6px 0 0;
+  background:color-mix(in srgb, var(--fc) 12%, #fff); }
+.gr-fcard-title { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.gr-fcard-title h5 { margin:0 0 2px; min-width:0; overflow-wrap:anywhere; }
+.gr-fcard-head .gr-formulaprice { margin:0; }
+.gr-fcard-count { font-size:12px; color:var(--mut); white-space:nowrap; }
+.gr-fcard-count b { font-family:'Montserrat',sans-serif; font-weight:800; font-size:15px; color:var(--ink); }
+.gr-fcard .gr-label { margin:2px 0 3px; }
+.gr-root .gr-formulacard.gr-fcard ul { flex:none; margin-bottom:10px; }
+.gr-fcard li::marker { color:var(--fc); }
+.gr-fcard .gr-muted { margin:0; }
+.gr-root .gr-fcard-custom { border-top-style:dashed; }
 
 .gr-gridaddr { display:grid; grid-template-columns:3fr 1fr; gap:0 14px; }
 @media (max-width:640px){ .gr-gridaddr { grid-template-columns:1fr; } }

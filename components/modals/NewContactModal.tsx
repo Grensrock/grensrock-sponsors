@@ -56,7 +56,7 @@ export default function NewContactModal({
     sponsorId && (contact.firstName.trim() || contact.lastName.trim()) && (!mailRes || mailRes.valid) && !dupe;
 
   return (
-    <Modal title={t("sd.addcontact").replace("+ ", "")} onClose={onClose} wide>
+    <Modal title={t("sd.addcontact").replace("+ ", "")} onClose={onClose} wide lang={lang} confirmOutsideClick>
       {!sponsor ? (
         <>
           <Field label={t("c.company")}>

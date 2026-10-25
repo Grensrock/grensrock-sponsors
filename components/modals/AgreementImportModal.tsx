@@ -266,7 +266,7 @@ export default function AgreementImportModal({
   }
 
   return (
-    <Modal title={t("ai.title")} onClose={onClose} wide lang={lang}>
+    <Modal title={t("ai.title")} onClose={onClose} wide lang={lang} confirmOutsideClick>
       {!headers ? (
         <>
           <p className="gr-muted">{t("ai.intro")}</p>

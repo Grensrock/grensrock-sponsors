@@ -258,9 +258,9 @@ const SPONSOR_FAQ: SponsorSection[] = [
           en: "How do I divide my vouchers?",
         },
         a: {
-          nl: "In het tabblad **Sponsoring** kiest u zelf in hoeveel bonnen uw bedrag wordt opgesplitst, bijvoorbeeld één grote bon of meerdere kleinere. Drankbonnen en bonnen voor eten & drinken blijven apart. Uw verdeling wordt bewaard zodra u het veld verlaat.\n\nZodra wij de bonnen aangemaakt hebben, ligt de verdeling vast. Moet er dan nog iets veranderen, neem dan contact met ons op.",
-          fr: "Dans l'onglet **Sponsoring**, vous choisissez vous-même en combien de bons votre montant est réparti, par exemple un seul gros bon ou plusieurs plus petits. Les bons boissons et les bons food & boissons restent séparés. Votre répartition est enregistrée dès que vous quittez le champ.\n\nUne fois les bons créés par nos soins, la répartition est définitive. Si quelque chose doit encore changer, contactez-nous.",
-          en: "In the **Sponsorship** tab you choose how many vouchers your amount is split into, for example one large voucher or several smaller ones. Drink vouchers and food & drink vouchers stay separate. Your split is saved as soon as you leave the field.\n\nOnce we've created the vouchers, the split is fixed. If something still needs to change, get in touch with us.",
+          nl: "In het tabblad **Sponsoring** klikt u onder **Uw bonnen** op **Bonnen verdelen**. Daar kiest u zelf in hoeveel bonnen uw bedrag wordt opgesplitst, bijvoorbeeld één grote bon of meerdere kleinere. Drankbonnen en bonnen voor eten & drinken blijven apart. Uw verdeling wordt bewaard zodra u het veld verlaat.\n\nZodra wij de bonnen aangemaakt hebben, ligt de verdeling vast. Moet er dan nog iets veranderen, neem dan contact met ons op.",
+          fr: "Dans l'onglet **Sponsoring**, cliquez sur **Répartir les bons** sous **Vos bons**. Vous y choisissez vous-même en combien de bons votre montant est réparti, par exemple un seul gros bon ou plusieurs plus petits. Les bons boissons et les bons food & boissons restent séparés. Votre répartition est enregistrée dès que vous quittez le champ.\n\nUne fois les bons créés par nos soins, la répartition est définitive. Si quelque chose doit encore changer, contactez-nous.",
+          en: "In the **Sponsorship** tab, click **Divide vouchers** under **Your vouchers**. There you choose how many vouchers your amount is split into, for example one large voucher or several smaller ones. Drink vouchers and food & drink vouchers stay separate. Your split is saved as soon as you leave the field.\n\nOnce we've created the vouchers, the split is fixed. If something still needs to change, get in touch with us.",
         },
       },
       {
@@ -527,8 +527,8 @@ const TEAM_FAQ: TeamSection[] = [
           en: "An agreement shows \"⚠ changed\".",
         },
         a: {
-          nl: "De overeenkomst is aangepast nadat de sponsor ze aanvaardde.\n\n1. Klik in het tabblad **Sponsoring** van de sponsor op **⚠ gewijzigd**. Je ziet de voorwaarden zoals aanvaard naast de huidige.\n2. Klik **Opnieuw laten aanvaarden** en bevestig. De aanvaarding wordt gewist.\n3. Verstuur de bevestigingsmail opnieuw.",
-          en: "The agreement was changed after the sponsor accepted it.\n\n1. In the sponsor's **Sponsoring** tab, click the ⚠ marker. You'll see the terms as accepted next to the current ones.\n2. Ask for it to be accepted again and confirm. The acceptance is cleared.\n3. Send the confirmation email again.",
+          nl: "De overeenkomst is aangepast nadat de sponsor ze aanvaardde. Hoe de sponsor de bonnen verdeelt telt daarbij niet mee, extra eten- & drankbonnen wel.\n\n1. Klik in het tabblad **Sponsoring** van de sponsor op **⚠ gewijzigd**. Je ziet de voorwaarden zoals aanvaard naast de huidige.\n2. Klik **Opnieuw laten aanvaarden** en bevestig. De aanvaarding wordt gewist.\n3. Verstuur de bevestigingsmail opnieuw.",
+          en: "The agreement was changed after the sponsor accepted it. How the sponsor divides the vouchers doesn't count, extra food & drink vouchers do.\n\n1. In the sponsor's **Sponsoring** tab, click the ⚠ marker. You'll see the terms as accepted next to the current ones.\n2. Ask for it to be accepted again and confirm. The acceptance is cleared.\n3. Send the confirmation email again.",
         },
       },
       {
@@ -629,6 +629,16 @@ const TEAM_FAQ: TeamSection[] = [
         a: {
           nl: "Nee. Een sponsor verwijderen wist ook zijn contactpersonen, overeenkomsten en bonnen; dat kan niet ongedaan gemaakt worden. Bonnen die al in Tickoweb bestaan, blijven daar bestaan: annuleer ze daar zelf. In **Beheer → Audit log** zie je wel wie wat wanneer wijzigde.",
           en: "No. Deleting a sponsor also deletes its contact persons, agreements and vouchers; it can't be undone. Vouchers that already exist in Tickoweb stay there: cancel them there yourself. **Admin → Audit log** does show who changed what and when.",
+        },
+      },
+      {
+        q: {
+          nl: "Hoe maak ik een back-up van alle gegevens?",
+          en: "How do I make a backup of all data?",
+        },
+        a: {
+          nl: "Open **Beheer → Back-up** en klik **Back-up downloaden**. Je krijgt één Excel-bestand met een tabblad per soort gegevens: sponsors, contactpersonen, overeenkomsten, afzeggingen, edities, formules, bonnen, de lijst van logo's, het team, de instellingen en de audit log. Het eerste tabblad zegt wanneer en door wie de back-up gemaakt is en hoeveel rijen elk tabblad telt.\n\nDe logobestanden zelf zitten er niet in, enkel de lijst ervan.\n\nHet bestand bevat de gegevens van alle sponsors en contactpersonen en de codes van de bonnen: bewaar het op een veilige plek en deel het niet.",
+          en: "Open **Admin → Backup** and click **Download backup**. You get one Excel file with a sheet for each kind of data: sponsors, contact persons, agreements, declines, editions, formulas, vouchers, the list of logos, the team, the settings and the audit log. The first sheet says when and by whom the backup was made and how many rows each sheet holds.\n\nThe logo files themselves aren't in it, only their list.\n\nThe file holds the details of every sponsor and contact person and the voucher codes: keep it somewhere safe and don't share it.",
         },
       },
     ],

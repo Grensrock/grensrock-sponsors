@@ -192,7 +192,7 @@ export default function ImportModal({
   }
 
   return (
-    <Modal title={t("im.importsp")} onClose={onClose} wide lang={lang}>
+    <Modal title={t("im.importsp")} onClose={onClose} wide lang={lang} confirmOutsideClick>
       {!headers ? (
         <>
           <p className="gr-muted">{t("im.introsp")}</p>

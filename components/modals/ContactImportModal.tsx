@@ -184,7 +184,7 @@ export default function ContactImportModal({
   }
 
   return (
-    <Modal title={t("im.importct")} onClose={onClose} wide lang={lang}>
+    <Modal title={t("im.importct")} onClose={onClose} wide lang={lang} confirmOutsideClick>
       {!headers ? (
         <>
           <p className="gr-muted">{t("im.introct")}</p>

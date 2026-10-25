@@ -77,6 +77,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "nav.team": ["Team", "Team"],
   "nav.menu": ["Menu", "Menu"],
   "nav.faq": ["FAQ", "FAQ"],
+  "nav.backup": ["Back-up", "Backup"],
   // FAQ
   "faq.title": ["Veelgestelde vragen", "Frequently asked questions"],
   "faq.intro": [
@@ -1156,6 +1157,52 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "tpl.need.depends": ["zie uitleg", "see notes"],
   "tpl.formulasby": ["Formules per editie — gebruik de naam precies zo", "Formulas per edition — use the name exactly like this"],
   "tpl.formulas": ["Formules", "Formulas"],
+  /* ---------- full backup (components/views/Backup.tsx) ---------- */
+  "bk.title": ["Back-up van alle gegevens", "Backup of all data"],
+  "bk.intro": [
+    "Download alles wat in het platform staat in één Excel-bestand: elk tabblad is één tabel uit de database, met al haar kolommen en id's. Zo gaat er niets verloren en kan alles later teruggezet worden.",
+    "Download everything in the platform as one Excel file: each sheet is one table from the database, with all of its columns and ids. Nothing gets lost, and everything can be put back later.",
+  ],
+  "bk.contains": ["In het bestand:", "In the file:"],
+  "bk.notin": [
+    "Niet in het bestand: de logobestanden zelf (wel de lijst ervan), wachtwoorden en aanmeldlinks.",
+    "Not in the file: the logo files themselves (their list is), passwords and sign-in links.",
+  ],
+  "bk.private": [
+    "Het bestand bevat de gegevens van alle sponsors en contactpersonen en de codes van de bonnen. Bewaar het op een veilige plek en deel het niet.",
+    "The file holds the details of every sponsor and contact, and the voucher codes. Keep it somewhere safe and don't share it.",
+  ],
+  "bk.download": ["Back-up downloaden", "Download backup"],
+  "bk.busy": ["Back-up maken…", "Making backup…"],
+  "bk.done": ["{file} gedownload — {n} rijen.", "Downloaded {file} — {n} rows."],
+  "bk.failed": ["Back-up mislukt", "Backup failed"],
+  "bk.info": ["Info", "Info"],
+  "bk.made": ["Gemaakt op", "Made on"],
+  "bk.by": ["Door", "By"],
+  "bk.database": ["Database", "Database"],
+  "bk.sheet": ["Tabblad", "Sheet"],
+  "bk.table": ["Tabel", "Table"],
+  "bk.rows": ["Rijen", "Rows"],
+  "bk.total": ["Totaal", "Total"],
+  "bk.howto": [
+    "Elk tabblad is één tabel, met de kolomnamen van de database. Een lege cel is een lege waarde; lijsten en samengestelde waarden staan er als JSON.",
+    "Each sheet is one table, under the database's column names. An empty cell is an empty value; lists and compound values are written as JSON.",
+  ],
+  "bk.cut": [
+    "{n} waarde(n) waren langer dan Excel in een cel toelaat en zijn afgekapt.",
+    "{n} value(s) were longer than Excel allows in a cell and were cut short.",
+  ],
+  "bk.t.sponsors": ["Sponsors", "Sponsors"],
+  "bk.t.contacts": ["Contactpersonen", "Contacts"],
+  "bk.t.deals": ["Overeenkomsten", "Agreements"],
+  "bk.t.sponsor_declines": ["Afzeggingen", "Declines"],
+  "bk.t.editions": ["Edities", "Editions"],
+  "bk.t.formulas": ["Formules", "Formulas"],
+  "bk.t.vouchers": ["Bonnen", "Vouchers"],
+  "bk.t.sponsor_logos": ["Logo's", "Logos"],
+  "bk.t.profiles": ["Team", "Team"],
+  "bk.t.app_settings": ["Instellingen", "Settings"],
+  "bk.t.audit_log": ["Audit log", "Audit log"],
   // sponsors
   "tph.sp.companyName": [
     "De naam van het bedrijf of de persoon. Een sponsor die al bestaat (zelfde BTW-nummer of naam) wordt overgeslagen.",

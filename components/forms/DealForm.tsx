@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import BenefitFields from "@/components/forms/BenefitFields";
+import BenefitFields, { VoucherFields } from "@/components/forms/BenefitFields";
 import SponsorForm from "@/components/forms/SponsorForm";
 import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
@@ -12,6 +12,7 @@ import { OP_MAAT, SETTLEMENTS, dealFieldsFromFormula, emptyDeal } from "@/lib/co
 import { settleLabel } from "@/lib/i18n";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { eur, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
+import { benefitLines } from "@/lib/vouchers";
 import type {
   Deal,
   DealDraft,
@@ -89,6 +90,10 @@ export default function DealForm({
      has no formula to keep to, so it is always open. */
   const [opened, setOpened] = useState(() => !!initial?.id && changes.length > 0);
   const locked = !opened && d.formulaName !== OP_MAAT;
+  /* Locked, the benefits are only read: a list, not fields. Food & drink and
+     the voucher splits are left out of it — they have a section of their own,
+     open all along. */
+  const benefitList = benefitLines({ ...d, foodDrinkValue: 0, drinkVouchers: [] }, lang);
   /* Whether saving has the database look at the benefits again — always for a
      new agreement. An older one that differs but isn't touched now stays as
      it was, so it isn't told it needs an approval it won't be asked for. */
@@ -289,7 +294,22 @@ export default function DealForm({
           ) : (
             d.formulaName !== OP_MAAT && <p className="gr-muted">{t("df.pickfirst")}</p>
           )}
-          <BenefitFields v={d} set={set} showVouchers locked={locked} t={t} lang={lang} />
+          {locked ? (
+            benefitList.length > 0 && (
+              <ul className="gr-benefitlist gr-benefitread">
+                {benefitList.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )
+          ) : (
+            <BenefitFields v={d} set={set} t={t} lang={lang} />
+          )}
+          <div className="gr-benefitshead">
+            <span className="gr-label">{t("df.vouchers")}</span>
+          </div>
+          <p className="gr-muted">{t("df.vouchershint")}</p>
+          <VoucherFields v={d} set={set} t={t} lang={lang} />
         </>
       )}
       {d.editionId && (

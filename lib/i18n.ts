@@ -415,6 +415,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "df.adminapproves": ["U bent admin: opslaan keurt dit meteen goed.", "You're an admin: saving approves this straight away."],
   "df.waiting": ["Wacht sinds {when} op goedkeuring van een admin.", "Waiting for an admin's approval since {when}."],
   "df.approvedby": ["Goedgekeurd door {name} op {when}.", "Approved by {name} on {when}."],
+  "df.vouchers": ["Bonnen", "Vouchers"],
+  "df.vouchershint": [
+    "Eten & drinken en de verdeling in bonnen pas je meteen aan, zonder goedkeuring.",
+    "Food & drinks and how a value is split into vouchers can be changed straight away, without approval.",
+  ],
   "ed.editionstitle": ["Festivaledities", "Festival editions"],
   "ov.addsponsor": ["Een sponsor toevoegen", "Add a sponsor"],
   "ov.addsponsors": ["Voeg uw sponsors toe", "Add your sponsors"],

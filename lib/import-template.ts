@@ -51,6 +51,7 @@ export const SPONSOR_TEMPLATE = columns<ImportField>(
     contactPhone: "no",
     contactEmail: "no",
     contactLanguage: "no",
+    responsible: "no",
   },
   "sp",
 );

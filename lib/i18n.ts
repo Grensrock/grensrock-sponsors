@@ -927,6 +927,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Het e-mailadres lijkt ongeldig — het wordt zo geïmporteerd, corrigeer het nadien",
     "Email looks invalid — imported as-is, fix it afterwards",
   ],
+  "im.badresp": [
+    "Geen of meer dan één teamlid heet zo — de sponsor komt binnen zonder verantwoordelijke, wijs die nadien toe",
+    "No team member, or more than one, goes by this name — the sponsor comes in without a responsible, assign one afterwards",
+  ],
+  "im.badrespcount": ["{n} verantwoordelijke(n) niet herkend", "{n} responsible(s) not recognised"],
 
   "ex.managerhint": [
     "Laad één afbeelding op per type zichtbaarheid. Sponsors zien de afbeeldingen die bij hun eigen overeenkomst horen, zodat ze weten hoe hun logo op de affiche, de ledboarding of een banner er echt uitziet.",
@@ -1079,6 +1084,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "imf.contactPhone": ["Telefoon contactpersoon", "Contact phone"],
   "imf.contactEmail": ["E-mail contactpersoon", "Contact email"],
   "imf.contactLanguage": ["Taal (NL/FR/EN)", "Language (NL/FR/EN)"],
+  "imf.responsible": ["Verantwoordelijke (ons team)", "Responsible (our team)"],
   "imf.company": ["Sponsor / bedrijf *", "Sponsor / company *"],
   "imf.firstName": ["Voornaam", "First name"],
   "imf.lastName": ["Achternaam", "Last name"],
@@ -1166,6 +1172,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "tpl.need.depends": ["zie uitleg", "see notes"],
   "tpl.formulasby": ["Formules per editie — gebruik de naam precies zo", "Formulas per edition — use the name exactly like this"],
   "tpl.formulas": ["Formules", "Formulas"],
+  "tpl.team": ["Het team — gebruik een van deze namen of e-mailadressen", "The team — use one of these names or email addresses"],
   /* ---------- full backup (components/views/Backup.tsx) ---------- */
   "bk.title": ["Back-up van alle gegevens", "Backup of all data"],
   "bk.intro": [
@@ -1240,6 +1247,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "E.g. jan@company.be. An address that looks invalid is still imported — correct it afterwards.",
   ],
   "tph.sp.contactLanguage": ["NL, FR of EN. Leeg = NL.", "NL, FR or EN. Empty = NL."],
+  "tph.sp.responsible": [
+    "Wie van ons team de sponsor opvolgt: de volledige naam, het e-mailadres of de voornaam (als maar één teamlid zo heet), bv. Wout of wout@grensrock.be. Leeg of niet herkend = niet toegewezen; zo'n sponsor kan enkel een beheerder wijzigen.",
+    "Who on our team follows up the sponsor: the full name, the email address or the first name (if only one team member has it), e.g. Wout or wout@grensrock.be. Empty or not recognised = not assigned; only an admin can change such a sponsor.",
+  ],
   // contacts
   "tph.ct.company": [
     "De naam van de sponsor, precies zoals die in de tool staat. Een onbekende sponsor wordt overgeslagen, niet aangemaakt.",

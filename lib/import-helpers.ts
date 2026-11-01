@@ -1,5 +1,6 @@
 import { normNameKey, normStr } from "@/lib/normalize";
-import type { Edition } from "@/types";
+import { userName } from "@/lib/users";
+import type { Edition, User } from "@/types";
 
 /* ---------- Sponsor import (xlsx / csv) ---------- */
 
@@ -15,7 +16,8 @@ export type ImportField =
   | "contactLastName"
   | "contactPhone"
   | "contactEmail"
-  | "contactLanguage";
+  | "contactLanguage"
+  | "responsible";
 
 /* Each field with the TEAM_TEXT key of its label in the column mapping. */
 export const IMPORT_FIELDS: Array<[ImportField, string]> = [
@@ -31,6 +33,7 @@ export const IMPORT_FIELDS: Array<[ImportField, string]> = [
   ["contactPhone", "imf.contactPhone"],
   ["contactEmail", "imf.contactEmail"],
   ["contactLanguage", "imf.contactLanguage"],
+  ["responsible", "imf.responsible"],
 ];
 
 export const HEADER_SYNONYMS: Record<ImportField, string[]> = {
@@ -68,6 +71,15 @@ export const HEADER_SYNONYMS: Record<ImportField, string[]> = {
   postalCode: ["postcode", "postal", "zip", "code postal"],
   city: ["gemeente", "stad", "city", "plaats", "commune", "ville"],
   entityType: ["rechtsvorm", "entity", "type"],
+  responsible: [
+    "verantwoordelijke",
+    "responsible",
+    "responsable",
+    "account manager",
+    "accountmanager",
+    "toegewezen",
+    "assigned",
+  ],
 };
 
 export type ColumnMap<K extends string> = Partial<Record<K, number>>;
@@ -96,10 +108,12 @@ function mapBySynonyms<K extends string>(
 }
 
 export function autoMap(headers: string[]): ColumnMap<ImportField> {
-  // contact* fields first so "contact naam" doesn't get claimed by companyName's "naam"
+  // contact* fields first so "contact naam" doesn't get claimed by companyName's "naam";
+  // responsible before those, or "Contactverantwoordelijke" would go to contactLastName's "contact"
   return mapBySynonyms(
     headers,
     [
+      "responsible",
       "contactFirstName",
       "contactLastName",
       "contactPhone",
@@ -115,6 +129,26 @@ export function autoMap(headers: string[]): ColumnMap<ImportField> {
     ],
     HEADER_SYNONYMS,
   );
+}
+
+/** Lower case, accents off and spaces collapsed, so "Jérôme" in a cell finds "jerome". */
+const personKey = (v: unknown) =>
+  normNameKey(v)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+/**
+ * The team member a cell names: by e-mail address or full name, else by a
+ * first name only one account carries. Null when it is none of those, or
+ * when that first name is shared.
+ */
+export function matchUser(cell: unknown, users: User[]): User | null {
+  const key = personKey(cell);
+  if (!key) return null;
+  const exact = users.find((u) => personKey(u.email) === key || personKey(userName(u)) === key);
+  if (exact) return exact;
+  const byFirst = users.filter((u) => personKey(u.firstName) === key);
+  return byFirst.length === 1 ? byFirst[0] : null;
 }
 
 /* ---------- Contact import (xlsx / csv) ---------- */

@@ -131,8 +131,9 @@ type ModalState =
   /* `prepared`: a mail written before, to start from (EmailModal). */
   | { type: "email"; payload: Deal; prepared?: Partial<PendingMail> | null }
   | { type: "decline"; payload: { sponsorId: string } }
-  /* The PDF for a sponsor to fill in; no sponsorId lets one be picked. */
-  | { type: "sponsorForm"; payload: { sponsorId?: string } };
+  /* The PDF for a sponsor to fill in; neither id lets one be picked, sponsorIds
+     makes one for each sponsor ticked in the list. */
+  | { type: "sponsorForm"; payload: { sponsorId?: string; sponsorIds?: string[] } };
 
 type ViewMode =
   | { view: "landing" }
@@ -2294,10 +2295,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 {filteredSponsors.length} {t("common.of")} {sponsors.length} {t("sp.count")}
               </span>
             </div>
-            {/* Selecting is only there for the bulk delete, which is an admin's.
-                For anyone else the boxes ticked and led nowhere — and on a phone
-                the column cost 40px of a 375px screen. */}
-            {admin && spSelected.length > 0 && (
+            {/* Selecting is there for the PDF forms, which the whole team may
+                make, and for the bulk delete, which is an admin's. */}
+            {spSelected.length > 0 && (
               <div className="gr-toolbar">
                 <div className="gr-detail-btns">
                   <span className="gr-muted">
@@ -2307,13 +2307,23 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     {t("common.clear")}
                   </button>
                 </div>
-                <button
-                  className="gr-btn gr-danger"
-                  disabled={spBusy}
-                  onClick={() => deleteSponsors(spSelected)}
-                >
-                  {spBusy ? "…" : `${t("sp.delsel")} (${spSelected.length})`}
-                </button>
+                <div className="gr-detail-btns">
+                  <button
+                    className="gr-btn-ghost"
+                    onClick={() => setModal({ type: "sponsorForm", payload: { sponsorIds: spSelected } })}
+                  >
+                    {`${t("pf.many")} (${spSelected.length})`}
+                  </button>
+                  {admin && (
+                    <button
+                      className="gr-btn gr-danger"
+                      disabled={spBusy}
+                      onClick={() => deleteSponsors(spSelected)}
+                    >
+                      {spBusy ? "…" : `${t("sp.delsel")} (${spSelected.length})`}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {filteredSponsors.length === 0 ? (
@@ -2325,21 +2335,19 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 <table className="gr-table gr-clickable">
                   <thead>
                     <tr>
-                      {admin && (
-                        <th style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            aria-label={t("sp.selectall")}
-                            checked={allVisibleSelected}
-                            ref={(el) => {
-                              if (el) el.indeterminate = spSelected.length > 0 && !allVisibleSelected;
-                            }}
-                            onChange={(e) =>
-                              setSpSel(e.target.checked ? filteredSponsors.map((x) => x.id) : [])
-                            }
-                          />
-                        </th>
-                      )}
+                      <th style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={t("sp.selectall")}
+                          checked={allVisibleSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = spSelected.length > 0 && !allVisibleSelected;
+                          }}
+                          onChange={(e) =>
+                            setSpSel(e.target.checked ? filteredSponsors.map((x) => x.id) : [])
+                          }
+                        />
+                      </th>
                       {(
                         [
                           ["companyName", t("sp.company"), ""],
@@ -2365,18 +2373,16 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       return (
                         <tr key={s.id} onClick={() => setOpenSponsorId(s.id)}>
                           {/* Stops the row's own click, or ticking a box would open the sponsor. */}
-                          {admin && (
-                            <td onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                aria-label={`${t("sp.select")} ${s.companyName}`}
-                                checked={spSel.includes(s.id)}
-                                onChange={(e) =>
-                                  setSpSel(e.target.checked ? [...spSel, s.id] : spSel.filter((x) => x !== s.id))
-                                }
-                              />
-                            </td>
-                          )}
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              aria-label={`${t("sp.select")} ${s.companyName}`}
+                              checked={spSel.includes(s.id)}
+                              onChange={(e) =>
+                                setSpSel(e.target.checked ? [...spSel, s.id] : spSel.filter((x) => x !== s.id))
+                              }
+                            />
+                          </td>
                           <td>
                             <strong>{s.companyName}</strong>
                             {s.vatNumber && <span className="gr-muted"> · {s.vatNumber}</span>}
@@ -4508,6 +4514,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         <SponsorFormModal
           sponsors={sponsors}
           sponsorId={modal.payload.sponsorId}
+          sponsorIds={modal.payload.sponsorIds}
           editions={sortedEditions}
           deals={deals}
           users={users}

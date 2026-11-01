@@ -125,6 +125,15 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
   return lines;
 }
 
+/** "Grensrock 2026" -> "grensrock-2026", for file names. */
+export const fileSlug = (s: string) =>
+  winAnsi(s)
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
 /** sponsorformulier-grensrock-2026-brouwerij-vanhonsebrouck.pdf */
 export const sponsorFormFileName = (sponsor: Sponsor, edition: Edition, lang: Language) =>
   [
@@ -132,14 +141,7 @@ export const sponsorFormFileName = (sponsor: Sponsor, edition: Edition, lang: La
     edition.name,
     sponsor.companyName,
   ]
-    .map((s) =>
-      winAnsi(s)
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, ""),
-    )
+    .map(fileSlug)
     .filter(Boolean)
     .join("-") + ".pdf";
 
@@ -340,7 +342,7 @@ export async function sponsorFormPdf({
   const vatX = M + half + GAP;
   const noVatText = T("Geen btw-nummer", "Pas de numéro de TVA", "No VAT number");
   const noVatW = BOX + 5 + regular.widthOfTextAtSize(winAnsi(noVatText), 8.5);
-  const vatW = half - noVatW - 10;
+  const vatW = half - noVatW - 14; // 4pt to spare: viewers stand in for Helvetica with wider fonts
   textField("vat", T("BTW-nummer", "Numéro de TVA", "VAT number"), vatX, y, vatW, sponsor.vatNumber);
   checkBox("no_vat", vatX + vatW + 10, y - 11 - (FIELD_H + BOX) / 2, !!sponsor.noVatNumber && !sponsor.vatNumber);
   write(noVatText, vatX + vatW + 10 + BOX + 5, y - 11 - FIELD_H / 2 - 3, 8.5);

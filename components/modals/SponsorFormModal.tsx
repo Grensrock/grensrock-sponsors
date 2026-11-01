@@ -11,17 +11,34 @@ import { isNetworkError } from "@/lib/errors";
 import type { Deal, Edition, Language, Sponsor, TranslateFn, User } from "@/types";
 
 /* ---------- The sponsor form, as a PDF to download ----------
-   Opened from the sponsor list, where the sponsor is picked here, and from a
-   sponsor's own page, where it is that sponsor. The edition decides which
-   formulas are on it; the language starts as the sponsor's own. The PDF is
-   made right here in the browser (lib/pdf/sponsor-form.ts), and pdf-lib is
-   only fetched once someone asks for one. */
+   Opened from the sponsor list, where the sponsor is picked here; from a
+   sponsor's own page, where it is that sponsor; and for the sponsors ticked
+   in the list, where each gets a PDF of their own — every one goes to a
+   different sponsor — and they come together in one zip. The edition
+   decides which formulas are on it; the language starts as each sponsor's
+   own. The PDFs are made right here in the browser (lib/pdf/sponsor-form.ts),
+   and pdf-lib and the zip library are only fetched once someone asks. */
 
 const sponsorLang = (s?: Sponsor | null): Language => primaryContact(s)?.language || "nl";
+
+/* How many of a group's names the window lists before "and 12 more". */
+const NAMES_SHOWN = 8;
+
+function save(data: BlobPart, name: string, type: string) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export default function SponsorFormModal({
   sponsors,
   sponsorId,
+  sponsorIds,
   editions,
   deals,
   users,
@@ -32,6 +49,8 @@ export default function SponsorFormModal({
   sponsors: Sponsor[];
   /** Given from a sponsor's page: that sponsor, and no picking another. */
   sponsorId?: string;
+  /** Ticked in the sponsor list, in its order. One is the same as sponsorId. */
+  sponsorIds?: string[];
   /** Newest first. */
   editions: Edition[];
   deals: Deal[];
@@ -40,71 +59,112 @@ export default function SponsorFormModal({
   lang: Language;
   onClose: () => void;
 }) {
-  const [sid, setSid] = useState(sponsorId || "");
+  const fixedId = sponsorIds?.length === 1 ? sponsorIds[0] : sponsorId;
+  const group =
+    sponsorIds && sponsorIds.length > 1
+      ? sponsorIds.map((id) => sponsors.find((s) => s.id === id)).filter((s): s is Sponsor => !!s)
+      : null;
+  const [sid, setSid] = useState(fixedId || "");
   const [editionId, setEditionId] = useState(() => (editions.find((e) => e.active) || editions[0])?.id || "");
-  const [formLang, setFormLang] = useState<Language>(() => sponsorLang(sponsors.find((s) => s.id === sponsorId)));
-  const [busy, setBusy] = useState(false);
+  /* "" is each sponsor in their own language, which only a group is offered. */
+  const [formLang, setFormLang] = useState<Language | "">(() =>
+    group ? "" : sponsorLang(sponsors.find((s) => s.id === fixedId)),
+  );
+  /** What the button says while it works; null when it doesn't. */
+  const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState("");
 
   const sponsor = sponsors.find((s) => s.id === sid);
   const edition = editions.find((e) => e.id === editionId);
-  const deal = sponsor && edition ? deals.find((d) => d.sponsorId === sponsor.id && d.editionId === edition.id) : undefined;
+  const list = group || (sponsor ? [sponsor] : []);
+  const dealOf = (s: Sponsor) =>
+    edition ? deals.find((d) => d.sponsorId === s.id && d.editionId === edition.id) : undefined;
+  const withDeal = list.filter(dealOf).length;
 
   const download = async () => {
-    if (!sponsor || !edition) return;
-    setBusy(true);
+    if (!edition || list.length === 0) return;
+    setBusy(t("pf.busy"));
     setErr("");
+    let at: Sponsor | null = null;
     try {
-      const [{ sponsorFormPdf, sponsorFormFileName }, mark] = await Promise.all([
+      const [{ sponsorFormPdf, sponsorFormFileName, fileSlug }, zip, mark] = await Promise.all([
         import("@/lib/pdf/sponsor-form"),
+        group ? import("fflate") : null,
         /* The form still works without the wordmark, so a failed fetch only loses the logo. */
         fetch(wordmark.src)
           .then((r) => (r.ok ? r.arrayBuffer() : null))
           .catch(() => null),
       ]);
-      const bytes = await sponsorFormPdf({
-        sponsor,
-        edition,
-        deal,
-        responsible: users.find((u) => u.id === sponsor.responsibleId) || null,
-        lang: formLang,
-        wordmark: mark,
-      });
-      /* pdf-lib types its bytes as any Uint8Array; Blob wants one over a plain ArrayBuffer, which these are. */
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = sponsorFormFileName(sponsor, edition, formLang);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const files: Record<string, Uint8Array> = {};
+      for (const [i, s] of list.entries()) {
+        at = s;
+        if (group) {
+          setBusy(t("pf.busymany", { done: i, total: list.length }));
+          await new Promise((r) => setTimeout(r)); // let the count show
+        }
+        const l = formLang || sponsorLang(s);
+        const name = sponsorFormFileName(s, edition, l);
+        /* Two sponsors of one name would otherwise overwrite each other in the zip. */
+        let unique = name;
+        for (let k = 2; unique in files; k++) unique = name.replace(/\.pdf$/, `-${k}.pdf`);
+        files[unique] = await sponsorFormPdf({
+          sponsor: s,
+          edition,
+          deal: dealOf(s),
+          responsible: users.find((u) => u.id === s.responsibleId) || null,
+          lang: l,
+          wordmark: mark,
+        });
+      }
+      at = null;
+      /* pdf-lib and fflate type their bytes as any Uint8Array; Blob wants one
+         over a plain ArrayBuffer, which these are. PDFs are compressed
+         already, so the zip only stores them. */
+      if (zip) {
+        save(zip.zipSync(files, { level: 0 }) as BlobPart, `${t("pf.zipfile")}-${fileSlug(edition.name)}.zip`, "application/zip");
+      } else {
+        const [[name, bytes]] = Object.entries(files);
+        save(bytes as BlobPart, name, "application/pdf");
+      }
       onClose();
     } catch (e) {
       console.error(e);
-      setErr(t("pf.failed", { error: isNetworkError(e) ? t("dlg.offline") : String((e as Error)?.message || e) }));
+      const error = isNetworkError(e) ? t("dlg.offline") : String((e as Error)?.message || e);
+      setErr(group && at ? t("pf.failedfor", { sponsor: at.companyName, error }) : t("pf.failed", { error }));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   return (
-    <Modal title={t("pf.title")} onClose={onClose} lang={lang}>
+    <Modal title={group ? t("pf.titlemany", { n: group.length }) : t("pf.title")} onClose={onClose} lang={lang}>
       <p className="gr-muted" style={{ margin: "0 0 12px" }}>
-        {t("pf.intro")}
+        {t(group ? "pf.intromany" : "pf.intro")}
       </p>
-      <Field label={t("pf.sponsor")} group>
-        <SponsorPicker
-          sponsors={sponsors}
-          value={sid}
-          locked={!!sponsorId}
-          onChange={(id) => {
-            setSid(id);
-            if (id) setFormLang(sponsorLang(sponsors.find((s) => s.id === id)));
-          }}
-          tr={t}
-        />
-      </Field>
+      {group ? (
+        <Field label={`${t("nav.sponsors")} (${group.length})`} group>
+          <p style={{ margin: 0 }}>
+            {group
+              .slice(0, NAMES_SHOWN)
+              .map((s) => s.companyName)
+              .join(", ")}
+            {group.length > NAMES_SHOWN && ` ${t("pf.andmore", { n: group.length - NAMES_SHOWN })}`}
+          </p>
+        </Field>
+      ) : (
+        <Field label={t("pf.sponsor")} group>
+          <SponsorPicker
+            sponsors={sponsors}
+            value={sid}
+            locked={!!fixedId}
+            onChange={(id) => {
+              setSid(id);
+              if (id) setFormLang(sponsorLang(sponsors.find((s) => s.id === id)));
+            }}
+            tr={t}
+          />
+        </Field>
+      )}
       <div className="gr-grid2">
         <Field label={t("pf.edition")}>
           <select value={editionId} onChange={(e) => setEditionId(e.target.value)}>
@@ -118,7 +178,8 @@ export default function SponsorFormModal({
           </select>
         </Field>
         <Field label={t("pf.language")}>
-          <select value={formLang} onChange={(e) => setFormLang(e.target.value as Language)}>
+          <select value={formLang} onChange={(e) => setFormLang(e.target.value as Language | "")}>
+            {group && <option value="">{t("pf.ownlang")}</option>}
             {(Object.keys(LANGS) as Language[]).map((l) => (
               <option key={l} value={l}>
                 {LANGS[l]}
@@ -132,14 +193,20 @@ export default function SponsorFormModal({
           {t("pf.noformulas", { edition: edition.name })}
         </p>
       )}
-      {deal && <p className="gr-muted">{t("pf.hasdeal", { edition: edition?.name || "" })}</p>}
+      {withDeal > 0 && (
+        <p className="gr-muted">
+          {group
+            ? t("pf.hasdeals", { n: withDeal, edition: edition?.name || "" })
+            : t("pf.hasdeal", { edition: edition?.name || "" })}
+        </p>
+      )}
       {err && <p className="gr-blockbanner">{err}</p>}
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onClose}>
           {t("common.cancel")}
         </button>
-        <button className="gr-btn" disabled={!sponsor || !edition || busy} onClick={download}>
-          {busy ? t("pf.busy") : t("pf.download")}
+        <button className="gr-btn" disabled={!edition || list.length === 0 || !!busy} onClick={download}>
+          {busy || (group ? t("pf.downloadmany", { n: group.length }) : t("pf.download"))}
         </button>
       </div>
     </Modal>

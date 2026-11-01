@@ -148,6 +148,25 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "This sponsor already has an agreement for {edition}: it is marked on the form.",
   ],
   "pf.failed": ["Het formulier kon niet gemaakt worden: {error}", "The form could not be made: {error}"],
+  "pf.many": ["PDF-formulieren", "PDF forms"],
+  "pf.titlemany": ["Formulieren voor {n} sponsors", "Forms for {n} sponsors"],
+  "pf.intromany": [
+    "Voor elke sponsor een eigen PDF om in te vullen, met hun gegevens en de formules van de editie. Ze komen samen in één zip-bestand.",
+    "A PDF of their own for each sponsor to fill in, with their details and the edition's formulas. They come together in one zip file.",
+  ],
+  "pf.andmore": ["en {n} meer", "and {n} more"],
+  "pf.ownlang": ["Elk in de taal van de sponsor", "Each in the sponsor's own language"],
+  "pf.hasdeals": [
+    "{n} van hen hebben al een overeenkomst voor {edition}: die staat op hun formulier aangeduid.",
+    "{n} of them already have an agreement for {edition}: it is marked on their form.",
+  ],
+  "pf.downloadmany": ["{n} PDF's downloaden (zip)", "Download {n} PDFs (zip)"],
+  "pf.busymany": ["Bezig… {done}/{total}", "Working… {done}/{total}"],
+  "pf.zipfile": ["sponsorformulieren", "sponsor-forms"],
+  "pf.failedfor": [
+    "Het formulier voor {sponsor} kon niet gemaakt worden, dus er is niets gedownload: {error}",
+    "The form for {sponsor} could not be made, so nothing was downloaded: {error}",
+  ],
   // sponsor detail tabs
   "sd.info": ["Gegevens", "Information"],
   "sd.logos": ["Logo's", "Logos"],

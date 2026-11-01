@@ -126,6 +126,28 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "sp.undecided": ["Nog geen antwoord voor", "No answer yet for"],
   "sp.count": ["sponsors", "sponsors"],
   "sp.back": ["← Alle sponsors", "← All sponsors"],
+  // the sponsor form (PDF)
+  "pf.button": ["PDF-formulier", "PDF form"],
+  "pf.title": ["Formulier voor de sponsor", "Form for the sponsor"],
+  "pf.intro": [
+    "Een PDF die de sponsor invult: de gegevens die we van hen hebben, en de formules van de editie om uit te kiezen.",
+    "A PDF for the sponsor to fill in: the details we have for them, and the edition's formulas to choose from.",
+  ],
+  "pf.sponsor": ["Sponsor", "Sponsor"],
+  "pf.edition": ["Editie", "Edition"],
+  "pf.language": ["Taal van het formulier", "Language of the form"],
+  "pf.download": ["PDF downloaden", "Download PDF"],
+  "pf.busy": ["Bezig…", "Working…"],
+  "pf.noeditions": ["Nog geen editie", "No edition yet"],
+  "pf.noformulas": [
+    "{edition} heeft nog geen formules. Het formulier vraagt de sponsor dan wat ze voor ogen hebben.",
+    "{edition} has no formulas yet. The form then asks the sponsor what they have in mind.",
+  ],
+  "pf.hasdeal": [
+    "Deze sponsor heeft al een overeenkomst voor {edition}: die staat op het formulier aangeduid.",
+    "This sponsor already has an agreement for {edition}: it is marked on the form.",
+  ],
+  "pf.failed": ["Het formulier kon niet gemaakt worden: {error}", "The form could not be made: {error}"],
   // sponsor detail tabs
   "sd.info": ["Gegevens", "Information"],
   "sd.logos": ["Logo's", "Logos"],

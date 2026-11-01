@@ -16,6 +16,7 @@ import EmailModal from "@/components/modals/EmailModal";
 import ExampleImagesManager from "@/components/modals/ExampleImagesManager";
 import ImportModal, { type SponsorImportRow } from "@/components/modals/ImportModal";
 import NewContactModal from "@/components/modals/NewContactModal";
+import SponsorFormModal from "@/components/modals/SponsorFormModal";
 import ConfirmDialog, { type DialogSpec } from "@/components/ui/ConfirmDialog";
 import { MailLink, PhoneLink } from "@/components/ui/ContactLink";
 import Modal from "@/components/ui/Modal";
@@ -129,7 +130,9 @@ type ModalState =
   | { type: "deal"; payload?: DealDraft }
   /* `prepared`: a mail written before, to start from (EmailModal). */
   | { type: "email"; payload: Deal; prepared?: Partial<PendingMail> | null }
-  | { type: "decline"; payload: { sponsorId: string } };
+  | { type: "decline"; payload: { sponsorId: string } }
+  /* The PDF for a sponsor to fill in; no sponsorId lets one be picked. */
+  | { type: "sponsorForm"; payload: { sponsorId?: string } };
 
 type ViewMode =
   | { view: "landing" }
@@ -2231,6 +2234,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               <button className="gr-btn-ghost" onClick={exportSponsors}>
                 {t("common.export")}
               </button>
+              <button className="gr-btn-ghost" onClick={() => setModal({ type: "sponsorForm", payload: {} })}>
+                {t("pf.button")}
+              </button>
               <button className="gr-btn" onClick={() => setModal({ type: "sponsor" })}>
                 {t("sp.new")}
               </button>
@@ -2454,6 +2460,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             logos={(data.logos || []).filter((l) => l.sponsorId === openSponsor.id)}
             onLogosChange={(next) => applyLogos(openSponsor.id, next)}
             onEmail={(d) => setModal({ type: "email", payload: d })}
+            onDownloadForm={() => setModal({ type: "sponsorForm", payload: { sponsorId: openSponsor.id } })}
           />
         )}
 
@@ -4496,6 +4503,18 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             onCancel={() => setModal(null)}
           />
         </Modal>
+      )}
+      {modal?.type === "sponsorForm" && (
+        <SponsorFormModal
+          sponsors={sponsors}
+          sponsorId={modal.payload.sponsorId}
+          editions={sortedEditions}
+          deals={deals}
+          users={users}
+          t={t}
+          lang={uiLang}
+          onClose={() => setModal(null)}
+        />
       )}
       {modal?.type === "email" &&
         (() => {

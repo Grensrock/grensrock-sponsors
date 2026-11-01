@@ -10,7 +10,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "nav.sponsors": ["Sponsors", "Sponsors"],
   "nav.contacts": ["Contactpersonen", "Contacts"],
   "nav.editions": ["Edities & formules", "Editions & formulas"],
-  "nav.vouchers": ["Bonnen", "Vouchers"],
+  "nav.vouchers": ["Vouchers", "Vouchers"],
   "nav.agreements": ["Overeenkomsten", "Agreements"],
   "nav.analytics": ["Analyse", "Analytics"],
   "nav.admin": ["Beheer", "Admin"],
@@ -37,7 +37,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "ov.editformulas": ["Formules aanpassen", "Edit formulas"],
   "ov.agreement1": ["overeenkomst", "agreement"],
   "ov.agreementn": ["overeenkomsten", "agreements"],
-  "ov.tickets": ["Tickets & bonnen", "Tickets & vouchers"],
+  "ov.tickets": ["Tickets & vouchers", "Tickets & vouchers"],
   "ov.visibility": ["Zichtbaarheid", "Visibility"],
   "ov.nobenefits": ["Nog geen voordelen ingesteld voor deze formule.", "No benefits set for this formula yet."],
   "ov.custombenefits": ["Voordelen per overeenkomst afgesproken.", "Benefits agreed per agreement."],
@@ -131,11 +131,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "sd.logos": ["Logo's", "Logos"],
   "sd.contacts": ["Contactpersonen", "Contact persons"],
   "sd.sponsoring": ["Sponsoring", "Sponsoring"],
-  "sd.vouchers": ["Bonnen", "Vouchers"],
+  "sd.vouchers": ["Vouchers", "Vouchers"],
   "sd.addagr": ["+ Overeenkomst", "+ Agreement"],
   "sd.addcontact": ["+ Contactpersoon toevoegen", "+ Add contact"],
   // vouchers
-  "vo.title": ["Bonnen & tickets", "Vouchers & tickets"],
+  "vo.title": ["Vouchers & tickets", "Vouchers & tickets"],
   "vo.generate": ["Genereren uit overeenkomsten", "Generate from agreements"],
   "vo.allspon": ["Alle sponsors", "All sponsors"],
   "vo.allstatus": ["Alle statussen", "All statuses"],
@@ -220,7 +220,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
                     "No contact persons yet. They log in to the portal with their email address."],
   "sd.noagreements": ["Nog geen overeenkomsten. Voeg er een toe voor een actieve editie om te beginnen.",
                       "No agreements yet. Add one for an active edition to get started."],
-  "sd.novouchers": ["Nog geen bonnen. Genereer ze per editie in het tabblad Bonnen.",
+  "sd.novouchers": ["Nog geen vouchers. Genereer ze per editie in het tabblad Vouchers.",
                     "No vouchers yet. Generate them per edition in the Vouchers tab."],
   "sd.editionssponsored": ["gesponsorde edities", "editions sponsored"],
   "sd.totalcontributed": ["totaal bijgedragen", "total contributed"],
@@ -287,7 +287,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "vo.selectall": ["Alle getoonde selecteren", "Select all shown"],
   "vo.createsend": ["Aanmaken & versturen", "Create & send"],
   "vo.resend": ["Opnieuw versturen", "Resend"],
-  "vo.code": ["Bonnencode", "Voucher code"],
+  "vo.code": ["Vouchercode", "Voucher code"],
   "vo.products": ["Producten in Tickoweb", "Products in Tickoweb"],
   "vo.products2": [
     "Elk type en bedrag is een apart product in Tickoweb. Vul per rij het product-id in; een leeg veld valt terug op het id per type uit de Tickoweb-instellingen.",
@@ -373,7 +373,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "bf.vipfri": ["VIP-tickets vrijdag", "VIP tickets Friday"],
   "bf.vipsat": ["VIP-tickets zaterdag", "VIP tickets Saturday"],
   "bf.vipguest": ["VIP-tickets gasten", "VIP tickets guests"],
-  "bf.drinkvalue": ["Drankbonnen (waarde in €)", "Drink vouchers (value in €)"],
+  "bf.drinkvalue": ["Drankvouchers (waarde in €)", "Drink vouchers (value in €)"],
   "bf.foodextra": ["Komt bovenop de formule en wordt bij de bijdrage gefactureerd.", "Comes on top of the formula and is invoiced with the contribution."],
   "bf.foodincl": [
     "{amount} daarvan zat nog in de formule van deze overeenkomst; de rest wordt bij de bijdrage gefactureerd.",
@@ -386,7 +386,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "bf.fence": ["Banners", "Banners"],
   "bf.led": ["LED-boarding (selecteer alles wat van toepassing is)", "LED boarding (select all that apply)"],
   /* Shorter names for the same benefits, for a line saying what differs from the formula (lib/benefits.ts). */
-  "bn.drink": ["Drankbonnen", "Drink vouchers"],
+  "bn.drink": ["Drankvouchers", "Drink vouchers"],
   "bn.led": ["LED-boarding", "LED boarding"],
   "df.refexample": ["bv. PO-2026-0481", "e.g. PO-2026-0481"],
   "pick.change": ["Wijzigen", "Change"],
@@ -415,11 +415,13 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "df.adminapproves": ["U bent admin: opslaan keurt dit meteen goed.", "You're an admin: saving approves this straight away."],
   "df.waiting": ["Wacht sinds {when} op goedkeuring van een admin.", "Waiting for an admin's approval since {when}."],
   "df.approvedby": ["Goedgekeurd door {name} op {when}.", "Approved by {name} on {when}."],
-  "df.vouchers": ["Bonnen", "Vouchers"],
+  "df.vouchers": ["Vouchers", "Vouchers"],
   "df.vouchershint": [
-    "Eten & drinken en de verdeling in bonnen pas je meteen aan, zonder goedkeuring.",
+    "Eten & drinken en de verdeling in vouchers pas je meteen aan, zonder goedkeuring.",
     "Food & drinks and how a value is split into vouchers can be changed straight away, without approval.",
   ],
+  "df.foodsplit": ["Eten & drinken", "Food & drinks"],
+  "df.splitvouchers": ["Vouchers verdelen", "Divide vouchers"],
   "ed.editionstitle": ["Festivaledities", "Festival editions"],
   "ov.addsponsor": ["Een sponsor toevoegen", "Add a sponsor"],
   "ov.addsponsors": ["Voeg uw sponsors toe", "Add your sponsors"],
@@ -452,11 +454,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "em.copy": ["E-mail kopiëren", "Copy email"],
   "em.copied": ["Gekopieerd ✓", "Copied ✓"],
   "im.noimage": ["Nog geen afbeelding", "No image yet"],
-  "tw.prodmap2": ["Welk Tickoweb-product/tickettype hoort bij elk van onze bonnentypes.",
+  "tw.prodmap2": ["Welk Tickoweb-product/tickettype hoort bij elk van onze vouchertypes.",
                   "Which Tickoweb product/ticket type corresponds to each of our voucher types."],
   "uf.dupemail": ["Een ander account gebruikt dit e-mailadres al.", "Another account already uses this email address."],
-  "vc.receiver": ["Ontvanger bonnen", "Voucher recipient"],
-  "vc.hint": ["Eén contactpersoon ontvangt alle tickets & bonnen voor deze sponsor.", "One contact receives all tickets & vouchers for this sponsor."],
+  "vc.receiver": ["Ontvanger vouchers", "Voucher recipient"],
+  "vc.hint": ["Eén contactpersoon ontvangt alle tickets & vouchers voor deze sponsor.", "One contact receives all tickets & vouchers for this sponsor."],
   "vc.auto": ["Automatisch (eerste contactpersoon)", "Automatic (first contact)"],
   "ex.empty": ["Lege lijst", "Empty list"],
   "ex.emptymsg": ["Niets om te exporteren met deze filters.", "Nothing to export with these filters."],
@@ -530,11 +532,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.remove": ["Verwijderen", "Remove"],
   // agreements
   "dlg.deldealissued": [
-    "Deze overeenkomst verwijderen?\n\n{n} bon(nen) waren al aangemaakt of verzonden — ze worden hier als geannuleerd gemarkeerd. Annuleer ze ook in Tickoweb.",
+    "Deze overeenkomst verwijderen?\n\n{n} voucher(s) waren al aangemaakt of verzonden — ze worden hier als geannuleerd gemarkeerd. Annuleer ze ook in Tickoweb.",
     "Delete this agreement?\n\n{n} voucher(s) were already created or sent — they will be marked as cancelled here. Cancel them in Tickoweb as well.",
   ],
   "dlg.deldealpending": [
-    "Deze overeenkomst en de {n} bon(nen) die nog niet aangemaakt zijn verwijderen?",
+    "Deze overeenkomst en de {n} voucher(s) die nog niet aangemaakt zijn verwijderen?",
     "Delete this agreement and its {n} voucher(s) that were not created yet?",
   ],
   "dlg.deldeal": ["Deze overeenkomst verwijderen?", "Delete this agreement?"],
@@ -587,10 +589,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   // vouchers
   "dlg.allgenerated": ["Alles is al gegenereerd voor deze editie.", "Everything is already generated for this edition."],
   "dlg.nothingtoadd": ["Niets toe te voegen", "Nothing to add"],
-  "dlg.vouchersadded": ['{n} bon(nen) toegevoegd als "aan te maken".', '{n} voucher(s) added as "to create".'],
-  "dlg.vouchersgenerated": ["Bonnen gegenereerd", "Vouchers generated"],
-  "dlg.cancelvouchersask": ["{n} bon(nen) annuleren?", "Cancel {n} voucher(s)?"],
-  "dlg.cancelvoucherstitle": ["Bonnen annuleren", "Cancel vouchers"],
+  "dlg.vouchersadded": ['{n} voucher(s) toegevoegd als "aan te maken".', '{n} voucher(s) added as "to create".'],
+  "dlg.vouchersgenerated": ["Vouchers gegenereerd", "Vouchers generated"],
+  "dlg.cancelvouchersask": ["{n} voucher(s) annuleren?", "Cancel {n} voucher(s)?"],
+  "dlg.cancelvoucherstitle": ["Vouchers annuleren", "Cancel vouchers"],
   // contacts
   "dlg.contactmailfail": [
     '{name} heeft portaaltoegang, maar de e-mail kon niet verzonden worden: {error}\n\nGebruik "Nieuwe link sturen" zodra dat opgelost is.',
@@ -627,7 +629,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.removefailedtitle": ["Sommige contactpersonen zijn niet verwijderd", "Some contacts were not removed"],
   // sponsors
   "dlg.delsponsorask": [
-    "Deze sponsor, al hun overeenkomsten en bonnen verwijderen?",
+    "Deze sponsor, al hun overeenkomsten en vouchers verwijderen?",
     "Delete this sponsor, all their agreements and vouchers?",
   ],
   "dlg.delsponsortitle": ["Sponsor verwijderen", "Delete sponsor"],
@@ -645,11 +647,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.deletefailedtitle": ["Sommige sponsors zijn niet verwijderd", "Some sponsors were not deleted"],
   "dlg.ncontacts": ["{n} contactperso(o)n(en)", "{n} contact(s)"],
   "dlg.ndeals": ["{n} overeenkomst(en)", "{n} agreement(s)"],
-  "dlg.nvouchers": ["{n} bon(nen)", "{n} voucher(s)"],
+  "dlg.nvouchers": ["{n} voucher(s)", "{n} voucher(s)"],
   "dlg.andmore": ["\n  • … en nog {n}", "\n  • … and {n} more"],
   // editions & formulas
   "dlg.deleditionask": [
-    "Deze editie heeft {n} overeenkomst(en). De editie, haar overeenkomsten en bonnen verwijderen?",
+    "Deze editie heeft {n} overeenkomst(en). De editie, haar overeenkomsten en vouchers verwijderen?",
     "This edition has {n} agreement(s). Delete the edition, its agreements and vouchers?",
   ],
   "dlg.deleditionplain": ["Deze editie verwijderen?", "Delete this edition?"],
@@ -685,10 +687,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "em.nosponsors": ["Nog geen sponsors — voeg uw eerste toe.", "No sponsors yet — add your first one."],
   "em.nosponsormatch": ["Geen sponsors voldoen aan uw zoekopdracht.", "No sponsors match your search."],
   "em.novouchers": [
-    'Nog geen bonnen voor deze editie — gebruik "Genereren uit overeenkomsten".',
+    'Nog geen vouchers voor deze editie — gebruik "Genereren uit overeenkomsten".',
     'No vouchers yet for this edition — use "Generate from agreements".',
   ],
-  "em.novouchermatch": ["Geen bonnen voldoen aan deze filters.", "No vouchers match these filters."],
+  "em.novouchermatch": ["Geen vouchers voldoen aan deze filters.", "No vouchers match these filters."],
   "em.nocontacts": ["Nog geen contactpersonen.", "No contact persons yet."],
   "em.nocontactmatch": ["Geen contactpersonen voldoen aan deze filters.", "No contacts match these filters."],
   "em.nolog": ["Nog geen wijzigingen geregistreerd.", "No changes recorded yet."],
@@ -711,7 +713,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "au.e.contact": ["Contactpersoon", "Contact"],
   "au.e.agreement": ["Overeenkomst", "Agreement"],
   "au.e.edition": ["Editie", "Edition"],
-  "au.e.vouchers": ["Bonnen", "Vouchers"],
+  "au.e.vouchers": ["Vouchers", "Vouchers"],
   "au.e.account": ["Account", "Account"],
 
   /* ---------- export column headers & cell values ---------- */
@@ -720,14 +722,14 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "xl.portalaccess": ["Portaaltoegang", "Portal access"],
   "xl.activated": ["actief", "active"],
   "xl.notactivated": ["niet geactiveerd", "not activated"],
-  "xl.receivesvouchers": ["Ontvangt bonnen", "Receives vouchers"],
+  "xl.receivesvouchers": ["Ontvangt vouchers", "Receives vouchers"],
   "xl.yes": ["ja", "yes"],
   "xl.datetime": ["Datum & tijd", "Date & time"],
   "xl.vipfrsagu": ["VIP vr/za/gast", "VIP fr/sa/gu"],
 
   /* ---------- roles & misc ---------- */
   "tm.roleadmin": [
-    "— alles: edities, formules, bonnen, facturatie en teamaccounts.",
+    "— alles: edities, formules, vouchers, facturatie en teamaccounts.",
     "— everything: editions, formulas, vouchers, invoicing and team accounts.",
   ],
   "tm.roleuser": [
@@ -743,7 +745,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "ac.reqnew": ["Opnieuw laten aanvaarden", "Request new acceptance"],
   "ed.formulas": ["Formules", "Formulas"],
   "vo.manualmode": [
-    "Manuele modus — er wordt niets automatisch naar Tickoweb gestuurd. Maak de bon daar aan en plak de code hier terug.",
+    "Manuele modus — er wordt niets automatisch naar Tickoweb gestuurd. Maak de voucher daar aan en plak de code hier terug.",
     "Manual mode — nothing is sent to Tickoweb automatically. Create the voucher there and paste the code back here.",
   ],
   "vo.codefrom": ["code uit Tickoweb", "code from Tickoweb"],
@@ -940,7 +942,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
 
   /* ---------- tickoweb ---------- */
   "tw.manual": [
-    "Manueel — maak de bonnen zelf aan in Tickoweb en plak de codes hier",
+    "Manueel — maak de vouchers zelf aan in Tickoweb en plak de codes hier",
     "Manual — create vouchers in Tickoweb yourself, paste the codes here",
   ],
   "tw.live": ["Live — de Tickoweb-API vanuit deze tool aanroepen", "Live — call the Tickoweb API from this tool"],
@@ -1185,7 +1187,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Not in the file: the logo files themselves (their list is), passwords and sign-in links.",
   ],
   "bk.private": [
-    "Het bestand bevat de gegevens van alle sponsors en contactpersonen en de codes van de bonnen. Bewaar het op een veilige plek en deel het niet.",
+    "Het bestand bevat de gegevens van alle sponsors en contactpersonen en de codes van de vouchers. Bewaar het op een veilige plek en deel het niet.",
     "The file holds the details of every sponsor and contact, and the voucher codes. Keep it somewhere safe and don't share it.",
   ],
   "bk.download": ["Back-up downloaden", "Download backup"],
@@ -1214,7 +1216,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "bk.t.sponsor_declines": ["Afzeggingen", "Declines"],
   "bk.t.editions": ["Edities", "Editions"],
   "bk.t.formulas": ["Formules", "Formulas"],
-  "bk.t.vouchers": ["Bonnen", "Vouchers"],
+  "bk.t.vouchers": ["Vouchers", "Vouchers"],
   "bk.t.sponsor_logos": ["Logo's", "Logos"],
   "bk.t.profiles": ["Team", "Team"],
   "bk.t.app_settings": ["Instellingen", "Settings"],

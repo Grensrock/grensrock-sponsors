@@ -117,7 +117,7 @@ export function buildEmail(
     const split = dvt ? B(`, verdeeld in: ${dvt}`, `, répartis en : ${dvt}`, `, divided into: ${dvt}`) : "";
     benefits.push(
       B(
-        `Drankbonnen ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
+        `Drankvouchers ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
         `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}${split}`,
         `Drink vouchers worth ${eur(drinkPoolValue(deal))}${split}`,
       ),
@@ -126,11 +126,11 @@ export function buildEmail(
   if (Number(deal.foodDrinkValue) > 0) {
     const vt = voucherText(deal.foodDrinkVouchers);
     const split = vt
-      ? B(`, verdeeld in bonnen: ${vt}`, `, répartis en bons : ${vt}`, `, divided into vouchers: ${vt}`)
+      ? B(`, verdeeld in vouchers: ${vt}`, `, répartis en bons : ${vt}`, `, divided into vouchers: ${vt}`)
       : "";
     benefits.push(
       B(
-        `Bonnen eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
+        `Vouchers eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
         `Bons food & boissons d'une valeur de ${eur(deal.foodDrinkValue)}${split}`,
         `Food & drink vouchers worth ${eur(deal.foodDrinkValue)}${split}`,
       ),
@@ -616,7 +616,7 @@ export function buildPortalPasswordLink(
   const body = B(
     `Beste ${name || "sponsor"},
 
-U hebt toegang tot het Grensrock-sponsorportaal. Daar kan u uw bedrijfsgegevens nakijken, uw logo opladen en uw tickets en bonnen verdelen.
+U hebt toegang tot het Grensrock-sponsorportaal. Daar kan u uw bedrijfsgegevens nakijken, uw logo opladen en uw tickets en vouchers verdelen.
 
 Kies eerst een wachtwoord via deze link:
 ${url}

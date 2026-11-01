@@ -83,7 +83,7 @@ export function ticketLines(v: BenefitSource, lang: Language = "nl"): string[] {
   if (Number(v.drinkValue) > 0) {
     const dvt = voucherText(v.drinkVouchers);
     out.push(
-      `${B("Drankbonnen", "Bons boissons", "Drink vouchers")}: ${eur(drinkPoolValue(v))}${dvt ? ` (${dvt})` : ""}`,
+      `${B("Drankvouchers", "Bons boissons", "Drink vouchers")}: ${eur(drinkPoolValue(v))}${dvt ? ` (${dvt})` : ""}`,
     );
   }
   if (Number(v.foodDrinkValue) > 0) {

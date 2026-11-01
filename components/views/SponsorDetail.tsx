@@ -442,7 +442,7 @@ export default function SponsorDetail({
                         )}
                       </td>
                       <td className="gr-r">
-                        <strong>{eur(d.cost)}</strong>
+                        <strong>{eur(dealTotalCost(d))}</strong>
                         {d.settlement === "inkind" && (
                           <div className="gr-muted" style={{ fontSize: 11 }}>
                             {t("sd.inkind")}
@@ -455,7 +455,7 @@ export default function SponsorDetail({
                         )}
                         {foodDrinkExtra(d) > 0 && (
                           <div style={{ fontSize: 11, color: "var(--orange-deep)" }}>
-                            + {eur(foodDrinkExtra(d))} {t("sd.extrafd")}
+                            incl. {eur(foodDrinkExtra(d))} {t("sd.extrafd")}
                           </div>
                         )}
                       </td>

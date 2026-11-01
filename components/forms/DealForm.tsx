@@ -11,7 +11,7 @@ import { formulaStyle } from "@/lib/color";
 import { OP_MAAT, SETTLEMENTS, dealFieldsFromFormula, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
-import { eur, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
+import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
 import { benefitLines } from "@/lib/vouchers";
 import type {
   Deal,
@@ -380,6 +380,12 @@ export default function DealForm({
           </div>
           <p className="gr-muted">{t("df.vouchershint")}</p>
           <VoucherFields v={d} set={set} t={t} lang={lang} />
+          {foodDrinkExtra(d) > 0 && (
+            <p className="gr-muted">
+              {t("df.total")} <strong>{eur(dealTotalCost(d))}</strong>{" "}
+              {t("df.totalsplit", { cost: eur(d.cost), fd: eur(foodDrinkExtra(d)) })}
+            </p>
+          )}
         </>
       )}
       {d.editionId && (
@@ -418,7 +424,7 @@ export default function DealForm({
                   t("df.noinvoice")
                 ) : (
                   <>
-                    {t("df.toinvoice")} <strong>{eur(invoiceAmount(d))}</strong> / {eur(d.cost)}{" "}
+                    {t("df.toinvoice")} <strong>{eur(invoiceAmount(d))}</strong> / {eur(dealTotalCost(d))}{" "}
                     {t("df.restinkind")}
                   </>
                 )}

@@ -2,7 +2,7 @@ import { benefitChanges, changeLines, isCustom } from "@/lib/benefits";
 import { LED_ZONES, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { renderEmailHtml } from "@/lib/email/layout";
-import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
+import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { drinkPoolValue, voucherText } from "@/lib/vouchers";
@@ -190,15 +190,18 @@ export function buildEmail(
   /* Contribution + settlement wording */
   const inKind = (deal.inKindDescription || "").trim();
   const toInvoice = invoiceAmount(deal);
-  /* NOTE: the prototype's Dutch line referenced `contribution` inside its own
-     initialiser (a TDZ self-reference that threw at runtime, so this template
-     could never be produced). Restored to the obvious intent, matching the FR/EN
-     lines below. */
-  const contribution = B(
-    `Bijdrage: ${eur(deal.cost)}`,
-    `Contribution : ${eur(deal.cost)}`,
-    `Contribution: ${eur(deal.cost)}`,
-  );
+  /* The total, with the food & drink vouchers bought on top spelled out:
+     € 500 formula + € 100 vouchers is a contribution of € 600. */
+  const total = eur(dealTotalCost(deal));
+  const fd = foodDrinkExtra(deal);
+  const contribution =
+    fd > 0
+      ? B(
+          `Bijdrage: ${total} (${eur(deal.cost)} formule + ${eur(fd)} vouchers eten & drinken)`,
+          `Contribution : ${total} (${eur(deal.cost)} formule + ${eur(fd)} bons food & boissons)`,
+          `Contribution: ${total} (${eur(deal.cost)} formula + ${eur(fd)} food & drink vouchers)`,
+        )
+      : B(`Bijdrage: ${total}`, `Contribution : ${total}`, `Contribution: ${total}`);
   const ref = String(deal.invoiceReference || "").trim();
   const refLine = refRequiredFor(deal, sponsor)
     ? ref
@@ -214,7 +217,7 @@ export function buildEmail(
         )
     : "";
   let settlementBlock: string;
-  if (deal.settlement === "inkind") {
+  if (deal.settlement === "inkind" && toInvoice === 0) {
     settlementBlock = B(
       `Deze sponsoring gebeurt in natura${inKind ? `:\n${inKind}` : "."}
 Er wordt hiervoor geen factuur opgemaakt.`,
@@ -223,7 +226,7 @@ Aucune facture ne sera établie pour cet accord.`,
       `This sponsorship is provided in kind${inKind ? `:\n${inKind}` : "."}
 No invoice will be issued for this agreement.`,
     );
-  } else if (deal.settlement === "mixed") {
+  } else if (deal.settlement === "inkind" || deal.settlement === "mixed") {
     settlementBlock = B(
       `Een deel van deze sponsoring gebeurt in natura${inKind ? `:\n${inKind}` : "."}
 Te factureren bedrag: ${eur(toInvoice)}. De facturatie volgt via e-invoicing (BillToBox).${refLine}`,
@@ -487,12 +490,12 @@ function agreementFacts(lang: TeamLanguage, deal: AdminDeal, sponsorName: string
     ? `Sponsor: ${sponsorName}
 Editie: ${editionName}
 Formule: ${formula}
-Bijdrage: ${eur(deal.cost)}
+Bijdrage: ${eur(dealTotalCost(deal))}
 Afrekening: ${label(SETTLEMENTS, deal.settlement, lang)}`
     : `Sponsor: ${sponsorName}
 Edition: ${editionName}
 Formula: ${formula}
-Contribution: ${eur(deal.cost)}
+Contribution: ${eur(dealTotalCost(deal))}
 Settlement: ${label(SETTLEMENTS, deal.settlement, lang)}`;
 }
 

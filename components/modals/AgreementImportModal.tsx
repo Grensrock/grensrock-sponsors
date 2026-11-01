@@ -19,7 +19,7 @@ import {
   type ColumnMap,
 } from "@/lib/import-helpers";
 import { AGREEMENT_TEMPLATE, downloadTemplate } from "@/lib/import-template";
-import { eur } from "@/lib/money";
+import { dealTotalCost, eur } from "@/lib/money";
 import { normNameKey, normStr, normVatKey } from "@/lib/normalize";
 import { benefitLines, voucherTotal } from "@/lib/vouchers";
 import type { Deal, Edition, Formula, Language, Sponsor, SponsorDecline, TranslateFn } from "@/types";
@@ -424,7 +424,7 @@ export default function AgreementImportModal({
                           </td>
                           <td>{r.editionName}</td>
                           <td>{r.deal.formulaName === OP_MAAT ? t("th.custom") : r.deal.formulaName}</td>
-                          <td className="gr-r">{eur(r.deal.cost)}</td>
+                          <td className="gr-r">{eur(dealTotalCost(r.deal))}</td>
                           <td>{benefitsCell(r)}</td>
                         </tr>
                       ))}

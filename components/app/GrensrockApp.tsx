@@ -2369,7 +2369,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                   <tbody>
                     {filteredSponsors.map((s) => {
                       const hs = deals.filter((d) => d.sponsorId === s.id);
-                      const tot = hs.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
+                      const tot = hs.reduce((sum, d) => sum + dealTotalCost(d), 0);
                       return (
                         <tr key={s.id} onClick={() => setOpenSponsorId(s.id)}>
                           {/* Stops the row's own click, or ticking a box would open the sponsor. */}
@@ -2494,7 +2494,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             {sortedEditions.length === 0 && <p className="gr-empty">{t("ed.none")}</p>}
             {sortedEditions.map((ed) => {
               const edDeals = deals.filter((d) => d.editionId === ed.id);
-              const tot = edDeals.reduce((s, d) => s + (Number(d.cost) || 0), 0);
+              const tot = edDeals.reduce((s, d) => s + dealTotalCost(d), 0);
               return (
                 <div key={ed.id} className="gr-card">
                   <div className="gr-cardhead">
@@ -3504,7 +3504,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               <strong>{eur(dealTotalCost(d))}</strong>
                               {foodDrinkExtra(d) > 0 && (
                                 <div style={{ fontSize: 11, color: "var(--orange-deep)" }}>
-                                  +{eur(foodDrinkExtra(d))}
+                                  incl. {eur(foodDrinkExtra(d))} {t("sd.extrafd")}
                                 </div>
                               )}
                             </td>
@@ -4142,7 +4142,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                     {eur(invoiceAmount(d))}
                                     {d.settlement === "mixed" && (
                                       <div className="gr-muted" style={{ fontSize: 11 }}>
-                                        {t("inv.oftotal")} {eur(d.cost)}
+                                        {t("inv.oftotal")} {eur(dealTotalCost(d))}
                                       </div>
                                     )}
                                   </td>
@@ -4336,7 +4336,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 <dt>{t("c.formula")}</dt>
                 <dd>{snap.formulaName || "—"}</dd>
                 <dt>{t("c.contribution")}</dt>
-                <dd>{eur(snap.cost)}</dd>
+                <dd>{eur(dealTotalCost(snap))}</dd>
               </dl>
               <h4 className="gr-subhead">{t("ac.termsaccepted")}</h4>
               <ul className="gr-benefitlist">
@@ -4354,7 +4354,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       <li key={i}>{line}</li>
                     ))}
                   </ul>
-                  <p className="gr-muted">{t("ac.currentcontribution")}: {eur(d.cost)}</p>
+                  <p className="gr-muted">{t("ac.currentcontribution")}: {eur(dealTotalCost(d))}</p>
                   {canManage(sponsors.find((s) => s.id === d.sponsorId)) && (
                     <div className="gr-actions">
                       <button

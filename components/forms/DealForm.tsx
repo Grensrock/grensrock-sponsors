@@ -6,7 +6,7 @@ import SponsorForm from "@/components/forms/SponsorForm";
 import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
 import { fmtDateTime } from "@/lib/acceptance";
-import { awaitsApproval, benefitChanges, changeLines, sameBenefits } from "@/lib/benefits";
+import { awaitsApproval, benefitChanges, changeLines, formulaOf, isCustom, sameBenefits } from "@/lib/benefits";
 import { formulaStyle } from "@/lib/color";
 import { OP_MAAT, SETTLEMENTS, dealFieldsFromFormula, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
@@ -83,6 +83,24 @@ export default function DealForm({
   const formula = formulas.find((x) => x.name === d.formulaName) || null;
   const changes = benefitChanges(d, formula, lang === "en" ? "en" : "nl");
 
+  /* A new agreement shows what the sponsor had in the latest edition before
+     this one, so it can start from the same formula. Editions run in order of
+     their start date, as in the analysis. */
+  const order = (e?: Edition) => e?.startDate || e?.name || "";
+  const last =
+    d.id || !d.sponsorId
+      ? undefined
+      : deals
+          .filter((x) => x.sponsorId === d.sponsorId && x.editionId !== d.editionId)
+          .map((x) => ({ deal: x, edition: editions.find((e) => e.id === x.editionId) }))
+          .filter((x): x is { deal: Deal; edition: Edition } => !!x.edition && (!edition || order(x.edition) < order(edition)))
+          .sort((a, b) => order(b.edition).localeCompare(order(a.edition)))[0];
+  const lastCustom = !!last && isCustom(last.deal);
+  /* The same formula is the one of that name in this edition — its price and
+     benefits now, not last time's. Op maat has no formula to look up, so its
+     terms come over as they were, price included. */
+  const again = last && !lastCustom ? formulas.find((f) => f.name === last.deal.formulaName) : undefined;
+
   /* A formula's benefits are what Grensrock offers for its price, so they stay
      as the formula has them until someone deliberately opens them up — and
      doing that as a team member puts the agreement up for an admin's approval
@@ -116,6 +134,10 @@ export default function DealForm({
     }
     setD((p) => ({ ...p, ...dealFieldsFromFormula(f) }));
     setOpened(false);
+  };
+  const customAgain = () => {
+    if (!last) return;
+    setD((p) => ({ ...p, ...dealFieldsFromFormula({ ...last.deal, name: OP_MAAT }) }));
   };
   /* The formula's benefits again, but not its price: that is agreed apart. */
   const resetBenefits = () => {
@@ -197,6 +219,40 @@ export default function DealForm({
             </button>
           )}
         </p>
+      )}
+      {last && !clash && (
+        <div className="gr-lastdeal" style={formulaStyle(formulaOf(last.deal, editions))}>
+          <span>
+            {t("df.last", { edition: last.edition.name })}{" "}
+            <span style={{ whiteSpace: "nowrap" }}>
+              <span className="gr-fdot" />
+              <strong>{lastCustom ? OP_MAAT : last.deal.formulaName}</strong> · {eur(last.deal.cost)}
+            </span>
+          </span>
+          {/* Once it is picked there is nothing left to offer. */}
+          {edition &&
+            (lastCustom ? (
+              !(
+                d.formulaName === OP_MAAT &&
+                sameBenefits(d, last.deal) &&
+                Number(d.cost) === Number(last.deal.cost)
+              ) && (
+                <button type="button" className="gr-mini" onClick={customAgain}>
+                  {t("df.lastcustom")}
+                </button>
+              )
+            ) : again ? (
+              d.formulaName !== again.name && (
+                <button type="button" className="gr-mini" onClick={() => applyFormula(again.name)}>
+                  {t("df.lastagain", { formula: again.name })}
+                </button>
+              )
+            ) : (
+              <span className="gr-muted">
+                {t("df.lastgone", { formula: last.deal.formulaName, edition: edition.name })}
+              </span>
+            ))}
+        </div>
       )}
       {d.editionId && (
         <>

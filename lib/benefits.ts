@@ -15,7 +15,7 @@
      - no formula of the edition (Op maat, none picked) as no benefits.
    ============================================================ */
 
-import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS, label, type LabelMap } from "@/lib/constants";
+import { FOLDER_OPTS, LED_ZONES, OP_MAAT, POSTER_OPTS, WEBSITE_OPTS, label, type LabelMap } from "@/lib/constants";
 import { teamT } from "@/lib/i18n";
 import { eur } from "@/lib/money";
 import { ledLabel, normLed } from "@/lib/normalize";
@@ -73,6 +73,10 @@ export const changeLines = (changes: BenefitChange[]) =>
     whether the database looks at them again on a save. */
 export const sameBenefits = (a: Partial<Deal>, b: Partial<Deal>) =>
   benefitChanges(a, b as FormulaFields).length === 0;
+
+/** Op maat, or no formula at all, which counts as Op maat. */
+export const isCustom = (deal: Partial<Pick<Deal, "formulaName">>) =>
+  !String(deal.formulaName || "").trim() || String(deal.formulaName).trim() === OP_MAAT;
 
 /** The formula an agreement names, as its edition has it now; null for Op maat or none. */
 export const formulaOf = (deal: Partial<Pick<Deal, "editionId" | "formulaName">>, editions: Edition[]): Formula | null =>

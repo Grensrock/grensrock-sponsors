@@ -400,6 +400,10 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "{sponsor} already has an agreement for {edition}. A sponsor has only one agreement per edition — change the existing one instead.",
   ],
   "df.openclash": ["Bestaande overeenkomst openen", "Open the existing agreement"],
+  "df.last": ["Laatste overeenkomst ({edition}):", "Last agreement ({edition}):"],
+  "df.lastagain": ["Opnieuw {formula} kiezen", "Choose {formula} again"],
+  "df.lastcustom": ["Opnieuw dezelfde voorwaarden", "Same terms again"],
+  "df.lastgone": ["{formula} bestaat niet in {edition}", "{edition} has no {formula}"],
   /* ---------- the benefits in the agreement form (0026) ---------- */
   "df.benefits": ["Voordelen voor de sponsor", "Benefits for the sponsor"],
   "df.asformula": ["Zoals in formule {formula}.", "As in formula {formula}."],

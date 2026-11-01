@@ -69,6 +69,7 @@ export default function SponsorDetail({
   logos = [],
   onLogosChange,
   onEmail,
+  onDownloadForm,
 }: {
   sponsor: Sponsor;
   deals: Deal[];
@@ -102,6 +103,8 @@ export default function SponsorDetail({
   /** Open this sponsor's portal as one of their contacts sees it, read-only. */
   onPreviewPortal?: (contact?: Contact | null) => void;
   onEmail: (d: Deal) => void;
+  /** The PDF form for this sponsor to fill in. Only reads, so open to the whole team, like logos. */
+  onDownloadForm?: () => void;
   logos?: SponsorLogo[];
   onLogosChange?: (logos: SponsorLogo[]) => void;
 }) {
@@ -151,6 +154,11 @@ export default function SponsorDetail({
           )}
         </div>
         <div className="gr-detail-btns">
+          {onDownloadForm && (
+            <button className="gr-btn-ghost" onClick={onDownloadForm}>
+              {t("pf.button")}
+            </button>
+          )}
           {canEdit && (
             <button className="gr-btn-ghost" onClick={onEdit}>
               {t("common.edit")}

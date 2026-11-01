@@ -126,6 +126,28 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "sp.undecided": ["Nog geen antwoord voor", "No answer yet for"],
   "sp.count": ["sponsors", "sponsors"],
   "sp.back": ["← Alle sponsors", "← All sponsors"],
+  // the sponsor form (PDF)
+  "pf.button": ["PDF-formulier", "PDF form"],
+  "pf.title": ["Formulier voor de sponsor", "Form for the sponsor"],
+  "pf.intro": [
+    "Een PDF die de sponsor invult: de gegevens die we van hen hebben, en de formules van de editie om uit te kiezen.",
+    "A PDF for the sponsor to fill in: the details we have for them, and the edition's formulas to choose from.",
+  ],
+  "pf.sponsor": ["Sponsor", "Sponsor"],
+  "pf.edition": ["Editie", "Edition"],
+  "pf.language": ["Taal van het formulier", "Language of the form"],
+  "pf.download": ["PDF downloaden", "Download PDF"],
+  "pf.busy": ["Bezig…", "Working…"],
+  "pf.noeditions": ["Nog geen editie", "No edition yet"],
+  "pf.noformulas": [
+    "{edition} heeft nog geen formules. Het formulier vraagt de sponsor dan wat ze voor ogen hebben.",
+    "{edition} has no formulas yet. The form then asks the sponsor what they have in mind.",
+  ],
+  "pf.hasdeal": [
+    "Deze sponsor heeft al een overeenkomst voor {edition}: die staat op het formulier aangeduid.",
+    "This sponsor already has an agreement for {edition}: it is marked on the form.",
+  ],
+  "pf.failed": ["Het formulier kon niet gemaakt worden: {error}", "The form could not be made: {error}"],
   // sponsor detail tabs
   "sd.info": ["Gegevens", "Information"],
   "sd.logos": ["Logo's", "Logos"],
@@ -1117,8 +1139,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   /* ---------- agreement import (components/modals/AgreementImportModal.tsx) ---------- */
   "ai.title": ["Overeenkomsten importeren", "Import agreements"],
   "ai.intro": [
-    'Laad een Excel- (.xlsx) of CSV-bestand op met één overeenkomst per rij. De sponsor wordt gezocht op BTW-nummer of bedrijfsnaam, zoals die hier bewaard zijn — een rij met een onbekende sponsor wordt overgeslagen. Een formule brengt haar voordelen mee, zoals in het formulier; een bedrag in het bestand vervangt dan haar prijs. Zonder formule, of met "Op maat", is het bedrag verplicht. Er worden geen e-mails verstuurd.',
-    'Upload an Excel (.xlsx) or CSV file with one agreement per row. The sponsor is matched on VAT number or company name, as stored here — a row with an unknown sponsor is skipped. A formula brings its benefits along, as in the form; an amount in the file then replaces its price. Without a formula, or with "Op maat", the amount is required. No emails are sent.',
+    'Laad een Excel- (.xlsx) of CSV-bestand op met één overeenkomst per rij. De sponsor wordt gezocht op BTW-nummer of bedrijfsnaam, zoals die hier bewaard zijn — een rij met een onbekende sponsor wordt overgeslagen. Een formule brengt haar voordelen mee, zoals in het formulier; een bedrag of voordeel in het bestand vervangt dan dat van de formule. Zonder formule, of met "Op maat", is het bedrag verplicht. Er worden geen e-mails verstuurd.',
+    'Upload an Excel (.xlsx) or CSV file with one agreement per row. The sponsor is matched on VAT number or company name, as stored here — a row with an unknown sponsor is skipped. A formula brings its benefits along, as in the form; an amount or a benefit in the file then replaces what the formula has. Without a formula, or with "Op maat", the amount is required. No emails are sent.',
   ],
   "ai.needheader": [
     "Het bestand heeft een hoofdingrij nodig plus minstens één rij met een overeenkomst.",
@@ -1167,10 +1189,24 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "ai.r.formula": ["formule bestaat niet in deze editie", "formula doesn't exist in this edition"],
   "ai.r.noamount": ["geen formule of bedrag", "no formula or amount"],
   "ai.r.badamount": ["bedrag onleesbaar", "amount unreadable"],
+  "ai.r.benefit": ["{field} onleesbaar", "{field} unreadable"],
+  "ai.benefits": ["Voordelen", "Benefits"],
+  "ai.benefitshint": [
+    "Een ingevulde cel vervangt wat de formule geeft; een lege cel laat het zoals in de formule (bij Op maat: niets). Wat zo afwijkt van de formule, komt meteen goedgekeurd binnen, op naam van wie importeert.",
+    "A filled-in cell replaces what the formula gives; an empty cell leaves it as in the formula (with Op maat: nothing). What differs from the formula this way comes in approved, in the name of whoever imports.",
+  ],
+  "ai.differs": ["wijkt af van formule", "differs from formula"],
+  "ai.benefitbanner": [
+    'Sommige voordelen konden niet gelezen worden. Het tabblad Uitleg van het sjabloon zegt per kolom wat er in mag, bv. "Halve pagina" of "VIP, Podium".',
+    'Some benefits couldn\'t be read. The template\'s Instructions sheet says per column what can go in, e.g. "Half page" or "VIP, Stage".',
+  ],
   "aif.edition": ["Editie", "Edition"],
   "aif.formula": ["Formule", "Formula"],
   "aif.amount": ["Bedrag (€)", "Amount (€)"],
   "aif.notes": ["Notities", "Notes"],
+  "aif.drink": ["Drankvouchers (€)", "Drink vouchers (€)"],
+  "aif.food": ["Eten & drinken (€)", "Food & drinks (€)"],
+  "aif.led": ["LED-boarding", "LED boarding"],
 
   /* ---------- import templates (lib/import-template.ts) ---------- */
   "tpl.download": ["Sjabloon downloaden", "Download template"],
@@ -1306,14 +1342,48 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "The edition's name or just its year, e.g. 2026. Empty = the edition you pick when importing.",
   ],
   "tph.ag.formula": [
-    'De naam van een formule van die editie (zie hieronder), of "Op maat". Leeg = op maat.',
-    'The name of one of that edition\'s formulas (see below), or "Op maat". Empty = custom.',
+    'De naam van een formule van die editie (zie hieronder), of "Op maat". Leeg = op maat. Haar voordelen komen mee: vul in de kolommen ernaast enkel in wat anders is.',
+    'The name of one of that edition\'s formulas (see below), or "Op maat". Empty = custom. Its benefits come along: fill in the columns beside it only where they differ.',
   ],
   "tph.ag.amount": [
     "Bv. 1250 of 1.250,00. Vervangt de prijs van de formule; verplicht zonder formule of bij Op maat.",
     "E.g. 1250 or 1,250.00. Replaces the formula's price; required without a formula or with Op maat.",
   ],
   "tph.ag.notes": ["Vrije tekst, bv. afspraken over de facturatie.", "Free text, e.g. what was agreed about invoicing."],
+  "tph.ag.vipFriday": ["Aantal, bv. 4. Leeg = zoals de formule (Op maat: geen).", "A number, e.g. 4. Empty = as in the formula (Op maat: none)."],
+  "tph.ag.vipSaturday": ["Aantal, bv. 4. Leeg = zoals de formule (Op maat: geen).", "A number, e.g. 4. Empty = as in the formula (Op maat: none)."],
+  "tph.ag.vipGuests": [
+    "Aantal VIP-tickets voor gasten, bv. 2. Leeg = zoals de formule (Op maat: geen).",
+    "The number of VIP tickets for guests, e.g. 2. Empty = as in the formula (Op maat: none).",
+  ],
+  "tph.ag.drinkValue": [
+    "Waarde in euro, bv. 100 of 100,00. Een ander bedrag dan dat van de formule wordt één voucher; opsplitsen kan nadien in de overeenkomst. Leeg = zoals de formule (Op maat: geen).",
+    "Value in euro, e.g. 100 or 100.00. An amount other than the formula's becomes one voucher; split it later in the agreement. Empty = as in the formula (Op maat: none).",
+  ],
+  "tph.ag.foodDrinkValue": [
+    "Waarde in euro, bv. 250. Komt bovenop de formule en wordt bij de bijdrage gefactureerd. Leeg = geen.",
+    "Value in euro, e.g. 250. Comes on top of the formula and is invoiced with the contribution. Empty = none.",
+  ],
+  "tph.ag.folderMention": [
+    '"Volledige pagina", "Halve pagina", "1/4 pagina", "1/8 pagina" of "Geen". Schrijf "pagina" achter 1/4 en 1/8: zonder maakt Excel er een datum van. Leeg = zoals de formule (Op maat: geen).',
+    '"Full page", "Half page", "1/4 page", "1/8 page" or "None". Write "page" after 1/4 and 1/8: without it Excel turns them into a date. Empty = as in the formula (Op maat: none).',
+  ],
+  "tph.ag.posterMention": [
+    '"Logo", "Naam" of "Geen". Leeg = zoals de formule (Op maat: geen).',
+    '"Logo", "Name" or "None". Empty = as in the formula (Op maat: none).',
+  ],
+  "tph.ag.websiteMention": [
+    '"Logo", "Naam" of "Geen". Leeg = zoals de formule (Op maat: geen).',
+    '"Logo", "Name" or "None". Empty = as in the formula (Op maat: none).',
+  ],
+  "tph.ag.fenceCovers": [
+    "Aantal banners, bv. 2. Leeg = zoals de formule (Op maat: geen).",
+    "The number of banners, e.g. 2. Empty = as in the formula (Op maat: none).",
+  ],
+  "tph.ag.ledboarding": [
+    'De zones, met een komma ertussen: "VIP", "Food village" en "Podium", bv. "VIP, Podium". Of "Alle" of "Geen". Leeg = zoals de formule (Op maat: geen).',
+    'The zones, separated by commas: "VIP", "Food village" and "Stage", e.g. "VIP, Stage". Or "All" or "None". Empty = as in the formula (Op maat: none).',
+  ],
 };
 
 export const teamT = (key: string, lang: TeamLanguage, params?: Record<string, string | number>): string => {

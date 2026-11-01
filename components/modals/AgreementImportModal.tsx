@@ -5,31 +5,39 @@ import * as XLSX from "xlsx";
 import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import Tag from "@/components/ui/Tag";
+import { benefitChanges, changeLines } from "@/lib/benefits";
 import { OP_MAAT, dealFieldsFromFormula, emptyDeal } from "@/lib/constants";
 import {
   AGREEMENT_FIELDS,
+  BENEFIT_FIELDS,
   autoMapAgreements,
   isCustomFormula,
   matchEdition,
   parseAmount,
+  parseBenefit,
   type AgreementField,
   type ColumnMap,
 } from "@/lib/import-helpers";
 import { AGREEMENT_TEMPLATE, downloadTemplate } from "@/lib/import-template";
 import { eur } from "@/lib/money";
 import { normNameKey, normStr, normVatKey } from "@/lib/normalize";
-import type { Deal, Edition, Language, Sponsor, SponsorDecline, TranslateFn } from "@/types";
+import { benefitLines, voucherTotal } from "@/lib/vouchers";
+import type { Deal, Edition, Formula, Language, Sponsor, SponsorDecline, TranslateFn } from "@/types";
 
 /* ---------- Agreement import (xlsx / csv) ----------
    One agreement per row. Nothing is created around it: the sponsor and the
    edition must already exist, and the formula must be one of that edition's.
    A formula is copied the way the agreement form copies it; an amount in the
-   file replaces its price. No mail goes out — not the confirmation to the
+   file replaces its price, and each benefit filled in replaces the formula's.
+   An admin is the one importing, so benefits that differ from the formula
+   come in approved (0026), as when an admin saves the form. No mail goes out — not the confirmation to the
    sponsor, and not the "new agreement" notice to the admins, since an admin
    is the one importing. */
 
 interface AgreementImportRow {
   deal: Partial<Deal>;
+  /** What the benefits are held against; null for Op maat. */
+  formula: Formula | null;
   sponsorName: string;
   editionName: string;
   /** The sponsor had declined this edition; inserting the agreement withdraws that (0022). */
@@ -41,7 +49,11 @@ interface SkippedRow {
   name: string;
   /** A TEAM_TEXT key, so the list follows the interface language. */
   reason: string;
+  /** The label key of the column the reason is about, filled in as {field}. */
+  field?: string;
 }
+
+const BASE_FIELDS = AGREEMENT_FIELDS.filter(([f]) => !BENEFIT_FIELDS.some(([b]) => b === f));
 
 export default function AgreementImportModal({
   sponsors,
@@ -183,9 +195,10 @@ export default function AgreementImportModal({
       }
 
       let fields: Partial<Deal>;
+      let formula: Formula | null = null;
       const asked = get(row, "formula");
       if (asked && !isCustomFormula(asked)) {
-        const formula = (edition.formulas || []).find((f) => normNameKey(f.name) === normNameKey(asked));
+        formula = (edition.formulas || []).find((f) => normNameKey(f.name) === normNameKey(asked)) || null;
         if (!formula) {
           skipped.push({ line, name: `${name} — ${asked}`, reason: "ai.r.formula" });
           return;
@@ -199,15 +212,35 @@ export default function AgreementImportModal({
         fields = { formulaName: OP_MAAT, cost: amount };
       }
 
+      /* Each benefit the file fills in replaces the formula's; an empty cell
+         leaves it (Op maat: none). One that can't be read stops the row, as
+         importing it without would give the sponsor less than agreed. */
+      const benefits: Partial<Deal> = {};
+      for (const [field, labelKey] of BENEFIT_FIELDS) {
+        const value = parseBenefit(field, cell(row, field));
+        if (value === undefined) {
+          skipped.push({ line, name: `${name} — ${get(row, field)}`, reason: "ai.r.benefit", field: labelKey });
+          return;
+        }
+        if (value) Object.assign(benefits, value);
+      }
+
+      const deal = {
+        ...emptyDeal,
+        ...fields,
+        ...benefits,
+        sponsorId: sponsor.id,
+        editionId: edition.id,
+        notes: get(row, "notes"),
+      };
+      /* The formula's split of its drink vouchers fits its own amount only:
+         another amount becomes one voucher, to be split in the agreement. */
+      if (Math.abs(voucherTotal(deal.drinkVouchers) - (Number(deal.drinkValue) || 0)) >= 0.005) deal.drinkVouchers = [];
+
       seen.add(key);
       create.push({
-        deal: {
-          ...emptyDeal,
-          ...fields,
-          sponsorId: sponsor.id,
-          editionId: edition.id,
-          notes: get(row, "notes"),
-        },
+        deal,
+        formula,
         sponsorName: name,
         editionName: edition.name,
         declined: declined.has(key),
@@ -216,6 +249,23 @@ export default function AgreementImportModal({
     return { create, skipped };
   }, [headers, rows, map, editionId, sponsors, editions, deals, declines]);
 
+  /* What the sponsor gets, so a wrong column shows before the import; one set
+     apart from its formula says so, with what differs on hover. */
+  const benefitsCell = (r: AgreementImportRow) => {
+    const lines = benefitLines(r.deal, lang);
+    const changes = r.formula ? changeLines(benefitChanges(r.deal, r.formula, lang === "en" ? "en" : "nl")) : [];
+    return (
+      <span className="gr-muted" style={{ fontSize: 12 }}>
+        {changes.length > 0 && (
+          <span title={changes.join("\n")}>
+            <Tag tone="amber">{t("ai.differs")}</Tag>{" "}
+          </span>
+        )}
+        {lines.join(" · ") || "—"}
+      </span>
+    );
+  };
+
   const doImport = async () => {
     if (!analysis || busy) return;
     setBusy(true);
@@ -223,6 +273,23 @@ export default function AgreementImportModal({
     setBusy(false);
     if (ok) setResult({ created: analysis.create.length, skipped: analysis.skipped });
   };
+
+  const mappingGrid = (fields: Array<[AgreementField, string]>) => (
+    <div className="gr-grid3">
+      {fields.map(([field, labelKey]) => (
+        <Field key={field} label={t(labelKey)}>
+          <select value={map[field] ?? -1} onChange={(e) => setMap({ ...map, [field]: Number(e.target.value) })}>
+            <option value={-1}>{t("im.skip")}</option>
+            {headers!.map((h, i) => (
+              <option key={i} value={i}>
+                {h || t("im.column", { n: i + 1 })}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ))}
+    </div>
+  );
 
   const skippedTable = (list: SkippedRow[]) => (
     <div className="gr-tablewrap">
@@ -239,7 +306,7 @@ export default function AgreementImportModal({
             <tr key={i}>
               <td>{s.line}</td>
               <td>{s.name || t("im.empty")}</td>
-              <td>{t(s.reason)}</td>
+              <td>{t(s.reason, s.field ? { field: t(s.field) } : undefined)}</td>
             </tr>
           ))}
         </tbody>
@@ -293,23 +360,7 @@ export default function AgreementImportModal({
             {t("im.colmapping")}
           </h4>
           <p className="gr-muted">{t("im.detected")}</p>
-          <div className="gr-grid3">
-            {AGREEMENT_FIELDS.map(([field, labelKey]) => (
-              <Field key={field} label={t(labelKey)}>
-                <select
-                  value={map[field] ?? -1}
-                  onChange={(e) => setMap({ ...map, [field]: Number(e.target.value) })}
-                >
-                  <option value={-1}>{t("im.skip")}</option>
-                  {headers.map((h, i) => (
-                    <option key={i} value={i}>
-                      {h || t("im.column", { n: i + 1 })}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ))}
-          </div>
+          {mappingGrid(BASE_FIELDS)}
           {/* For the rows that don't name their edition: every row, without an Editie column. */}
           <Field
             label={t(mapped("edition") ? "ai.editionrest" : "ai.edition")}
@@ -324,6 +375,9 @@ export default function AgreementImportModal({
               ))}
             </select>
           </Field>
+          <h4 className="gr-subhead">{t("ai.benefits")}</h4>
+          <p className="gr-muted">{t("ai.benefitshint")}</p>
+          {mappingGrid(BENEFIT_FIELDS)}
           {[
             !mapped("sponsor") && "im.selsponsor",
             !mapped("edition") && !editionId && "ai.seledition",
@@ -353,6 +407,7 @@ export default function AgreementImportModal({
                         <th>{t("c.edition")}</th>
                         <th>{t("c.formula")}</th>
                         <th className="gr-r">{t("c.cost")}</th>
+                        <th>{t("ai.benefits")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -370,11 +425,12 @@ export default function AgreementImportModal({
                           <td>{r.editionName}</td>
                           <td>{r.deal.formulaName === OP_MAAT ? t("th.custom") : r.deal.formulaName}</td>
                           <td className="gr-r">{eur(r.deal.cost)}</td>
+                          <td>{benefitsCell(r)}</td>
                         </tr>
                       ))}
                       {analysis.create.length > 6 && (
                         <tr>
-                          <td colSpan={4} className="gr-muted">
+                          <td colSpan={5} className="gr-muted">
                             {t("im.more", { n: analysis.create.length - 6 })}
                           </td>
                         </tr>
@@ -391,6 +447,11 @@ export default function AgreementImportModal({
               {analysis.skipped.some((s) => s.reason === "ai.r.formula") && (
                 <p className="gr-blockbanner" style={{ marginTop: 12 }}>
                   {t("ai.formulabanner")}
+                </p>
+              )}
+              {analysis.skipped.some((s) => s.reason === "ai.r.benefit") && (
+                <p className="gr-blockbanner" style={{ marginTop: 12 }}>
+                  {t("ai.benefitbanner")}
                 </p>
               )}
               {/* Before importing, not only after: a row skipped now is one to fix in the file first. */}

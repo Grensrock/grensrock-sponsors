@@ -29,7 +29,7 @@ import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { sponsorFaq } from "@/lib/faq";
 import { formulaColor } from "@/lib/color";
-import { eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
+import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
 import { validateVat, vatToStore } from "@/lib/vat";
 import {
   benefitLines,
@@ -725,12 +725,19 @@ export default function SponsorPortal({
                     <dd>{d.formulaName || "—"}</dd>
                     <dt>{T("Bijdrage", "Contribution", "Contribution")}</dt>
                     <dd>
-                      <strong>{eur(d.cost)}</strong>
-                      {d.settlement === "inkind"
-                        ? ` — ${T("in natura, geen factuur", "en nature, sans facture", "in kind, no invoice")}`
-                        : d.settlement === "mixed"
-                          ? ` — ${T("te factureren", "à facturer", "to invoice")}: ${eur(invoiceAmount(d))}`
-                          : ""}
+                      <strong>{eur(dealTotalCost(d))}</strong>
+                      {foodDrinkExtra(d) > 0 &&
+                        ` (${eur(d.cost)} ${T("formule", "formule", "formula")} + ${eur(foodDrinkExtra(d))} ${T(
+                          "vouchers eten & drinken",
+                          "bons food & boissons",
+                          "food & drink vouchers",
+                        )})`}
+                      {/* In kind, the vouchers bought on top are still invoiced (invoiceAmount). */}
+                      {d.settlement !== "inkind" && d.settlement !== "mixed"
+                        ? ""
+                        : invoiceAmount(d) === 0
+                          ? ` — ${T("in natura, geen factuur", "en nature, sans facture", "in kind, no invoice")}`
+                          : ` — ${T("te factureren", "à facturer", "to invoice")}: ${eur(invoiceAmount(d))}`}
                     </dd>
                     {(d.inKindDescription || "").trim() && (
                       <>
@@ -854,7 +861,7 @@ export default function SponsorPortal({
                               </td>
                               <td>{d.formulaName || "—"}</td>
                               <td className="gr-r">
-                                <strong>{eur(d.cost)}</strong>
+                                <strong>{eur(dealTotalCost(d))}</strong>
                                 {d.settlement === "inkind" && (
                                   <div className="gr-muted" style={{ fontSize: 11 }}>
                                     {T("in natura", "en nature", "in kind")}

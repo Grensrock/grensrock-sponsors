@@ -474,6 +474,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Food & drinks and how a value is split into vouchers can be changed straight away, without approval.",
   ],
   "df.foodsplit": ["Eten & drinken", "Food & drinks"],
+  "df.total": ["Totaal van de overeenkomst:", "Agreement total:"],
+  "df.totalsplit": ["({cost} + {fd} eten & drinken)", "({cost} + {fd} food & drinks)"],
   "df.splitvouchers": ["Vouchers verdelen", "Divide vouchers"],
   "ed.editionstitle": ["Festivaledities", "Festival editions"],
   "ov.addsponsor": ["Een sponsor toevoegen", "Add a sponsor"],

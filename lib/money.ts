@@ -11,9 +11,11 @@ export const eur = (n?: NumLike | null) => {
 export const foodDrinkExtra = (d: Partial<Deal>) =>
   Math.max(0, (Number(d.foodDrinkValue) || 0) - (Number(d.baseFoodDrink) || 0));
 
-/* Amount that actually has to be invoiced */
+/* The agreement's total: the contribution plus the food & drink vouchers
+   bought on top of it, e.g. a € 500 formula with € 100 of vouchers is € 600 */
 export const dealTotalCost = (d: Partial<Deal>) => (Number(d.cost) || 0) + foodDrinkExtra(d);
 
+/* Amount that actually has to be invoiced */
 export const invoiceAmount = (d: Partial<Deal>) => {
   const cost = dealTotalCost(d);
   if (d.settlement === "inkind") return foodDrinkExtra(d); // the top-up is always billable, even for in-kind deals

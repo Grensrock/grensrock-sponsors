@@ -7,11 +7,12 @@ import Modal from "@/components/ui/Modal";
 import Tag from "@/components/ui/Tag";
 import { emptyContact, uid } from "@/lib/constants";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
-import { IMPORT_FIELDS, autoMap, type ColumnMap, type ImportField } from "@/lib/import-helpers";
+import { IMPORT_FIELDS, autoMap, matchUser, type ColumnMap, type ImportField } from "@/lib/import-helpers";
 import { SPONSOR_TEMPLATE, downloadTemplate } from "@/lib/import-template";
 import { normEntity, normLang, normNameKey, normStr, normVatKey } from "@/lib/normalize";
+import { userName } from "@/lib/users";
 import { validateVat, vatToStore } from "@/lib/vat";
-import type { Contact, EntityType, Language, Sponsor, TranslateFn } from "@/types";
+import type { Contact, EntityType, Language, Sponsor, TranslateFn, User } from "@/types";
 
 /* ---------- Sponsor import (xlsx / csv) ---------- */
 
@@ -29,6 +30,11 @@ export interface SponsorImportRow {
   emailPreview: string;
   langPreview: Language;
   mailInvalid: boolean;
+  /** The team member the row names ("" = nobody, or a name no account matches). */
+  responsibleId: string;
+  responsiblePreview: string;
+  /** The row names someone, but not one team member: imported without a responsible. */
+  responsibleUnknown: boolean;
 }
 
 interface SkippedRow {
@@ -40,12 +46,15 @@ interface SkippedRow {
 
 export default function ImportModal({
   sponsors,
+  users = [],
   onImport,
   onClose,
   t = (k) => k,
   lang = "nl",
 }: {
   sponsors: Sponsor[];
+  /** The team, to match the responsible column against. */
+  users?: User[];
   onImport: (list: SponsorImportRow[]) => void;
   onClose: () => void;
   t?: TranslateFn;
@@ -56,6 +65,18 @@ export default function ImportModal({
   const [map, setMap] = useState<ColumnMap<ImportField>>({});
   const [err, setErr] = useState("");
   const [result, setResult] = useState<{ createdCount: number; skipped: SkippedRow[] } | null>(null);
+
+  /* The team on the template's second sheet, so the responsible column can be filled in exactly. */
+  const teamGuide = () =>
+    users.length
+      ? [
+          [t("tpl.team")],
+          [t("c.name"), t("c.email")],
+          ...users
+            .map((u) => [userName(u), u.email])
+            .sort((a, b) => a[0].localeCompare(b[0])),
+        ]
+      : [];
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files && e.target.files[0];
@@ -113,6 +134,8 @@ export default function ImportModal({
       const vatRes = validateVat(rawVat);
       const rawMail = get(row, "contactEmail");
       const mailRes = validateEmail(rawMail);
+      const rawResp = get(row, "responsible");
+      const resp = matchUser(rawResp, users);
       create.push({
         companyName,
         street: get(row, "street"),
@@ -141,10 +164,15 @@ export default function ImportModal({
         emailPreview: emailToStore(rawMail),
         langPreview: (map.contactLanguage ?? -1) >= 0 ? normLang(get(row, "contactLanguage")) : "nl",
         mailInvalid: !!(mailRes && !mailRes.valid),
+        responsibleId: resp ? resp.id : "",
+        responsiblePreview: resp ? userName(resp) : rawResp,
+        responsibleUnknown: !!rawResp && !resp,
       });
     });
     return { create, skipped };
-  }, [headers, rows, map, sponsors]);
+  }, [headers, rows, map, sponsors, users]);
+
+  const unknownResp = analysis ? analysis.create.filter((c) => c.responsibleUnknown).length : 0;
 
   const doImport = () => {
     if (!analysis) return;
@@ -201,7 +229,7 @@ export default function ImportModal({
             <button
               type="button"
               className="gr-mini"
-              onClick={() => downloadTemplate("grensrock-template-sponsors.xlsx", SPONSOR_TEMPLATE, t)}
+              onClick={() => downloadTemplate("grensrock-template-sponsors.xlsx", SPONSOR_TEMPLATE, t, teamGuide())}
             >
               {t("tpl.download")}
             </button>
@@ -249,6 +277,12 @@ export default function ImportModal({
                 <Tag tone={analysis.skipped.length ? "amber" : "grey"}>
                   {t("im.skippedwhy", { n: analysis.skipped.length })}
                 </Tag>
+                {unknownResp > 0 && (
+                  <>
+                    {" "}
+                    <Tag tone="amber">{t("im.badrespcount", { n: unknownResp })}</Tag>
+                  </>
+                )}
               </p>
               {analysis.create.length > 0 && (
                 <div className="gr-tablewrap">
@@ -260,6 +294,7 @@ export default function ImportModal({
                         <th>{t("c.contact")}</th>
                         <th>{t("c.email")}</th>
                         <th>{t("im.lang")}</th>
+                        <th>{t("c.responsible")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -298,11 +333,20 @@ export default function ImportModal({
                               : "—"}
                           </td>
                           <td>{(c.langPreview || "nl").toUpperCase()}</td>
+                          <td>
+                            {c.responsibleUnknown ? (
+                              <span style={{ color: "var(--red)" }} title={t("im.badresp")}>
+                                ⚠ {c.responsiblePreview}
+                              </span>
+                            ) : (
+                              c.responsiblePreview || "—"
+                            )}
+                          </td>
                         </tr>
                       ))}
                       {analysis.create.length > 6 && (
                         <tr>
-                          <td colSpan={5} className="gr-muted">
+                          <td colSpan={6} className="gr-muted">
                             {t("im.more", { n: analysis.create.length - 6 })}
                           </td>
                         </tr>

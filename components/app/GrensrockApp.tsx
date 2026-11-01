@@ -1374,8 +1374,16 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const importSponsors = async (list: SponsorImportRow[]) => {
     try {
       const payload = list.map(
-        ({ vatInvalid: _v, mailInvalid: _m, contactPreview: _c, emailPreview: _e, langPreview: _l, ...s }) =>
-          ({ ...emptySponsor, ...s }) as Sponsor,
+        ({
+          vatInvalid: _v,
+          mailInvalid: _m,
+          contactPreview: _c,
+          emailPreview: _e,
+          langPreview: _l,
+          responsiblePreview: _rp,
+          responsibleUnknown: _ru,
+          ...s
+        }) => ({ ...emptySponsor, ...s }) as Sponsor,
       );
       const created = await sponsorsApi.createSponsors(payload);
       setData((d) => ({ ...d, sponsors: [...d.sponsors, ...created] }));
@@ -4403,6 +4411,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       {modal?.type === "import" && admin && (
         <ImportModal
           sponsors={sponsors}
+          users={users}
           onImport={importSponsors}
           onClose={() => setModal(null)}
           t={t}

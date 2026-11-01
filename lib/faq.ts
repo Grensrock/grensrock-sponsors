@@ -560,8 +560,8 @@ const TEAM_FAQ: TeamSection[] = [
           en: "How do I divide the sponsors among the team?",
         },
         a: {
-          nl: "Open de sponsor, klik **Bewerken** en kies de **Verantwoordelijke (ons team)**. Vanaf dan kan die persoon de sponsor, zijn contactpersonen en overeenkomsten wijzigen; andere gebruikers kunnen dat niet meer.\n\nEen sponsor zonder verantwoordelijke kan enkel een beheerder wijzigen. Met **Lijst importeren** komen sponsors zonder verantwoordelijke binnen: kies na een import **Niet toegewezen** in de lijst en wijs ze toe.",
-          en: "Open the sponsor, click **Edit** and choose the **Responsible (our team)**. From then on that person can change the sponsor, its contact persons and agreements; other users no longer can.\n\nOnly an admin can change a sponsor without a responsible person. Sponsors from **Import list** come in without one: after an import, choose **Not assigned** in the list and assign them.",
+          nl: "Open de sponsor, klik **Bewerken** en kies de **Verantwoordelijke (ons team)**. Vanaf dan kan die persoon de sponsor, zijn contactpersonen en overeenkomsten wijzigen; andere gebruikers kunnen dat niet meer.\n\nEen sponsor zonder verantwoordelijke kan enkel een beheerder wijzigen. Met **Lijst importeren** wijs je de verantwoordelijke meteen toe: vul in de kolom **Verantwoordelijke (ons team)** de naam of het e-mailadres van een teamlid in. Sponsors zonder herkende verantwoordelijke komen niet toegewezen binnen: kies na een import **Niet toegewezen** in de lijst en wijs ze toe.",
+          en: "Open the sponsor, click **Edit** and choose the **Responsible (our team)**. From then on that person can change the sponsor, its contact persons and agreements; other users no longer can.\n\nOnly an admin can change a sponsor without a responsible person. With **Import list** you assign the responsible straight away: fill in a team member's name or email address in the **Responsible (our team)** column. Sponsors without a recognised responsible come in unassigned: after an import, choose **Not assigned** in the list and assign them.",
         },
       },
       {

@@ -8,7 +8,8 @@ import type { Language, PendingMail } from "@/types";
    POST /api/deals/approve-benefits  { dealId }
    ============================================================
    An admin approves benefits a team member set apart from the formula
-   (0026), and the agreement mail held for that approval goes out — to the
+   (0026), or an agreement they made Op maat (0028), and the agreement mail
+   held for that approval goes out — to the
    sponsor's contacts, with the responsible in Cc, exactly as it would have
    gone without the wait (lib/email/agreement.ts).
 

@@ -417,6 +417,14 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "An admin has to approve this before the agreement can go to the sponsor. The mail you prepare after saving goes out once they do.",
   ],
   "df.adminapproves": ["U bent admin: opslaan keurt dit meteen goed.", "You're an admin: saving approves this straight away."],
+  "df.customapproval": [
+    "Een admin moet de prijs en de voordelen van een overeenkomst op maat altijd goedkeuren voor ze naar de sponsor kan. De mail die u na het opslaan klaarzet, vertrekt bij die goedkeuring.",
+    "An admin always has to approve the price and benefits of an Op maat agreement before it can go to the sponsor. The mail you prepare after saving goes out once they do.",
+  ],
+  "df.customadmin": [
+    "Een overeenkomst op maat keurt een admin altijd goed. U bent admin: opslaan keurt ze meteen goed.",
+    "An admin always approves an Op maat agreement. You're an admin: saving approves it straight away.",
+  ],
   "df.waiting": ["Wacht sinds {when} op goedkeuring van een admin.", "Waiting for an admin's approval since {when}."],
   "df.approvedby": ["Goedgekeurd door {name} op {when}.", "Approved by {name} on {when}."],
   "df.vouchers": ["Vouchers", "Vouchers"],
@@ -572,6 +580,12 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.teamaccept": ["Aanvaarden", "Accept"],
   "dlg.approvetitle": ["Voordelen goedkeuren", "Approve the benefits"],
   "dlg.approvebyhand": ["Volgt geen formule; deze voordelen zijn met de hand ingevuld:", "Follows no formula; these benefits were filled in by hand:"],
+  "dlg.approvecustomtitle": ["Overeenkomst op maat goedkeuren", "Approve the custom agreement"],
+  "dlg.approvecustom": [
+    "Op maat, voor {cost}. Deze voordelen zijn met de hand ingevuld:",
+    "Op maat, for {cost}. These benefits were filled in by hand:",
+  ],
+  "dlg.approvecustomnone": ["Op maat, voor {cost}, zonder voordelen.", "Op maat, for {cost}, with no benefits."],
   "dlg.approvemail": [
     "Na de goedkeuring vertrekt de mail die {by} klaarzette naar {to}, met de verantwoordelijke in cc.",
     "Once approved, the mail {by} prepared goes to {to}, with the responsible in cc.",

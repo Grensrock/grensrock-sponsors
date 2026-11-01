@@ -3,7 +3,8 @@
    ============================================================
    An agreement's benefits are held against the formula it names. When a
    team member sets them apart from it, the agreement waits for an admin
-   before it can reach the sponsor. The database makes that call
+   before it can reach the sponsor — and one made Op maat always waits,
+   price and all (0028). The database makes that call
    (0026_benefits_approval.sql) and its answer is the one that counts —
    it arrives on the agreement as benefitsChangedAt / benefitsApprovedAt.
    This side lists what differs, for the form, the approval dialog and the
@@ -74,7 +75,8 @@ export const changeLines = (changes: BenefitChange[]) =>
 export const sameBenefits = (a: Partial<Deal>, b: Partial<Deal>) =>
   benefitChanges(a, b as FormulaFields).length === 0;
 
-/** Op maat, or no formula at all, which counts as Op maat. */
+/** Op maat, or no formula at all, which counts as Op maat: always up to an
+    admin to approve, price included (0028, formula_is_custom). */
 export const isCustom = (deal: Partial<Pick<Deal, "formulaName">>) =>
   !String(deal.formulaName || "").trim() || String(deal.formulaName).trim() === OP_MAAT;
 
@@ -82,5 +84,5 @@ export const isCustom = (deal: Partial<Pick<Deal, "formulaName">>) =>
 export const formulaOf = (deal: Partial<Pick<Deal, "editionId" | "formulaName">>, editions: Edition[]): Formula | null =>
   editions.find((e) => e.id === deal.editionId)?.formulas?.find((f) => f.name === deal.formulaName) || null;
 
-/** Waiting for an admin to approve benefits a team member set apart from the formula. */
+/** Waiting for an admin to approve benefits a team member set apart from the formula, or an agreement made Op maat. */
 export const awaitsApproval = (d?: Partial<Deal> | null) => !!d?.benefitsChangedAt && !d?.benefitsApprovedAt;

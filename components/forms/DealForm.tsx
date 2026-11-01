@@ -100,6 +100,8 @@ export default function DealForm({
      benefits now, not last time's. Op maat has no formula to look up, so its
      terms come over as they were, price included. */
   const again = last && !lastCustom ? formulas.find((f) => f.name === last.deal.formulaName) : undefined;
+  /* Op maat, or no formula: always up to an admin, price included (0028). */
+  const custom = isCustom(d);
 
   /* A formula's benefits are what Grensrock offers for its price, so they stay
      as the formula has them until someone deliberately opens them up — and
@@ -113,13 +115,18 @@ export default function DealForm({
      open all along. */
   const benefitList = benefitLines({ ...d, foodDrinkValue: 0, drinkVouchers: [] }, lang);
   /* Whether saving has the database look at the benefits again — always for a
-     new agreement. An older one that differs but isn't touched now stays as
-     it was, so it isn't told it needs an approval it won't be asked for. */
+     new agreement, and for Op maat on a new price too. An older one that
+     differs but isn't touched now stays as it was, so it isn't told it needs
+     an approval it won't be asked for. */
   const reviewed =
     !initial?.id ||
     d.formulaName !== initial.formulaName ||
     d.editionId !== initial.editionId ||
-    !sameBenefits(d, initial);
+    !sameBenefits(d, initial) ||
+    (custom && Number(d.cost) !== Number(initial.cost));
+  const approvalNote = custom
+    ? t(admin ? "df.customadmin" : "df.customapproval")
+    : t(admin ? "df.adminapproves" : "df.needsapproval");
 
   const applyFormula = (name: string) => {
     if (name === OP_MAAT) {
@@ -326,7 +333,7 @@ export default function DealForm({
             <p className="gr-muted">{t("df.waiting", { when: fmtDateTime(initial?.benefitsChangedAt) })}</p>
           ) : (
             initial?.benefitsApprovedAt &&
-            changes.length > 0 && (
+            (changes.length > 0 || custom) && (
               <p className="gr-muted">
                 {t("df.approvedby", {
                   name: initial.benefitsApprovedBy || "?",
@@ -343,12 +350,19 @@ export default function DealForm({
                   <li key={line}>{line}</li>
                 ))}
               </ul>
-              {reviewed && (admin ? t("df.adminapproves") : t("df.needsapproval"))}
+              {reviewed && approvalNote}
             </div>
           ) : formula ? (
             <p className="gr-muted">{t("df.asformula", { formula: formula.name })}</p>
           ) : (
-            d.formulaName !== OP_MAAT && <p className="gr-muted">{t("df.pickfirst")}</p>
+            <>
+              {d.formulaName !== OP_MAAT && <p className="gr-muted">{t("df.pickfirst")}</p>}
+              {custom && reviewed && (
+                <div className="gr-benefitdiff" role="status">
+                  {approvalNote}
+                </div>
+              )}
+            </>
           )}
           {locked ? (
             benefitList.length > 0 && (

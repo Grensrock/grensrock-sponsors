@@ -123,12 +123,15 @@ export default function VoucherEditor({
   };
 
   /* Default: the whole amount on one voucher.
-     When the amount changes afterwards, redo the split with the same number of pieces. */
+     When the amount changes afterwards, redo the split with the same number of
+     pieces — unless the split already adds up to the new amount: then it came
+     with it, like a formula's own split when another formula is picked. */
   useEffect(() => {
     if (target <= 0) return;
     const empty = (rows || []).length === 0;
-    if (!empty && prevTarget.current === target) return;
+    const moved = prevTarget.current !== target;
     prevTarget.current = target;
+    if (!empty && (!moved || Math.abs(voucherTotal(rows) - target) < 0.005)) return;
     /* Drinks start as one voucher per ticket; a free amount starts as one voucher */
     const next =
       empty && defaultUnit ? [{ value: defaultUnit, qty: Math.round(target / defaultUnit) }] : buildSplit(pieces, target);
@@ -152,7 +155,7 @@ export default function VoucherEditor({
     >
       <div className="gr-formulahead" style={{ marginBottom: 6 }}>
         <span className="gr-label" style={{ margin: 0 }}>
-          {L("Verdeel", "Répartir", "Divide")} {eur(target)} {L("in bonnen", "en bons", "into vouchers")}
+          {L("Verdeel", "Répartir", "Divide")} {eur(target)} {L("in vouchers", "en bons", "into vouchers")}
         </span>
         <div className="gr-voucherquick">
           {[5, 10, 25].map((v) => (
@@ -176,14 +179,14 @@ export default function VoucherEditor({
           onChange={(e) => setPieces(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && splitInto(pieces)}
         />
-        <span className="gr-muted">{L("bon(nen)", "bon(s)", "voucher(s)")}</span>
+        <span className="gr-muted">{L("voucher(s)", "bon(s)", "voucher(s)")}</span>
         <button className="gr-mini" onClick={() => splitInto(pieces)}>
           {L("Verdelen", "Répartir", "Split")}
         </button>
         {Number(pieces) > 1 && target > 0 && (
           <span className="gr-muted">
             ≈ {eur(Math.floor((target / Math.max(1, Math.floor(Number(pieces) || 1))) * 100) / 100)}{" "}
-            {L("per bon", "par bon", "each")}
+            {L("per voucher", "par bon", "each")}
           </span>
         )}
       </div>
@@ -199,7 +202,7 @@ export default function VoucherEditor({
       ) : (
         draft.map((r, i) => (
           <div key={i} className="gr-voucherrow">
-            <span className="gr-muted">{L("Bon van", "Bon de", "Voucher of")}</span>
+            <span className="gr-muted">{L("Voucher van", "Bon de", "Voucher of")}</span>
             <input
               type="number"
               min="0"

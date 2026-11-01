@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import VoucherEditor from "@/components/forms/VoucherEditor";
 import Field from "@/components/ui/Field";
 import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS, label } from "@/lib/constants";
 import { eur } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
-import type { FormulaFields, Language, LedZone, TranslateFn } from "@/types";
+import { voucherText, voucherTotal } from "@/lib/vouchers";
+import type { FormulaFields, Language, LedZone, NumLike, TranslateFn, VoucherRow } from "@/types";
 
 export type BenefitSetter = (k: string, val: unknown) => void;
 
@@ -104,6 +106,11 @@ export default function BenefitFields({
    foodDrinkExtra — so what an older agreement still had included
    (baseFoodDrink) stays as it was (0027). */
 
+/* A saved split whose vouchers don't add up to their amount. Empty isn't one:
+   that is one voucher for the whole amount (expectedVouchers). */
+const offSplit = (rows: VoucherRow[] | undefined, amount: NumLike) =>
+  (rows || []).length > 0 && Math.abs(voucherTotal(rows) - (Number(amount) || 0)) >= 0.005;
+
 export function VoucherFields({
   v,
   set,
@@ -117,19 +124,18 @@ export function VoucherFields({
   lang?: Language;
 }) {
   const num = numSetter(set);
+  const drink = Number(v.drinkValue) > 0;
+  const food = Number(v.foodDrinkValue) > 0;
+  /* The splits wait behind a button, listed until then: most agreements keep
+     the formula's split, or one voucher per value. Closed, the editors are
+     only hidden, not gone — they keep a split in step with its amount (a
+     default when it is empty, redone when the amount changes), whether anyone
+     looks or not. One that doesn't add up starts open, so it isn't missed. */
+  const [splitOpen, setSplitOpen] = useState(
+    () => offSplit(v.drinkVouchers, v.drinkValue) || offSplit(v.foodDrinkVouchers, v.foodDrinkValue),
+  );
   return (
     <>
-      {Number(v.drinkValue) > 0 && (
-        <Field group label={t("bn.drink")}>
-          <VoucherEditor
-            amount={v.drinkValue}
-            rows={v.drinkVouchers || []}
-            lang={lang}
-            title="drink"
-            onChange={(rows) => set("drinkVouchers", rows)}
-          />
-        </Field>
-      )}
       <Field
         label={t("bf.food")}
         hint={
@@ -138,15 +144,49 @@ export function VoucherFields({
       >
         <input type="number" min="0" step="0.01" value={v.foodDrinkValue} onChange={num("foodDrinkValue")} />
       </Field>
-      {Number(v.foodDrinkValue) > 0 && (
-        <VoucherEditor
-          amount={v.foodDrinkValue}
-          rows={v.foodDrinkVouchers || []}
-          lang={lang}
-          title="food"
-          onChange={(rows) => set("foodDrinkVouchers", rows)}
-        />
+      {(drink || food) && !splitOpen && (
+        <>
+          <ul className="gr-benefitlist gr-benefitread" style={{ marginBottom: 8 }}>
+            {drink && (
+              <li>
+                {t("bn.drink")}: {voucherText(v.drinkVouchers) || `1 × ${eur(v.drinkValue)}`}
+              </li>
+            )}
+            {food && (
+              <li>
+                {t("df.foodsplit")}: {voucherText(v.foodDrinkVouchers) || `1 × ${eur(v.foodDrinkValue)}`}
+              </li>
+            )}
+          </ul>
+          <button type="button" className="gr-mini" style={{ marginBottom: 12 }} onClick={() => setSplitOpen(true)}>
+            {t("df.splitvouchers")}
+          </button>
+        </>
       )}
+      <div hidden={!splitOpen}>
+        {drink && (
+          <Field group label={t("bn.drink")}>
+            <VoucherEditor
+              amount={v.drinkValue}
+              rows={v.drinkVouchers || []}
+              lang={lang}
+              title="drink"
+              onChange={(rows) => set("drinkVouchers", rows)}
+            />
+          </Field>
+        )}
+        {food && (
+          <Field group label={t("df.foodsplit")}>
+            <VoucherEditor
+              amount={v.foodDrinkValue}
+              rows={v.foodDrinkVouchers || []}
+              lang={lang}
+              title="food"
+              onChange={(rows) => set("foodDrinkVouchers", rows)}
+            />
+          </Field>
+        )}
+      </div>
     </>
   );
 }

@@ -31,7 +31,7 @@ import DeclineForm from "@/components/forms/DeclineForm";
 import PendingAccess from "@/components/views/PendingAccess";
 import SponsorPortal from "@/components/views/SponsorPortal";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
-import { awaitsApproval, benefitChanges, changeLines, formulaOf } from "@/lib/benefits";
+import { awaitsApproval, benefitChanges, changeLines, formulaOf, isCustom } from "@/lib/benefits";
 import { formatAddress } from "@/lib/address";
 import { auditActorLabel } from "@/lib/audit-engine";
 import { formulaStyle } from "@/lib/color";
@@ -731,25 +731,33 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
     return fresh;
   };
 
-  /* Admin only: benefits a team member set apart from the formula (0026). The
-     question shows what differs, and what happens to the mail: the one that
-     was prepared goes out with the approval. With none prepared — or one that
-     couldn't go out — the mail window opens instead, so the agreement still
-     reaches the sponsor the way it would have without the wait. */
+  /* Admin only: benefits a team member set apart from the formula (0026), or
+     an agreement they made Op maat (0028), whose price is up for approval
+     too. The question shows what differs, and what happens to the mail: the
+     one that was prepared goes out with the approval. With none prepared — or
+     one that couldn't go out — the mail window opens instead, so the agreement
+     still reaches the sponsor the way it would have without the wait. */
   const approveDealBenefits = (d: Deal) => {
     const sponsor = sponsors.find((s) => s.id === d.sponsorId);
     const formula = formulaOf(d, editions);
+    const custom = !formula && isCustom(d);
+    const lines = changeLines(benefitChanges(d, formula, uiLang)).map((line) => `• ${line}`);
     const held = d.pendingMail;
     const heldTo = sponsorContacts(sponsor)
       .filter((c) => held?.contactIds?.includes(c.id))
       .map((c) => contactName(c) || c.email);
     const message = [
       `${sponsor?.companyName || "?"} — ${editions.find((e) => e.id === d.editionId)?.name || "?"}`,
-      (formula ? t("df.differs", { formula: formula.name }) : t("dlg.approvebyhand")) +
-        "\n" +
-        changeLines(benefitChanges(d, formula, uiLang))
-          .map((line) => `• ${line}`)
-          .join("\n"),
+      custom && !lines.length
+        ? t("dlg.approvecustomnone", { cost: eur(d.cost) })
+        : [
+            formula
+              ? t("df.differs", { formula: formula.name })
+              : custom
+                ? t("dlg.approvecustom", { cost: eur(d.cost) })
+                : t("dlg.approvebyhand"),
+            ...lines,
+          ].join("\n"),
       held && heldTo.length
         ? t("dlg.approvemail", { by: held.heldBy || "?", to: heldTo.join(", ") })
         : t("dlg.approvenomail"),
@@ -778,7 +786,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           failWith(e);
         }
       },
-      { title: t("dlg.approvetitle"), confirmLabel: t("ba.approve"), danger: false },
+      { title: t(custom ? "dlg.approvecustomtitle" : "dlg.approvetitle"), confirmLabel: t("ba.approve"), danger: false },
     );
   };
 

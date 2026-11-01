@@ -286,7 +286,7 @@ export default function SponsorPortal({
     ["sponsoring", `${T("Sponsoring", "Sponsoring", "Sponsorship")} (${history.length})`],
     [
       "vouchers",
-      `${T("Tickets & bonnen", "Tickets & bons", "Tickets & vouchers")} (${
+      `${T("Tickets & vouchers", "Tickets & bons", "Tickets & vouchers")} (${
         myVouchers.filter((v) => v.status !== "cancelled").length
       })`,
     ],
@@ -447,12 +447,12 @@ export default function SponsorPortal({
               </div>
               <Field
                 label={T(
-                  "Wie ontvangt de tickets & bonnen?",
+                  "Wie ontvangt de tickets & vouchers?",
                   "Qui reçoit les tickets & bons ?",
                   "Who receives the tickets & vouchers?",
                 )}
                 hint={T(
-                  "Eén contactpersoon ontvangt de bonnen voor uw bedrijf.",
+                  "Eén contactpersoon ontvangt de vouchers voor uw bedrijf.",
                   "Une seule personne de contact reçoit les bons pour votre entreprise.",
                   "One contact person receives the vouchers for your company.",
                 )}
@@ -740,7 +740,7 @@ export default function SponsorPortal({
                     )}
                     {ticketLines(d, lang).length > 0 && (
                       <>
-                        <dt>{T("Tickets & bonnen", "Tickets & bons", "Tickets & vouchers")}</dt>
+                        <dt>{T("Tickets & vouchers", "Tickets & bons", "Tickets & vouchers")}</dt>
                         <dd>
                           <ul className="gr-benefitlist">
                             {ticketLines(d, lang).map((line, i) => (
@@ -773,7 +773,7 @@ export default function SponsorPortal({
                   {splittable.some((x) => x.deal.id === d.id && x.canTopUp) && (
                     <p className="gr-muted" style={{ marginBottom: 10 }}>
                       {T(
-                        "Wilt u extra eten- & drankbonnen toevoegen? Doe dat dan vóór u aanvaardt, verderop onder 'Uw bonnen'.",
+                        "Wilt u extra eten- & drankvouchers toevoegen? Doe dat dan vóór u aanvaardt, verderop onder 'Uw vouchers'.",
                         "Vous souhaitez ajouter des bons food & boissons ? Faites-le avant d'accepter, plus bas sous « Vos bons ».",
                         "Want to add extra food & drink vouchers? Do that before you accept, further down under 'Your vouchers'.",
                       )}
@@ -830,7 +830,7 @@ export default function SponsorPortal({
                           <th>{T("Editie", "Édition", "Edition")}</th>
                           <th>{T("Formule", "Formule", "Formula")}</th>
                           <th className="gr-r">{T("Bijdrage", "Contribution", "Contribution")}</th>
-                          <th>{T("Tickets & bonnen", "Tickets & bons", "Tickets & vouchers")}</th>
+                          <th>{T("Tickets & vouchers", "Tickets & bons", "Tickets & vouchers")}</th>
                           <th>{T("Zichtbaarheid", "Visibilité", "Visibility")}</th>
                           <th>{T("Akkoord", "Accord", "Accepted")}</th>
                         </tr>
@@ -899,7 +899,7 @@ export default function SponsorPortal({
               )}
 
               {(splittable.length > 0 || lockedSplits.length > 0) && (
-                <h4 className="gr-subhead">{T("Uw bonnen", "Vos bons", "Your vouchers")}</h4>
+                <h4 className="gr-subhead">{T("Uw vouchers", "Vos bons", "Your vouchers")}</h4>
               )}
 
               {splittable.map(({ deal: d, drink, food, canTopUp }) => (
@@ -915,7 +915,7 @@ export default function SponsorPortal({
                     <div className="gr-topup">
                       <span className="gr-label">
                         {T(
-                          "Extra eten- & drankbonnen toevoegen",
+                          "Extra eten- & drankvouchers toevoegen",
                           "Ajouter des bons food & boissons",
                           "Add extra food & drink tickets",
                         )}
@@ -925,12 +925,12 @@ export default function SponsorPortal({
                       <p className="gr-muted" style={{ margin: "0 0 10px" }}>
                         {Number(d.baseFoodDrink) > 0
                           ? T(
-                              `Uw formule bevat ${eur(d.baseFoodDrink || 0)} aan eten- en drankbonnen. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
+                              `Uw formule bevat ${eur(d.baseFoodDrink || 0)} aan eten- en drankvouchers. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
                               `Votre formule comprend ${eur(d.baseFoodDrink || 0)} de bons food & boissons. Vous souhaitez l'augmenter ? Indiquez la valeur totale ci-dessous — la différence s'ajoute à votre contribution.`,
                               `Your formula includes ${eur(d.baseFoodDrink || 0)} in food & drink tickets. Want to add more? Enter the total value below — the difference is added to your contribution.`,
                             )
                           : T(
-                              "Eten- en drankbonnen komen bovenop uw formule. Vul hieronder de totale waarde in die u wenst — die wordt bij uw bijdrage geteld.",
+                              "Eten- en drankvouchers komen bovenop uw formule. Vul hieronder de totale waarde in die u wenst — die wordt bij uw bijdrage geteld.",
                               "Les bons food & boissons s'ajoutent à votre formule. Indiquez ci-dessous la valeur totale souhaitée — elle s'ajoute à votre contribution.",
                               "Food & drink tickets come on top of your formula. Enter the total value you'd like below — it is added to your contribution.",
                             )}
@@ -981,7 +981,7 @@ export default function SponsorPortal({
                     <>
                       <p className="gr-muted" style={{ marginTop: canTopUp ? 16 : 0 }}>
                         {T(
-                          "U kiest zelf in hoeveel bonnen uw bedrag wordt opgesplitst, zolang de bonnen nog niet aangemaakt zijn. Drankbonnen en bonnen voor eten & drinken blijven apart.",
+                          "U kiest zelf in hoeveel vouchers uw bedrag wordt opgesplitst, zolang de vouchers nog niet aangemaakt zijn. Drankvouchers en vouchers voor eten & drinken blijven apart.",
                           "Vous choisissez vous-même en combien de bons votre montant est réparti, tant que les bons ne sont pas encore créés. Les bons boissons et les bons food & boissons restent séparés.",
                           "You choose how many vouchers your amount is split into, as long as the vouchers haven't been created yet. Drink vouchers and food & drink vouchers stay separate.",
                         )}
@@ -991,7 +991,7 @@ export default function SponsorPortal({
                           <ul className="gr-benefitlist" style={{ margin: "6px 0 12px" }}>
                             {drink && (
                               <li>
-                                {T("Drankbonnen", "Bons boissons", "Drink vouchers")}:{" "}
+                                {T("Drankvouchers", "Bons boissons", "Drink vouchers")}:{" "}
                                 {voucherText(d.drinkVouchers) || `1 × ${eur(drinkPoolValue(d))}`}
                               </li>
                             )}
@@ -1006,13 +1006,13 @@ export default function SponsorPortal({
                             className="gr-btn-ghost"
                             onClick={() => setSplitOpen((o) => ({ ...o, [d.id]: true }))}
                           >
-                            {T("Bonnen verdelen", "Répartir les bons", "Divide vouchers")}
+                            {T("Vouchers verdelen", "Répartir les bons", "Divide vouchers")}
                           </button>
                         </>
                       )}
                       {splitOpen[d.id] && drink && (
                         <>
-                          <span className="gr-label">{T("Drankbonnen", "Bons boissons", "Drink vouchers")}</span>
+                          <span className="gr-label">{T("Drankvouchers", "Bons boissons", "Drink vouchers")}</span>
                           <VoucherEditor
                             amount={drinkPoolValue(d)}
                             rows={d.drinkVouchers || []}
@@ -1049,7 +1049,7 @@ export default function SponsorPortal({
 
               {lockedSplits.map((d) => (
                 <p key={d.id} className="gr-muted" style={{ marginBottom: 12 }}>
-                  {T("Een deel van uw bonnen voor", "Une partie de vos bons pour", "Some of your vouchers for")}{" "}
+                  {T("Een deel van uw vouchers voor", "Une partie de vos bons pour", "Some of your vouchers for")}{" "}
                   {d.edition?.name}{" "}
                   {T(
                     "is al aangemaakt en kan niet meer verdeeld worden. Contacteer ons als er toch iets moet wijzigen.",
@@ -1123,7 +1123,7 @@ export default function SponsorPortal({
             (myVouchers.length === 0 ? (
               <p className="gr-empty">
                 {T(
-                  "Uw tickets en bonnen zijn nog niet aangemaakt. Zodra wij ze versturen, verschijnen ze hier.",
+                  "Uw tickets en vouchers zijn nog niet aangemaakt. Zodra wij ze versturen, verschijnen ze hier.",
                   "Vos tickets et bons ne sont pas encore créés. Dès que nous les envoyons, ils apparaîtront ici.",
                   "Your tickets and vouchers haven't been created yet. They'll appear here as soon as we send them.",
                 )}

@@ -1,5 +1,5 @@
-import { benefitChanges, changeLines } from "@/lib/benefits";
-import { LED_ZONES, OP_MAAT, SETTLEMENTS, label } from "@/lib/constants";
+import { benefitChanges, changeLines, isCustom } from "@/lib/benefits";
+import { LED_ZONES, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { renderEmailHtml } from "@/lib/email/layout";
 import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
@@ -117,7 +117,7 @@ export function buildEmail(
     const split = dvt ? B(`, verdeeld in: ${dvt}`, `, répartis en : ${dvt}`, `, divided into: ${dvt}`) : "";
     benefits.push(
       B(
-        `Drankbonnen ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
+        `Drankvouchers ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
         `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}${split}`,
         `Drink vouchers worth ${eur(drinkPoolValue(deal))}${split}`,
       ),
@@ -126,11 +126,11 @@ export function buildEmail(
   if (Number(deal.foodDrinkValue) > 0) {
     const vt = voucherText(deal.foodDrinkVouchers);
     const split = vt
-      ? B(`, verdeeld in bonnen: ${vt}`, `, répartis en bons : ${vt}`, `, divided into vouchers: ${vt}`)
+      ? B(`, verdeeld in vouchers: ${vt}`, `, répartis en bons : ${vt}`, `, divided into vouchers: ${vt}`)
       : "";
     benefits.push(
       B(
-        `Bonnen eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
+        `Vouchers eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
         `Bons food & boissons d'une valeur de ${eur(deal.foodDrinkValue)}${split}`,
         `Food & drink vouchers worth ${eur(deal.foodDrinkValue)}${split}`,
       ),
@@ -436,17 +436,19 @@ Grensrock`;
    doesn't have to be spotted in the list. Team-facing, so NL/EN in the
    admin's own language, like buildAccessGranted above.
 
-   A team member who set the benefits apart from the formula leaves the
-   agreement waiting for an admin (0026), and then that is what the mail is
-   for. It says so first — in the subject, and at the top of the text with
+   A team member who set the benefits apart from the formula, or made the
+   agreement Op maat, leaves it waiting for an admin (0026, 0028), and then
+   that is what the mail is for. It says so first — in the subject, and at the top of the text with
    each difference on a line — so it can't be read as just another new
    agreement. */
 type AdminDeal = Pick<Deal, "formulaName" | "cost" | "settlement"> & Partial<Deal>;
 
 /* `formula` is what the benefits are held against: null for Op maat, or a
-   formula the edition doesn't have (any more). */
+   formula the edition doesn't have (any more). Op maat waits even with no
+   benefits at all, for its price (0028). */
 function approvalBlock(lang: TeamLanguage, deal: AdminDeal, formula: FormulaFields | null) {
   const nl = lang === "nl";
+  const custom = !formula && isCustom(deal);
   const lines = changeLines(benefitChanges(deal, formula, lang))
     .map((l) => `• ${l}`)
     .join("\n");
@@ -454,26 +456,33 @@ function approvalBlock(lang: TeamLanguage, deal: AdminDeal, formula: FormulaFiel
     ? nl
       ? `⚠ GOEDKEURING NODIG — de voordelen wijken af van formule ${deal.formulaName}`
       : `⚠ APPROVAL NEEDED — the benefits differ from formula ${deal.formulaName}`
-    : nl
-      ? "⚠ GOEDKEURING NODIG — deze overeenkomst volgt geen formule"
-      : "⚠ APPROVAL NEEDED — this agreement follows no formula";
+    : custom
+      ? nl
+        ? "⚠ GOEDKEURING NODIG — overeenkomst op maat"
+        : "⚠ APPROVAL NEEDED — custom agreement (Op maat)"
+      : nl
+        ? "⚠ GOEDKEURING NODIG — deze overeenkomst volgt geen formule"
+        : "⚠ APPROVAL NEEDED — this agreement follows no formula";
   const intro = formula
     ? nl
       ? `Formule ${deal.formulaName} → deze overeenkomst:`
       : `Formula ${deal.formulaName} → this agreement:`
-    : nl
-      ? "Alle voordelen zijn met de hand ingevuld:"
-      : "Every benefit was filled in by hand:";
+    : custom
+      ? nl
+        ? `Een admin keurt elke overeenkomst op maat goed: de bijdrage van ${eur(deal.cost)} en de voordelen. ${lines ? "Die zijn met de hand ingevuld:" : "Ze geeft geen voordelen."}`
+        : `An admin approves every Op maat agreement: the contribution of ${eur(deal.cost)} and the benefits. ${lines ? "These were filled in by hand:" : "It gives no benefits."}`
+      : nl
+        ? "Alle voordelen zijn met de hand ingevuld:"
+        : "Every benefit was filled in by hand:";
   const then = nl
     ? "De sponsor krijgt deze overeenkomst pas nadat een admin dit goedkeurt. In de app vindt u ze onder Overeenkomsten → Wacht op goedkeuring."
     : "The sponsor only gets this agreement once an admin approves this. In the app you'll find it under Agreements → Waiting for approval.";
-  return `${head}\n\n${intro}\n${lines}\n\n${then}`;
+  return `${head}\n\n${intro}${lines ? `\n${lines}` : ""}\n\n${then}`;
 }
 
 function agreementFacts(lang: TeamLanguage, deal: AdminDeal, sponsorName: string, editionName: string) {
   const nl = lang === "nl";
-  const custom = !deal.formulaName.trim() || deal.formulaName === OP_MAAT;
-  const formula = custom ? (nl ? "op maat" : "custom") : deal.formulaName;
+  const formula = isCustom(deal) ? (nl ? "op maat" : "custom") : deal.formulaName;
   return nl
     ? `Sponsor: ${sponsorName}
 Editie: ${editionName}
@@ -543,7 +552,9 @@ Grensrock`;
 /* ---------- changed benefits on an existing agreement, for the admins ----------
    The same wait as above, when the benefits are changed on an agreement
    that already existed — one a sponsor requested in the portal and the
-   team confirms, or one that was already sent. */
+   team confirms, or one that was already sent. Op maat waits again on a
+   new price alone, so for it the mail speaks of the agreement, not just
+   its benefits. */
 export function buildBenefitsChanged(
   admin: User,
   deal: AdminDeal,
@@ -556,15 +567,20 @@ export function buildBenefitsChanged(
   const lang: TeamLanguage = admin.language === "en" ? "en" : "nl";
   const nl = lang === "nl";
   const by = changedBy || (nl ? "Een teamlid" : "A team member");
+  const custom = !formula && isCustom(deal);
 
-  const subject = nl
-    ? `Goedkeuring nodig: voordelen aangepast voor ${sponsorName} (${editionName})`
-    : `Approval needed: benefits changed for ${sponsorName} (${editionName})`;
+  const subject = custom
+    ? nl
+      ? `Goedkeuring nodig: overeenkomst op maat aangepast voor ${sponsorName} (${editionName})`
+      : `Approval needed: custom agreement changed for ${sponsorName} (${editionName})`
+    : nl
+      ? `Goedkeuring nodig: voordelen aangepast voor ${sponsorName} (${editionName})`
+      : `Approval needed: benefits changed for ${sponsorName} (${editionName})`;
 
   const body = nl
     ? `Dag ${userName(admin)},
 
-${by} paste de voordelen van een bestaande overeenkomst aan.
+${by} ${custom ? "paste een bestaande overeenkomst aan (formule: op maat)." : "paste de voordelen van een bestaande overeenkomst aan."}
 
 ${approvalBlock(lang, deal, formula)}
 
@@ -575,7 +591,7 @@ Link: ${appUrl}
 Grensrock`
     : `Hi ${userName(admin)},
 
-${by} changed the benefits of an existing agreement.
+${by} ${custom ? "changed an existing agreement (formula: Op maat)." : "changed the benefits of an existing agreement."}
 
 ${approvalBlock(lang, deal, formula)}
 
@@ -616,7 +632,7 @@ export function buildPortalPasswordLink(
   const body = B(
     `Beste ${name || "sponsor"},
 
-U hebt toegang tot het Grensrock-sponsorportaal. Daar kan u uw bedrijfsgegevens nakijken, uw logo opladen en uw tickets en bonnen verdelen.
+U hebt toegang tot het Grensrock-sponsorportaal. Daar kan u uw bedrijfsgegevens nakijken, uw logo opladen en uw tickets en vouchers verdelen.
 
 Kies eerst een wachtwoord via deze link:
 ${url}

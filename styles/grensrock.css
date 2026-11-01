@@ -361,6 +361,11 @@
   font-size:13.5px; margin:6px 0 12px; }
 .gr-benefitdiff ul { margin:6px 0; padding-left:18px; font-weight:600; }
 .gr-benefitread { font-size:14px; margin:6px 0 14px; }
+/* A new agreement: what the sponsor had last edition, in that formula's colour,
+   with the button that picks the same again. */
+.gr-lastdeal { display:flex; justify-content:space-between; align-items:center; gap:6px 12px; flex-wrap:wrap;
+  border:1px solid color-mix(in srgb, var(--fc) 45%, #fff); border-left:5px solid var(--fc); border-radius:8px;
+  background:color-mix(in srgb, var(--fc) 8%, #fff); padding:9px 12px; font-size:13.5px; margin:0 0 14px; }
 
 .gr-settle { border:1px dashed var(--line); border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#F8FBFD; }
 .gr-settle .gr-field:last-of-type { margin-bottom:6px; }

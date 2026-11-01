@@ -77,8 +77,9 @@ export interface Deal extends FormulaFields {
   confirmedAt: string | null;
   responsible?: string;
   acceptance: Acceptance | null;
-  /** When the benefits were last set apart from the formula's; null while they
-      match it. Set by the database, never by the app (0026). */
+  /** When the benefits were last set apart from the formula's, or the agreement
+      made Op maat; null while they match it. Set by the database, never by the
+      app (0026, 0028). */
   benefitsChangedAt: string | null;
   /** The admin's approval of that. While benefitsChangedAt is set and this is
       null, the agreement waits and the sponsor can't accept it. */

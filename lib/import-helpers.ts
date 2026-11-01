@@ -1,6 +1,7 @@
+import { FOLDER_OPTS, LED_ZONES, POSTER_OPTS, WEBSITE_OPTS, type LabelMap } from "@/lib/constants";
 import { normNameKey, normStr } from "@/lib/normalize";
 import { userName } from "@/lib/users";
-import type { Edition, User } from "@/types";
+import type { Deal, Edition, LedZone, User } from "@/types";
 
 /* ---------- Sponsor import (xlsx / csv) ---------- */
 
@@ -198,7 +199,35 @@ export function autoMapContacts(headers: string[]): ColumnMap<ContactField> {
 
 /* ---------- Agreement import (xlsx / csv) ---------- */
 
-export type AgreementField = "sponsor" | "vatNumber" | "edition" | "formula" | "amount" | "notes";
+/* The benefits an agreement carries, named as on Deal so a cell's value goes
+   straight onto it. A filled cell replaces the formula's; an empty one keeps it. */
+export type BenefitField =
+  | "vipFriday"
+  | "vipSaturday"
+  | "vipGuests"
+  | "drinkValue"
+  | "foodDrinkValue"
+  | "folderMention"
+  | "posterMention"
+  | "websiteMention"
+  | "fenceCovers"
+  | "ledboarding";
+
+export type AgreementField = "sponsor" | "vatNumber" | "edition" | "formula" | "amount" | "notes" | BenefitField;
+
+/* In the order the agreement form lists them. */
+export const BENEFIT_FIELDS: Array<[BenefitField, string]> = [
+  ["vipFriday", "bf.vipfri"],
+  ["vipSaturday", "bf.vipsat"],
+  ["vipGuests", "bf.vipguest"],
+  ["drinkValue", "aif.drink"],
+  ["foodDrinkValue", "aif.food"],
+  ["folderMention", "bf.folder"],
+  ["posterMention", "bf.poster"],
+  ["websiteMention", "bf.website"],
+  ["fenceCovers", "bf.fence"],
+  ["ledboarding", "aif.led"],
+];
 
 /* Each field with the TEAM_TEXT key of its label, as for IMPORT_FIELDS. */
 export const AGREEMENT_FIELDS: Array<[AgreementField, string]> = [
@@ -208,6 +237,7 @@ export const AGREEMENT_FIELDS: Array<[AgreementField, string]> = [
   ["formula", "aif.formula"],
   ["amount", "aif.amount"],
   ["notes", "aif.notes"],
+  ...BENEFIT_FIELDS,
 ];
 
 export const AGREEMENT_SYNONYMS: Record<AgreementField, string[]> = {
@@ -217,15 +247,109 @@ export const AGREEMENT_SYNONYMS: Record<AgreementField, string[]> = {
   formula: ["formule", "formula", "pakket", "package", "forfait"],
   amount: ["bedrag", "amount", "prijs", "price", "montant", "kostprijs", "cost"],
   notes: ["opmerking", "notitie", "notes", "note", "remarque", "commentaar", "comment"],
+  vipFriday: ["vrijdag", "friday", "vendredi"],
+  vipSaturday: ["zaterdag", "saturday", "samedi"],
+  vipGuests: ["gasten", "genodigde", "gast", "guest", "invité", "invite"],
+  drinkValue: ["drank", "drink", "boisson"],
+  foodDrinkValue: ["eten", "food", "f&d", "nourriture", "repas", "catering"],
+  folderMention: ["folder", "brochure", "dépliant", "depliant"],
+  posterMention: ["affiche", "poster"],
+  websiteMention: ["website", "site", "web"],
+  fenceCovers: ["banner", "spandoek", "doek", "nadar", "heras", "bâche", "bache"],
+  ledboarding: ["led"],
 };
 
 export function autoMapAgreements(headers: string[]): ColumnMap<AgreementField> {
-  // sponsor last: "Sponsorformule" or "Bedrag sponsoring" belong to the others
+  // sponsor last: "Sponsorformule" or "Bedrag sponsoring" belong to the others;
+  // the benefits before the amount, so "Drank (bedrag)" stays a benefit, and
+  // food before drink, or "Eten & drinken" would go to the drink vouchers
   return mapBySynonyms(
     headers,
-    ["vatNumber", "edition", "formula", "amount", "notes", "sponsor"],
+    [
+      "vatNumber",
+      "edition",
+      "formula",
+      "vipFriday",
+      "vipSaturday",
+      "vipGuests",
+      "foodDrinkValue",
+      "drinkValue",
+      "folderMention",
+      "posterMention",
+      "websiteMention",
+      "fenceCovers",
+      "ledboarding",
+      "amount",
+      "notes",
+      "sponsor",
+    ],
     AGREEMENT_SYNONYMS,
   );
+}
+
+/* ---------- reading a benefit cell ----------
+   The option labels in every language are accepted, and the stored keys, and
+   a few words people type instead. Case, accents and spacing don't matter. */
+
+/* "Geen", "nee", "0", "-": nothing of that benefit, as opposed to an empty cell. */
+const NONE = ["geen", "nee", "neen", "none", "no", "non", "aucun", "aucune", "-", "0"];
+const ALL_ZONES = ["alle", "alles", "all", "tous", "toutes"];
+
+function optionLookup<K extends string>(opts: LabelMap<K>, extra: Partial<Record<K, string[]>>): Map<string, K> {
+  const out = new Map<string, K>();
+  for (const key of Object.keys(opts) as K[]) {
+    [key, ...Object.values<string>(opts[key]), ...(extra[key] || [])].forEach((word) => out.set(personKey(word), key));
+  }
+  return out;
+}
+
+const MENTION_WORDS = { none: NONE, name: ["naam", "nom", "tekst", "text"], logo: ["met logo", "avec logo"] };
+const OPTIONS = {
+  folderMention: optionLookup(FOLDER_OPTS, {
+    none: NONE,
+    // the fractions as Excel hands back a number typed as one
+    full: ["volledig", "hele pagina", "1/1", "1"],
+    half: ["halve", "1/2", "demi", "0.5", "0,5"],
+    quarter: ["kwart", "kwart pagina", "1/4", "quart", "0.25", "0,25"],
+    eighth: ["achtste", "1/8", "huitieme", "0.125", "0,125"],
+  }),
+  posterMention: optionLookup(POSTER_OPTS, MENTION_WORDS),
+  websiteMention: optionLookup(WEBSITE_OPTS, MENTION_WORDS),
+};
+const ZONES = optionLookup(LED_ZONES, { foodvillage: ["food", "village", "food-village"], stage: ["hoofdpodium", "main stage"] });
+
+/**
+ * One benefit from a spreadsheet cell, as the fields to set on the agreement.
+ * Null for an empty cell, which leaves the formula's; undefined for one that
+ * can't be read, so the row is skipped rather than imported wrong.
+ */
+export function parseBenefit(field: BenefitField, cell: unknown): Partial<Deal> | null | undefined {
+  const key = personKey(typeof cell === "number" ? String(cell) : cell);
+  if (!key) return null;
+  switch (field) {
+    case "folderMention":
+    case "posterMention":
+    case "websiteMention": {
+      const value = OPTIONS[field].get(key);
+      return value ? { [field]: value } : undefined;
+    }
+    case "ledboarding": {
+      if (NONE.includes(key)) return { ledboarding: [] };
+      if (ALL_ZONES.includes(key)) return { ledboarding: Object.keys(LED_ZONES) as LedZone[] };
+      /* "VIP, Podium", "VIP + Food village", "vip en podium" */
+      const parts = key.split(/\s*(?:[,;+/&]|\s(?:en|and|et)\s)\s*/).filter(Boolean);
+      const zones = parts.map((p) => ZONES.get(p));
+      if (!zones.length || zones.some((z) => !z)) return undefined;
+      return { ledboarding: [...new Set(zones as LedZone[])] };
+    }
+    default: {
+      const n = NONE.includes(key) ? 0 : parseAmount(cell);
+      if (n === null || !(n >= 0)) return undefined;
+      /* Tickets and banners come whole; the vouchers are an amount in euro. */
+      const whole = field !== "drinkValue" && field !== "foodDrinkValue";
+      return whole && !Number.isInteger(n) ? undefined : { [field]: n };
+    }
+  }
 }
 
 /** What a formula cell can say instead of a formula's name. */

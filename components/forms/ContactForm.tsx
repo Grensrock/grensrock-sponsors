@@ -3,11 +3,12 @@
 import { useState } from "react";
 import EmailInput from "@/components/ui/EmailInput";
 import Field from "@/components/ui/Field";
+import { isUuid } from "@/lib/api/util";
 import { COMM_LABELS, LANGS, emptyContact, label, uid, type CommKey } from "@/lib/constants";
 import { emailToStore, validateEmail } from "@/lib/email-validate";
 import type { Contact, Language } from "@/types";
 
-/* ---------- Single contact form (team side, in a modal) ---------- */
+/* ---------- Single contact form (team side and portal, in a modal) ---------- */
 
 export default function ContactForm({
   initial,
@@ -39,6 +40,22 @@ export default function ContactForm({
   const valid = (c.firstName.trim() || c.lastName.trim()) && (!mailRes || mailRes.valid);
   return (
     <div>
+      {/* Clicking a contact person opens this form, and on a phone the reason
+          to look someone up is often to keep their number. The card is the
+          saved contact, read on the server (app/api/contacts/[id]/vcard), so
+          it only shows once there is a saved row to read. A plain link, no
+          `download`: that is what lets an iPhone open it as a contact. */}
+      {isUuid(initial?.id) && (
+        <div className="gr-savecard">
+          <a className="gr-mini" href={`/api/contacts/${initial!.id}/vcard`}>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <circle cx="6" cy="5" r="2.75" />
+              <path d="M1.25 14c.4-2.6 2.3-4.25 4.75-4.25S10.35 11.4 10.75 14M13 5.5v4M11 7.5h4" />
+            </svg>
+            {T("Toevoegen aan mijn contacten", "Ajouter à mes contacts", "Add to my contacts")}
+          </a>
+        </div>
+      )}
       <div className="gr-grid2">
         <Field label={T("Voornaam", "Prénom", "First name")}>
           <input value={c.firstName} onChange={set("firstName")} placeholder="Jan" />

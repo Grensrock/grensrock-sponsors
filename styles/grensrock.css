@@ -486,6 +486,11 @@ svg.gr-picklines { position:absolute; inset:0; width:100%; height:100%; opacity:
 .gr-sendalt-row .gr-muted { margin:0; }
 .gr-sendalt a.gr-mini { display:inline-flex; align-items:center; }
 
+/* "Add to my contacts" at the top of a saved contact: a link that hands the
+   phone a contact card, dressed as a row button. */
+.gr-savecard { display:flex; margin:0 0 12px; }
+.gr-savecard a.gr-mini { display:inline-flex; align-items:center; gap:6px; color:var(--ink); text-decoration:none; }
+
 @media (prefers-reduced-motion: no-preference) {
   .gr-modal { animation:grpop .18s ease-out; }
   @keyframes grpop { from { transform:translateY(8px); opacity:0; } to { transform:none; opacity:1; } }

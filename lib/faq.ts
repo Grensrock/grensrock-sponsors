@@ -164,6 +164,18 @@ const SPONSOR_FAQ: SponsorSection[] = [
           en: "The portal and our emails follow the language on your contact details. In **Contact persons**, click your name, pick another language and save. Dutch, French and English are available.",
         },
       },
+      {
+        q: {
+          nl: "Hoe zet ik een contactpersoon in mijn telefoon?",
+          fr: "Comment ajouter un contact à mon téléphone ?",
+          en: "How do I add a contact person to my phone?",
+        },
+        a: {
+          nl: "Klik in **Contactpersonen** op de naam en kies bovenaan **Toevoegen aan mijn contacten**. Op een iPhone opent meteen een nieuw contact met naam, bedrijf, e-mail en telefoon, dat u enkel nog bewaart. Op Android of een computer wordt een contactkaart (.vcf) gedownload: open die om ze aan uw contacten toe te voegen.",
+          fr: "Dans **Contacts**, cliquez sur le nom et choisissez en haut **Ajouter à mes contacts**. Sur un iPhone, un nouveau contact s'ouvre aussitôt avec le nom, l'entreprise, l'e-mail et le téléphone : il ne vous reste qu'à l'enregistrer. Sur Android ou sur un ordinateur, une fiche de contact (.vcf) est téléchargée : ouvrez-la pour l'ajouter à vos contacts.",
+          en: "In **Contact persons**, click the name and choose **Add to my contacts** at the top. On an iPhone a new contact opens straight away with the name, company, email and phone, ready to save. On Android or a computer a contact card (.vcf) is downloaded: open it to add it to your contacts.",
+        },
+      },
     ],
   },
   {
@@ -376,6 +388,16 @@ const TEAM_FAQ: TeamSection[] = [
           en: "Check your internet connection, reload the page and make the last change again.",
         },
       },
+      {
+        q: {
+          nl: "Ik kreeg een mail dat ik toegang heb. Hoe meld ik me aan?",
+          en: "I got an email saying I have access. How do I sign in?",
+        },
+        a: {
+          nl: "Klik **Open de sponsortool** in de mail en kies **Aanmelden met Google**, met het Google-account dat in de mail staat. Een apart wachtwoord voor de tool is er niet.\n\nGebruik precies dat account: met een ander account kom je bij \"Nog even wachten\" of in een leeg scherm.",
+          en: "Click **Open the sponsor tool** in the email and choose **Sign in with Google**, with the Google account the email names. There is no separate password for the app.\n\nUse exactly that account: with another one you end up on \"Nog even wachten\" or on an empty screen.",
+        },
+      },
     ],
   },
   {
@@ -387,8 +409,8 @@ const TEAM_FAQ: TeamSection[] = [
           en: "Which sponsors can I change?",
         },
         a: {
-          nl: "Als gebruiker wijzig je enkel de sponsors waarvoor jij de verantwoordelijke bent: hun gegevens, contactpersonen, afzeggingen en overeenkomsten. Voor die sponsors verstuur je ook de bevestigingsmail. Alle andere sponsors en overeenkomsten kan je bekijken, maar niet wijzigen. Logo's kan iedereen van het team toevoegen.\n\nEnkel een beheerder kan:\n- elke sponsor wijzigen, ook een sponsor zonder verantwoordelijke\n- een lijst met sponsors importeren\n- sponsors en overeenkomsten verwijderen\n\nKies **Mijn sponsors tonen** in de lijst om enkel je eigen sponsors te zien.",
-          en: "As a user you only change the sponsors you are the responsible person for: their details, contact persons, declines and agreements. For those sponsors you also send the confirmation email. You can view every other sponsor and agreement, but not change them. Anyone on the team can add logos.\n\nOnly an admin can:\n- change any sponsor, including one without a responsible person\n- import a list of sponsors\n- delete sponsors and agreements\n\nChoose **Show my sponsors** in the list to see only your own sponsors.",
+          nl: "Als gebruiker wijzig je enkel de sponsors waarvoor jij de verantwoordelijke bent: hun gegevens, contactpersonen, afzeggingen en overeenkomsten. Voor die sponsors verstuur je ook de bevestigingsmail. Alle andere sponsors en overeenkomsten kan je bekijken, maar niet wijzigen. Logo's kan iedereen van het team toevoegen.\n\nEnkel een beheerder kan:\n- elke sponsor wijzigen, ook een sponsor zonder verantwoordelijke\n- lijsten met sponsors, contactpersonen of overeenkomsten importeren\n- sponsors en overeenkomsten verwijderen\n\nKies **Mijn sponsors tonen** in de lijst om enkel je eigen sponsors te zien.",
+          en: "As a user you only change the sponsors you are the responsible person for: their details, contact persons, declines and agreements. For those sponsors you also send the confirmation email. You can view every other sponsor and agreement, but not change them. Anyone on the team can add logos.\n\nOnly an admin can:\n- change any sponsor, including one without a responsible person\n- import lists of sponsors, contact persons or agreements\n- delete sponsors and agreements\n\nChoose **Show my sponsors** in the list to see only your own sponsors.",
         },
       },
       {
@@ -466,6 +488,26 @@ const TEAM_FAQ: TeamSection[] = [
         a: {
           nl: "Klik op de sponsorpagina **Sponsort niet…**, kies de editie, vul eventueel een reden in en klik **Afzegging opslaan**. De sponsor staat dan bij **Haakt af voor** in de lijst. Maak je later toch een overeenkomst voor die editie, dan verdwijnt de afzegging vanzelf.",
           en: "On the sponsor page, click the decline button, choose the edition, add a reason if you like and save. The sponsor then shows up under the declined filter in the list. If you make an agreement for that edition later, the decline disappears by itself.",
+        },
+      },
+      {
+        q: {
+          nl: "Hoe geef ik een sponsor een formulier om in te vullen?",
+          en: "How do I give a sponsor a form to fill in?",
+        },
+        a: {
+          nl: "Voor een sponsor die je persoonlijk ziet, of die liever een formulier terugstuurt dan het portaal gebruikt.\n\n1. Klik **PDF-formulier** op de sponsorpagina, of bovenaan de lijst in **Sponsors** en kies daar de sponsor.\n2. Kies de editie en de **Taal van het formulier**. Die staat al op de taal van de sponsor.\n3. Klik **PDF downloaden**.\n\nHet formulier vul je in op de computer of druk je af. Wat we van de sponsor weten staat er al in: bedrijfsgegevens, adres, referentie voor de factuur en contactpersonen. De sponsor duidt een formule van de editie aan, eventueel eten & drinken erbovenop, en tekent. Heeft de sponsor al een overeenkomst voor die editie, dan staat die aangeduid. Interne gegevens komen er niet op.\n\nVoor meerdere sponsors tegelijk: vink ze aan in de lijst en klik **PDF-formulieren**. Elke sponsor krijgt een eigen PDF, in zijn eigen taal tenzij je één taal voor allemaal kiest, samen in één zip-bestand. Kan één formulier niet gemaakt worden, dan wordt niets gedownload en zie je voor welke sponsor.\n\nIedereen van het team kan dit, ook voor sponsors die je niet mag wijzigen.",
+          en: "For a sponsor you meet in person, or one who would rather return a form than use the portal.\n\n1. Click **PDF form** on the sponsor page, or at the top of the list in **Sponsors** and pick the sponsor there.\n2. Pick the edition and the **Language of the form**. It starts as the sponsor's own language.\n3. Click **Download PDF**.\n\nThe form can be filled in on a computer or printed. What we know of the sponsor is already in it: company details, address, invoice reference and contact persons. The sponsor marks one of the edition's formulas, food & drink on top if they like, and signs. If the sponsor already has an agreement for that edition, it comes marked. Nothing internal goes on it.\n\nFor several sponsors at once: tick them in the list and click **PDF forms**. Each sponsor gets a PDF of their own, in their own language unless you pick one language for all, together in one zip file. If one form can't be made, nothing is downloaded and you see which sponsor it was.\n\nAnyone on the team can do this, also for sponsors you can't change.",
+        },
+      },
+      {
+        q: {
+          nl: "Hoe zet ik een contactpersoon in mijn telefoon?",
+          en: "How do I add a contact person to my phone?",
+        },
+        a: {
+          nl: "Klik op de contactpersoon, in het tabblad **Contactpersonen** of op de sponsorpagina, en kies bovenaan **Toevoegen aan mijn contacten**. Op een iPhone opent meteen een nieuw contact met naam, bedrijf, e-mail en telefoon, dat je enkel nog bewaart. Op Android of een computer wordt een contactkaart (.vcf) gedownload: open die om ze aan je contacten toe te voegen.\n\nEen contactpersoon opent enkel bij een sponsor die je mag wijzigen.",
+          en: "Click the contact person, in the **Contacts** tab or on the sponsor page, and choose **Add to my contacts** at the top. On an iPhone a new contact opens straight away with the name, company, email and phone, ready to save. On Android or a computer a contact card (.vcf) is downloaded: open it to add it to your contacts.\n\nA contact person only opens for a sponsor you can change.",
         },
       },
     ],
@@ -566,12 +608,32 @@ const TEAM_FAQ: TeamSection[] = [
       },
       {
         q: {
+          nl: "Hoe importeer ik sponsors of contactpersonen uit een spreadsheet?",
+          en: "How do I import sponsors or contact persons from a spreadsheet?",
+        },
+        a: {
+          nl: "1. Klik **Lijst importeren** in **Sponsors**, of in **Contactpersonen** voor contactpersonen van sponsors die al in de tool staan.\n2. Nog geen bestand? Klik **Sjabloon downloaden**. Vul het eerste tabblad in, één rij per sponsor of contactpersoon. Het tabblad **Uitleg** zegt per kolom wat erin hoort en of ze verplicht is.\n3. Laad het Excel- (.xlsx) of CSV-bestand op. De kolommen worden herkend; kijk ze na en pas aan waar nodig.\n4. Kijk het voorbeeld na en klik de knop om te importeren.\n\nBij sponsors:\n- Een sponsor die al bestaat, met hetzelfde BTW-nummer of dezelfde naam, wordt overgeslagen.\n- Per rij geef je eventueel één contactpersoon mee.\n- In de kolom **Verantwoordelijke (ons team)** vul je de volledige naam, het e-mailadres of de voornaam van een teamlid in. Het sjabloon somt het team op.\n\nBij contactpersonen wordt de sponsor gezocht op de bedrijfsnaam, precies zoals die in de tool staat. Een rij met een onbekende sponsor wordt overgeslagen: importeer die sponsor eerst. Een contactpersoon zonder voorkeuren in het bestand krijgt enkel informatie.\n\nEr vertrekt geen mail en niemand krijgt portaaltoegang. Die geef je nadien met **Portaaltoegang geven** in **Contactpersonen**.",
+          en: "1. Click **Import list** in **Sponsors**, or in **Contacts** for contact persons of sponsors already in the app.\n2. No file yet? Click **Download template**. Fill in the first sheet, one row per sponsor or contact person. The **Instructions** sheet says per column what goes in it and whether it's required.\n3. Upload the Excel (.xlsx) or CSV file. The columns are recognised; check them and adjust where needed.\n4. Check the preview and click the import button.\n\nFor sponsors:\n- A sponsor that already exists, with the same VAT number or name, is skipped.\n- Each row can bring one contact person along.\n- In the **Responsible (our team)** column, fill in a team member's full name, email address or first name. The template lists the team.\n\nFor contact persons, the sponsor is matched on the company name, exactly as it is in the app. A row with an unknown sponsor is skipped: import that sponsor first. A contact person without preferences in the file gets information only.\n\nNo email goes out and nobody gets portal access. You give that afterwards from the **Contacts** tab.",
+        },
+      },
+      {
+        q: {
+          nl: "Hoe importeer ik overeenkomsten uit een spreadsheet?",
+          en: "How do I import agreements from a spreadsheet?",
+        },
+        a: {
+          nl: "1. Klik **Lijst importeren** in **Overeenkomsten**.\n2. Nog geen bestand? Klik **Sjabloon downloaden**. Het tabblad **Uitleg** zegt per kolom wat erin hoort en somt de formules per editie op: gebruik die namen precies zo.\n3. Laad het bestand op, kijk de kolommen na en kies de editie voor rijen zonder editie.\n4. Kijk het voorbeeld na en klik de knop om te importeren.\n\nPer rij:\n- De sponsor wordt gezocht op BTW-nummer, anders op bedrijfsnaam. Een onbekende sponsor wordt overgeslagen, niet aangemaakt.\n- De editie is haar naam of enkel het jaar.\n- De formule brengt haar prijs en voordelen mee, zoals in het formulier. Een bedrag vervangt de prijs; zonder formule of bij **Op maat** is het verplicht.\n- In de kolommen met voordelen (VIP-tickets, drankvouchers, eten & drinken, folder, affiche, website, banners, LED-boarding) vul je enkel in wat anders is dan de formule. Een lege cel laat het zoals in de formule. Eten & drinken komt bovenop de formule. Een ander bedrag aan drankvouchers wordt één voucher: verdeel het nadien in de overeenkomst met **Vouchers verdelen**.\n\nWat afwijkt van de formule, is meteen goedgekeurd op jouw naam. Een rij die niet klopt (onbekende sponsor, editie of formule, een onleesbaar bedrag of voordeel, of een sponsor die al een overeenkomst heeft voor die editie) wordt overgeslagen; het voorbeeld zegt waarom, nog voor er iets bewaard wordt. Had een sponsor afgezegd voor die editie, dan zie je dat in het voorbeeld: de import haalt die afzegging weg.\n\nEr vertrekt geen mail, ook niet naar de sponsors. Verstuur de bevestigingsmail per overeenkomst zodra ze klaar is.",
+          en: "1. Click **Import list** in **Agreements**.\n2. No file yet? Click **Download template**. The **Instructions** sheet says per column what goes in it and lists the formulas per edition: use those names exactly.\n3. Upload the file, check the columns and pick the edition for rows without one.\n4. Check the preview and click the import button.\n\nPer row:\n- The sponsor is matched on VAT number, otherwise on company name. An unknown sponsor is skipped, not created.\n- The edition is its name or just its year.\n- The formula brings its price and benefits along, as in the form. An amount replaces the price; without a formula or with **Op maat** it's required.\n- In the benefit columns (VIP tickets, drink vouchers, food & drink, folder, poster, website, banners, LED boarding), fill in only what differs from the formula. An empty cell leaves it as in the formula. Food & drink comes on top of the formula. A different drink voucher amount becomes one voucher: split it later in the agreement with **Divide vouchers**.\n\nWhat differs from the formula comes in approved, in your name. A row that doesn't add up (unknown sponsor, edition or formula, an unreadable amount or benefit, or a sponsor that already has an agreement for that edition) is skipped; the preview says why, before anything is saved. If a sponsor had declined that edition, the preview shows it: the import withdraws the decline.\n\nNo email goes out, not to the sponsors either. Send the confirmation email per agreement once it's ready.",
+        },
+      },
+      {
+        q: {
           nl: "Iemand van het team vraagt toegang.",
           en: "Someone on the team asks for access.",
         },
         a: {
-          nl: "Open **Beheer → Team**. De aanvraag staat in de kaart **Toegangsaanvragen**. Kies **Toegang als user** of **Toegang als admin**; de persoon krijgt meteen toegang en een mail. Je kan ook zelf een account aanmaken met **+ Nieuw account**; dat is meteen goedgekeurd.",
-          en: "Open **Admin → Team**. The request is in the access requests card. Grant access as user or as admin; the person gets access and an email straight away. You can also create an account yourself with **+ New account**; it's approved straight away.",
+          nl: "Open **Beheer → Team**. De aanvraag staat in de kaart **Toegangsaanvragen**. Kies **Toegang als user** of **Toegang als admin**; de persoon krijgt meteen toegang en een mail.\n\nJe kan ook zelf een account aanmaken met **+ Nieuw account**. Dat is meteen goedgekeurd, en de persoon krijgt een mail in zijn eigen taal, met jouw naam erin en hoe hij zich aanmeldt. Kon die mail niet vertrekken, dan zegt de tool dat: klik dan **Uitnodiging kopiëren** naast de naam en stuur de tekst zelf door.",
+          en: "Open **Admin → Team**. The request is in the access requests card. Grant access as user or as admin; the person gets access and an email straight away.\n\nYou can also create an account yourself with **+ New account**. It's approved straight away, and the person gets an email in their own language, naming you and saying how to sign in. If that email couldn't be sent, the app says so: click **Copy invite** next to their name and send the text yourself.",
         },
       },
       {

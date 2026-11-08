@@ -76,10 +76,10 @@ export async function POST(request: NextRequest) {
     language: r.language,
   });
 
-  const { subject, body: text } = buildAccessGranted(toUser(target), toUser(caller), request.nextUrl.origin);
+  const { subject, body: text, html } = buildAccessGranted(toUser(target), toUser(caller), request.nextUrl.origin);
 
   try {
-    await sendMail({ to: target.email, subject, text });
+    await sendMail({ to: target.email, subject, text, html });
   } catch (ex) {
     const status = ex instanceof MailNotConfiguredError ? 503 : 502;
     return NextResponse.json(

@@ -88,8 +88,12 @@ export async function deleteUser(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** Admin-only server route: creates the auth user, e-mails the invite, adds the profile. */
-export async function inviteUser(u: Partial<User>): Promise<User> {
+/**
+ * Admin-only server route: creates the auth user and the profile, then mails
+ * them through Workspace. The account stands even when that mail fails, so a
+ * failure comes back as `mailError` rather than as a throw.
+ */
+export async function inviteUser(u: Partial<User>): Promise<{ user: User; mailError: string | null }> {
   const res = await fetch("/api/team/invite", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -102,8 +106,8 @@ export async function inviteUser(u: Partial<User>): Promise<User> {
     }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.error || "Could not invite this team member.");
-  return body.user as User;
+  if (!res.ok) throw new Error(body?.error || "Could not add this team member.");
+  return { user: body.user as User, mailError: body.mailError ? String(body.mailError) : null };
 }
 
 /**

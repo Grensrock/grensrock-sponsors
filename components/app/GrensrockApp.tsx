@@ -583,8 +583,16 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         /* A new account needs an auth user, which only the server can create.
            Team members on the grensrock.be domain don't need this at all —
            ensure_team_profile() provisions them on their first Google sign-in. */
-        const created = await usersApi.inviteUser(u);
+        const { user: created, mailError } = await usersApi.inviteUser(u);
         setData((d) => ({ ...d, users: [...(d.users || []), created] }));
+        setSaveErr(false);
+        setModal(null);
+        /* As with approveUser: the account is real either way, and the person
+           is waiting on a mail that didn't come — say so, and how to fix it. */
+        if (mailError) {
+          notify(t("dlg.addmailfail", { name: userName(created), error: mailError }), t("dlg.addmailnotsent"));
+        }
+        return;
       }
       setSaveErr(false);
       setModal(null);

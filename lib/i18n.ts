@@ -572,6 +572,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "{name} heeft nu toegang, maar de verwittigingsmail kon niet verzonden worden: {error}\n\nLaat het hen op een andere manier weten — ze kunnen zich meteen aanmelden.",
     "{name} now has access, but the notification email couldn't be sent: {error}\n\nLet them know another way — they can sign in straight away.",
   ],
+  "dlg.addmailnotsent": ["Account aangemaakt, e-mail niet verzonden", "Account created, email not sent"],
+  "dlg.addmailfail": [
+    '{name} heeft nu toegang, maar de e-mail daarover kon niet verzonden worden: {error}\n\nKlik "Uitnodiging kopiëren" naast de naam en stuur de tekst zelf door — ze kunnen zich meteen aanmelden.',
+    '{name} now has access, but the email about it couldn\'t be sent: {error}\n\nClick "Copy invite" next to their name and send the text yourself — they can sign in straight away.',
+  ],
   "dlg.declineask": [
     "De toegangsaanvraag van {name} weigeren? Ze kunnen zich opnieuw aanmelden, wat hen terug op deze lijst zet.",
     "Decline the access request from {name}? They can sign in again, which puts them back on this list.",
@@ -1066,8 +1071,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     'Team members sign in with their Google account, using "Sign in with Google" on the start page. There is no separate password for this tool.',
   ],
   "tm.signin2": [
-    "Wie zich voor het eerst aanmeldt met een @grensrock.be-account, verschijnt hierboven als toegangsaanvraag. Een account dat u hier zelf toevoegt, heeft meteen toegang: die persoon meldt zich aan met het Google-account van dat e-mailadres.",
-    "Anyone signing in with a @grensrock.be account for the first time shows up above as an access request. An account you add here yourself has access straight away: that person signs in with the Google account for that email address.",
+    "Wie zich voor het eerst aanmeldt met een @grensrock.be-account, verschijnt hierboven als toegangsaanvraag. Een account dat u hier zelf toevoegt, heeft meteen toegang en krijgt daarover een e-mail: die persoon meldt zich aan met het Google-account van dat e-mailadres.",
+    "Anyone signing in with a @grensrock.be account for the first time shows up above as an access request. An account you add here yourself has access straight away and gets an email about it: that person signs in with the Google account for that email address.",
   ],
   "uf.usestandard": ["Het standaardadres op {domain} gebruiken", "Use the standard {domain} address"],
   "uf.roleshint": [

@@ -1,8 +1,8 @@
-import { benefitChanges, changeLines } from "@/lib/benefits";
-import { LED_ZONES, OP_MAAT, SETTLEMENTS, label } from "@/lib/constants";
+import { benefitChanges, changeLines, isCustom } from "@/lib/benefits";
+import { LED_ZONES, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { renderEmailHtml } from "@/lib/email/layout";
-import { eur, invoiceAmount, refRequiredFor } from "@/lib/money";
+import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { drinkPoolValue, voucherText } from "@/lib/vouchers";
@@ -117,7 +117,7 @@ export function buildEmail(
     const split = dvt ? B(`, verdeeld in: ${dvt}`, `, répartis en : ${dvt}`, `, divided into: ${dvt}`) : "";
     benefits.push(
       B(
-        `Drankbonnen ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
+        `Drankvouchers ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
         `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}${split}`,
         `Drink vouchers worth ${eur(drinkPoolValue(deal))}${split}`,
       ),
@@ -126,11 +126,11 @@ export function buildEmail(
   if (Number(deal.foodDrinkValue) > 0) {
     const vt = voucherText(deal.foodDrinkVouchers);
     const split = vt
-      ? B(`, verdeeld in bonnen: ${vt}`, `, répartis en bons : ${vt}`, `, divided into vouchers: ${vt}`)
+      ? B(`, verdeeld in vouchers: ${vt}`, `, répartis en bons : ${vt}`, `, divided into vouchers: ${vt}`)
       : "";
     benefits.push(
       B(
-        `Bonnen eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
+        `Vouchers eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
         `Bons food & boissons d'une valeur de ${eur(deal.foodDrinkValue)}${split}`,
         `Food & drink vouchers worth ${eur(deal.foodDrinkValue)}${split}`,
       ),
@@ -190,15 +190,18 @@ export function buildEmail(
   /* Contribution + settlement wording */
   const inKind = (deal.inKindDescription || "").trim();
   const toInvoice = invoiceAmount(deal);
-  /* NOTE: the prototype's Dutch line referenced `contribution` inside its own
-     initialiser (a TDZ self-reference that threw at runtime, so this template
-     could never be produced). Restored to the obvious intent, matching the FR/EN
-     lines below. */
-  const contribution = B(
-    `Bijdrage: ${eur(deal.cost)}`,
-    `Contribution : ${eur(deal.cost)}`,
-    `Contribution: ${eur(deal.cost)}`,
-  );
+  /* The total, with the food & drink vouchers bought on top spelled out:
+     € 500 formula + € 100 vouchers is a contribution of € 600. */
+  const total = eur(dealTotalCost(deal));
+  const fd = foodDrinkExtra(deal);
+  const contribution =
+    fd > 0
+      ? B(
+          `Bijdrage: ${total} (${eur(deal.cost)} formule + ${eur(fd)} vouchers eten & drinken)`,
+          `Contribution : ${total} (${eur(deal.cost)} formule + ${eur(fd)} bons food & boissons)`,
+          `Contribution: ${total} (${eur(deal.cost)} formula + ${eur(fd)} food & drink vouchers)`,
+        )
+      : B(`Bijdrage: ${total}`, `Contribution : ${total}`, `Contribution: ${total}`);
   const ref = String(deal.invoiceReference || "").trim();
   const refLine = refRequiredFor(deal, sponsor)
     ? ref
@@ -214,7 +217,7 @@ export function buildEmail(
         )
     : "";
   let settlementBlock: string;
-  if (deal.settlement === "inkind") {
+  if (deal.settlement === "inkind" && toInvoice === 0) {
     settlementBlock = B(
       `Deze sponsoring gebeurt in natura${inKind ? `:\n${inKind}` : "."}
 Er wordt hiervoor geen factuur opgemaakt.`,
@@ -223,7 +226,7 @@ Aucune facture ne sera établie pour cet accord.`,
       `This sponsorship is provided in kind${inKind ? `:\n${inKind}` : "."}
 No invoice will be issued for this agreement.`,
     );
-  } else if (deal.settlement === "mixed") {
+  } else if (deal.settlement === "inkind" || deal.settlement === "mixed") {
     settlementBlock = B(
       `Een deel van deze sponsoring gebeurt in natura${inKind ? `:\n${inKind}` : "."}
 Te factureren bedrag: ${eur(toInvoice)}. De facturatie volgt via e-invoicing (BillToBox).${refLine}`,
@@ -353,38 +356,87 @@ export function renderAgreementHtml(body: string, subject: string, lang: Languag
 }
 
 /* ---------- team invitation text ----------
-   Copied from the Team tab and sent by hand, in the account's own language
-   (NL/EN, like buildAccessGranted below). Team members sign in with Google;
-   there is no password of theirs to mention. */
+   In the account's own language (NL/EN, like buildAccessGranted below).
+   Team members sign in with Google; there is no password of theirs to
+   mention. Two ways out: copied from the Team tab and sent by hand
+   (buildUserInvite), or mailed by app/api/team/invite the moment an admin
+   adds the account (buildTeamAccountAdded), which also names that admin.
+
+   The text is shaped for lib/email/layout.ts, which lays the mailed copy
+   out like every sponsor mail: the account and role lines become the
+   summary card, and the link alone on its line becomes the button. Read
+   as plain text — pasted by hand, or in a client without HTML — the same
+   shape is just a short message. */
 export function buildUserInvite(user: User, appUrl: string) {
+  return teamInviteBody(user, appUrl, null);
+}
+
+export function buildTeamAccountAdded(user: User, addedBy: User | null | undefined, appUrl: string) {
+  const en = user.language === "en";
+  const subject = en ? "You have access to the Grensrock sponsor tool" : "U hebt toegang tot de Grensrock-sponsortool";
+  const body = teamInviteBody(user, appUrl, addedBy);
+  const html = teamEmailHtml(body, en, en ? "Welcome to the sponsor tool" : "Welkom in de sponsortool", appUrl);
+  return { subject, body, html };
+}
+
+/* The house layout, dressed for the team: the line under the logo is the
+   app's own (hd.subtitle), as the sponsor mails carry the portal's, and the
+   link to the app is the button. */
+function teamEmailHtml(body: string, en: boolean, heading: string, appUrl?: string) {
+  return renderEmailHtml({
+    text: body,
+    lang: en ? "en" : "nl",
+    kicker: en ? "Sponsor management" : "Sponsorbeheer",
+    heading,
+    buttons: appUrl ? { [appUrl]: en ? "Open the sponsor tool" : "Open de sponsortool" } : {},
+  });
+}
+
+const teamRole = (user: User, en: boolean) =>
+  en
+    ? user.role === "admin"
+      ? "admin — everything, including editions, invoicing and team accounts"
+      : "user — view and update sponsors and agreements"
+    : user.role === "admin"
+      ? "admin — alles, inclusief edities, facturatie en teamaccounts"
+      : "user — sponsors en overeenkomsten bekijken en bijwerken";
+
+function teamInviteBody(user: User, appUrl: string, addedBy: User | null | undefined) {
+  const by = addedBy ? userName(addedBy) : null;
   if (user.language === "en") {
     return `Hi ${userName(user)},
 
-You have access to the Grensrock sponsor tool.
+${by ? `${by} has given you access to the Grensrock sponsor tool.` : "You have access to the Grensrock sponsor tool."}
 
-Link: ${appUrl}
-Sign in with your Google account (${user.email}) using "Sign in with Google". There is no separate password for the tool.
-Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
+Google account: ${user.email}
+Role: ${teamRole(user, true)}
+
+Sign in with that account using "Sign in with Google". There is no separate password for the tool.
+
+${appUrl}
 
 Grensrock`;
   }
   return `Dag ${userName(user)},
 
-U hebt toegang tot de Grensrock-sponsortool.
+${by ? `${by} heeft u toegang gegeven tot de Grensrock-sponsortool.` : "U hebt toegang tot de Grensrock-sponsortool."}
 
-Link: ${appUrl}
-Meld u aan met uw Google-account (${user.email}) via "Aanmelden met Google". Een apart wachtwoord voor de tool is er niet.
-Uw rol: ${user.role === "admin" ? "admin — alles, inclusief edities, facturatie en teamaccounts" : "user — sponsors en overeenkomsten bekijken en bijwerken"}
+Google-account: ${user.email}
+Rol: ${teamRole(user, false)}
+
+Meld u met dat account aan via "Aanmelden met Google". Een apart wachtwoord voor de tool is er niet.
+
+${appUrl}
 
 Grensrock`;
 }
 
 /* ---------- team access granted ----------
    Sent to a @grensrock.be account after an admin turns their registration
-   into access (see 0011_team_access_approval.sql). Plain text and free of
-   any transport detail, so the same builder serves whichever way it ends
-   up being sent. Team accounts are NL/EN only — unlike sponsor contacts,
-   there is no French here. */
+   into access (see 0011_team_access_approval.sql). Shaped like the
+   invitation above, so it lays out the same way: the account and role as
+   the summary card, the link as the button. Team accounts are NL/EN only —
+   unlike sponsor contacts, there is no French here. */
 export function buildAccessGranted(user: User, grantedBy?: User | null, appUrl?: string) {
   const nl = user.language !== "en";
   const link = appUrl || "[link naar de sponsortool]";
@@ -408,45 +460,50 @@ export function buildAccessGranted(user: User, grantedBy?: User | null, appUrl?:
 
 ${openedNl}
 
-Link: ${link}
-Meld u aan met uw Grensrock-account (${user.email}) via "Aanmelden met Google".
-Uw rol: ${user.role === "admin" ? "admin — alles, inclusief edities, facturatie en teamaccounts" : "user — sponsors en overeenkomsten bekijken en bijwerken"}
+Google-account: ${user.email}
+Rol: ${teamRole(user, false)}
 
-Als u nog aangemeld was, meldt u zich best even af en opnieuw aan.
+Meld u met dat account aan via "Aanmelden met Google". Als u nog aangemeld was, meldt u zich best even af en opnieuw aan.
+
+${link}
 
 Grensrock`
     : `Hi ${userName(user)},
 
 ${openedEn}
 
-Link: ${link}
-Sign in with your Grensrock account (${user.email}) using "Sign in with Google".
-Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
+Google account: ${user.email}
+Role: ${teamRole(user, true)}
 
-If you were still signed in, sign out and back in once.
+Sign in with that account using "Sign in with Google". If you were still signed in, sign out and back in once.
+
+${link}
 
 Grensrock`;
 
-  return { subject, body };
-}
+  const html = teamEmailHtml(body, !nl, nl ? "Uw toegang is goedgekeurd" : "Your access has been approved", appUrl);
 
+  return { subject, body, html };
+}
 /* ---------- new agreement, for the admins ----------
    Sent to each admin when an agreement is created — by a team member in
    the app, or by a sponsor picking a formula in the portal — so a new one
    doesn't have to be spotted in the list. Team-facing, so NL/EN in the
    admin's own language, like buildAccessGranted above.
 
-   A team member who set the benefits apart from the formula leaves the
-   agreement waiting for an admin (0026), and then that is what the mail is
-   for. It says so first — in the subject, and at the top of the text with
+   A team member who set the benefits apart from the formula, or made the
+   agreement Op maat, leaves it waiting for an admin (0026, 0028), and then
+   that is what the mail is for. It says so first — in the subject, and at the top of the text with
    each difference on a line — so it can't be read as just another new
    agreement. */
 type AdminDeal = Pick<Deal, "formulaName" | "cost" | "settlement"> & Partial<Deal>;
 
 /* `formula` is what the benefits are held against: null for Op maat, or a
-   formula the edition doesn't have (any more). */
+   formula the edition doesn't have (any more). Op maat waits even with no
+   benefits at all, for its price (0028). */
 function approvalBlock(lang: TeamLanguage, deal: AdminDeal, formula: FormulaFields | null) {
   const nl = lang === "nl";
+  const custom = !formula && isCustom(deal);
   const lines = changeLines(benefitChanges(deal, formula, lang))
     .map((l) => `• ${l}`)
     .join("\n");
@@ -454,36 +511,43 @@ function approvalBlock(lang: TeamLanguage, deal: AdminDeal, formula: FormulaFiel
     ? nl
       ? `⚠ GOEDKEURING NODIG — de voordelen wijken af van formule ${deal.formulaName}`
       : `⚠ APPROVAL NEEDED — the benefits differ from formula ${deal.formulaName}`
-    : nl
-      ? "⚠ GOEDKEURING NODIG — deze overeenkomst volgt geen formule"
-      : "⚠ APPROVAL NEEDED — this agreement follows no formula";
+    : custom
+      ? nl
+        ? "⚠ GOEDKEURING NODIG — overeenkomst op maat"
+        : "⚠ APPROVAL NEEDED — custom agreement (Op maat)"
+      : nl
+        ? "⚠ GOEDKEURING NODIG — deze overeenkomst volgt geen formule"
+        : "⚠ APPROVAL NEEDED — this agreement follows no formula";
   const intro = formula
     ? nl
       ? `Formule ${deal.formulaName} → deze overeenkomst:`
       : `Formula ${deal.formulaName} → this agreement:`
-    : nl
-      ? "Alle voordelen zijn met de hand ingevuld:"
-      : "Every benefit was filled in by hand:";
+    : custom
+      ? nl
+        ? `Een admin keurt elke overeenkomst op maat goed: de bijdrage van ${eur(deal.cost)} en de voordelen. ${lines ? "Die zijn met de hand ingevuld:" : "Ze geeft geen voordelen."}`
+        : `An admin approves every Op maat agreement: the contribution of ${eur(deal.cost)} and the benefits. ${lines ? "These were filled in by hand:" : "It gives no benefits."}`
+      : nl
+        ? "Alle voordelen zijn met de hand ingevuld:"
+        : "Every benefit was filled in by hand:";
   const then = nl
     ? "De sponsor krijgt deze overeenkomst pas nadat een admin dit goedkeurt. In de app vindt u ze onder Overeenkomsten → Wacht op goedkeuring."
     : "The sponsor only gets this agreement once an admin approves this. In the app you'll find it under Agreements → Waiting for approval.";
-  return `${head}\n\n${intro}\n${lines}\n\n${then}`;
+  return `${head}\n\n${intro}${lines ? `\n${lines}` : ""}\n\n${then}`;
 }
 
 function agreementFacts(lang: TeamLanguage, deal: AdminDeal, sponsorName: string, editionName: string) {
   const nl = lang === "nl";
-  const custom = !deal.formulaName.trim() || deal.formulaName === OP_MAAT;
-  const formula = custom ? (nl ? "op maat" : "custom") : deal.formulaName;
+  const formula = isCustom(deal) ? (nl ? "op maat" : "custom") : deal.formulaName;
   return nl
     ? `Sponsor: ${sponsorName}
 Editie: ${editionName}
 Formule: ${formula}
-Bijdrage: ${eur(deal.cost)}
+Bijdrage: ${eur(dealTotalCost(deal))}
 Afrekening: ${label(SETTLEMENTS, deal.settlement, lang)}`
     : `Sponsor: ${sponsorName}
 Edition: ${editionName}
 Formula: ${formula}
-Contribution: ${eur(deal.cost)}
+Contribution: ${eur(dealTotalCost(deal))}
 Settlement: ${label(SETTLEMENTS, deal.settlement, lang)}`;
 }
 
@@ -543,7 +607,9 @@ Grensrock`;
 /* ---------- changed benefits on an existing agreement, for the admins ----------
    The same wait as above, when the benefits are changed on an agreement
    that already existed — one a sponsor requested in the portal and the
-   team confirms, or one that was already sent. */
+   team confirms, or one that was already sent. Op maat waits again on a
+   new price alone, so for it the mail speaks of the agreement, not just
+   its benefits. */
 export function buildBenefitsChanged(
   admin: User,
   deal: AdminDeal,
@@ -556,15 +622,20 @@ export function buildBenefitsChanged(
   const lang: TeamLanguage = admin.language === "en" ? "en" : "nl";
   const nl = lang === "nl";
   const by = changedBy || (nl ? "Een teamlid" : "A team member");
+  const custom = !formula && isCustom(deal);
 
-  const subject = nl
-    ? `Goedkeuring nodig: voordelen aangepast voor ${sponsorName} (${editionName})`
-    : `Approval needed: benefits changed for ${sponsorName} (${editionName})`;
+  const subject = custom
+    ? nl
+      ? `Goedkeuring nodig: overeenkomst op maat aangepast voor ${sponsorName} (${editionName})`
+      : `Approval needed: custom agreement changed for ${sponsorName} (${editionName})`
+    : nl
+      ? `Goedkeuring nodig: voordelen aangepast voor ${sponsorName} (${editionName})`
+      : `Approval needed: benefits changed for ${sponsorName} (${editionName})`;
 
   const body = nl
     ? `Dag ${userName(admin)},
 
-${by} paste de voordelen van een bestaande overeenkomst aan.
+${by} ${custom ? "paste een bestaande overeenkomst aan (formule: op maat)." : "paste de voordelen van een bestaande overeenkomst aan."}
 
 ${approvalBlock(lang, deal, formula)}
 
@@ -575,7 +646,7 @@ Link: ${appUrl}
 Grensrock`
     : `Hi ${userName(admin)},
 
-${by} changed the benefits of an existing agreement.
+${by} ${custom ? "changed an existing agreement (formula: Op maat)." : "changed the benefits of an existing agreement."}
 
 ${approvalBlock(lang, deal, formula)}
 
@@ -616,7 +687,7 @@ export function buildPortalPasswordLink(
   const body = B(
     `Beste ${name || "sponsor"},
 
-U hebt toegang tot het Grensrock-sponsorportaal. Daar kan u uw bedrijfsgegevens nakijken, uw logo opladen en uw tickets en bonnen verdelen.
+U hebt toegang tot het Grensrock-sponsorportaal. Daar kan u uw bedrijfsgegevens nakijken, uw logo opladen en uw tickets en vouchers verdelen.
 
 Kies eerst een wachtwoord via deze link:
 ${url}

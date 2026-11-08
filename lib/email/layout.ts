@@ -178,12 +178,15 @@ export interface EmailLayout {
   lang: Language;
   /** The big line above the message. */
   heading: string;
+  /** The small line under the logo. Defaults to the sponsor portal's name;
+      a mail to the team names the team app instead. */
+  kicker?: string;
   /** Links that become buttons, mapped to the button's words. A link must be
       alone on its line for this; any other stays a link in the text. */
   buttons?: Record<string, string>;
 }
 
-export function renderEmailHtml({ text, lang, heading: title, buttons = {} }: EmailLayout) {
+export function renderEmailHtml({ text, lang, heading: title, kicker, buttons = {} }: EmailLayout) {
   const words = WORDS[lang] || WORDS.nl;
   const blocks = text
     .replace(/\r\n?/g, "\n")
@@ -229,7 +232,7 @@ export function renderEmailHtml({ text, lang, heading: title, buttons = {} }: Em
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
 <tr><td align="center" bgcolor="${STAGE}" class="gr-pad" style="background:${STAGE};padding:30px 36px 24px;border-radius:12px 12px 0 0;">
 <div style="font-family:${HEAD};font-size:34px;line-height:31px;font-weight:900;color:#FFFFFF;">GRENS<br>ROCK</div>
-<div style="margin-top:12px;font-family:${BODY};font-size:11px;line-height:14px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:${SUB};">${esc(words.portal)}</div>
+<div style="margin-top:12px;font-family:${BODY};font-size:11px;line-height:14px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:${SUB};">${esc(kicker || words.portal)}</div>
 </td></tr>
 <tr><td style="font-size:0;line-height:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${stripe}</tr></table></td></tr>
 <tr><td bgcolor="#FFFFFF" class="gr-pad" style="background:#FFFFFF;padding:34px 36px 18px;border-radius:0 0 12px 12px;">

@@ -6,6 +6,7 @@ import Tag from "@/components/ui/Tag";
 import { FOLDER_FRACTION, FOLDER_OPTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { LOGO_MIN_PX, type LogoRecord } from "@/lib/logo";
+import { dealTotalCost } from "@/lib/money";
 import { normFolder } from "@/lib/normalize";
 import { loadLogoFile } from "@/lib/supabase/storage";
 import { responsibleName } from "@/lib/users";
@@ -122,7 +123,7 @@ export default function FolderOverview({
         [t("sp.contact")]: contactName(primaryContact(r.sponsor)) || "",
         [t("c.email")]: primaryContact(r.sponsor)?.email || "",
         [t("sp.responsible")]: responsibleName(r.sponsor, users),
-        [t("c.contribution")]: Number(r.deal.cost) || 0,
+        [t("c.contribution")]: dealTotalCost(r.deal),
         [t("c.notes")]: r.deal.notes || "",
       };
     });

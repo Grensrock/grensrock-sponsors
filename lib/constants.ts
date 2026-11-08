@@ -244,9 +244,9 @@ export const VOUCHER_TYPES: Record<VoucherType, { label: Record<Language, string
     label: { nl: "VIP-ticket genodigde", fr: "Ticket VIP invité", en: "VIP ticket guest" },
     kind: "ticket",
   },
-  drink: { label: { nl: "Drankbon", fr: "Bon boissons", en: "Drink voucher" }, kind: "voucher" },
+  drink: { label: { nl: "Drankvoucher", fr: "Bon boissons", en: "Drink voucher" }, kind: "voucher" },
   food: {
-    label: { nl: "Bon eten & drinken", fr: "Bon food & boissons", en: "Food & drink voucher" },
+    label: { nl: "Voucher eten & drinken", fr: "Bon food & boissons", en: "Food & drink voucher" },
     kind: "voucher",
   },
 };

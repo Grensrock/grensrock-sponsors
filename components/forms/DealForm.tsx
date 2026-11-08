@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import BenefitFields from "@/components/forms/BenefitFields";
+import BenefitFields, { VoucherFields } from "@/components/forms/BenefitFields";
 import SponsorForm from "@/components/forms/SponsorForm";
 import SponsorPicker from "@/components/forms/SponsorPicker";
 import Field from "@/components/ui/Field";
 import { fmtDateTime } from "@/lib/acceptance";
-import { awaitsApproval, benefitChanges, changeLines, sameBenefits } from "@/lib/benefits";
+import { awaitsApproval, benefitChanges, changeLines, formulaOf, isCustom, sameBenefits } from "@/lib/benefits";
 import { formulaStyle } from "@/lib/color";
 import { OP_MAAT, SETTLEMENTS, dealFieldsFromFormula, emptyDeal } from "@/lib/constants";
 import { settleLabel } from "@/lib/i18n";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
-import { eur, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
+import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, needsInvoice, refRequiredFor } from "@/lib/money";
+import { benefitLines } from "@/lib/vouchers";
 import type {
   Deal,
   DealDraft,
@@ -82,6 +83,33 @@ export default function DealForm({
   const formula = formulas.find((x) => x.name === d.formulaName) || null;
   const changes = benefitChanges(d, formula, lang === "en" ? "en" : "nl");
 
+  /* A new agreement shows what the sponsor had in the latest edition before
+     this one, so it can start from the same formula and benefits. Editions
+     run in order of their start date, as in the analysis. */
+  const order = (e?: Edition) => e?.startDate || e?.name || "";
+  const last =
+    d.id || !d.sponsorId
+      ? undefined
+      : deals
+          .filter((x) => x.sponsorId === d.sponsorId && x.editionId !== d.editionId)
+          .map((x) => ({ deal: x, edition: editions.find((e) => e.id === x.editionId) }))
+          .filter((x): x is { deal: Deal; edition: Edition } => !!x.edition && (!edition || order(x.edition) < order(edition)))
+          .sort((a, b) => order(b.edition).localeCompare(order(a.edition)))[0];
+  const lastCustom = !!last && isCustom(last.deal);
+  /* The same formula is the one of that name in this edition, at its price
+     now; the benefits are last time's, even where the formula has changed
+     since. Op maat has no formula to look up, so its price comes over too. */
+  const again = last && !lastCustom ? formulas.find((f) => f.name === last.deal.formulaName) : undefined;
+  /* Once taken there is nothing left to offer — a formula's price is agreed
+     apart, so changing it doesn't bring the offer back. */
+  const tookLast =
+    !!last &&
+    d.formulaName === (again ? again.name : OP_MAAT) &&
+    sameBenefits(d, last.deal) &&
+    (!!again || Number(d.cost) === Number(last.deal.cost));
+  /* Op maat, or no formula: always up to an admin, price included (0028). */
+  const custom = isCustom(d);
+
   /* A formula's benefits are what Grensrock offers for its price, so they stay
      as the formula has them until someone deliberately opens them up — and
      doing that as a team member puts the agreement up for an admin's approval
@@ -89,14 +117,23 @@ export default function DealForm({
      has no formula to keep to, so it is always open. */
   const [opened, setOpened] = useState(() => !!initial?.id && changes.length > 0);
   const locked = !opened && d.formulaName !== OP_MAAT;
+  /* Locked, the benefits are only read: a list, not fields. Food & drink and
+     the voucher splits are left out of it — they have a section of their own,
+     open all along. */
+  const benefitList = benefitLines({ ...d, foodDrinkValue: 0, drinkVouchers: [] }, lang);
   /* Whether saving has the database look at the benefits again — always for a
-     new agreement. An older one that differs but isn't touched now stays as
-     it was, so it isn't told it needs an approval it won't be asked for. */
+     new agreement, and for Op maat on a new price too. An older one that
+     differs but isn't touched now stays as it was, so it isn't told it needs
+     an approval it won't be asked for. */
   const reviewed =
     !initial?.id ||
     d.formulaName !== initial.formulaName ||
     d.editionId !== initial.editionId ||
-    !sameBenefits(d, initial);
+    !sameBenefits(d, initial) ||
+    (custom && Number(d.cost) !== Number(initial.cost));
+  const approvalNote = custom
+    ? t(admin ? "df.customadmin" : "df.customapproval")
+    : t(admin ? "df.adminapproves" : "df.needsapproval");
 
   const applyFormula = (name: string) => {
     if (name === OP_MAAT) {
@@ -111,6 +148,17 @@ export default function DealForm({
     }
     setD((p) => ({ ...p, ...dealFieldsFromFormula(f) }));
     setOpened(false);
+  };
+  const takeLast = () => {
+    if (!last) return;
+    const next = dealFieldsFromFormula({
+      ...last.deal,
+      name: again ? again.name : OP_MAAT,
+      cost: again ? again.cost : last.deal.cost,
+    });
+    setD((p) => ({ ...p, ...next }));
+    /* Benefits apart from the formula show as fields, with what differs. */
+    setOpened(!!again && benefitChanges(next, again).length > 0);
   };
   /* The formula's benefits again, but not its price: that is agreed apart. */
   const resetBenefits = () => {
@@ -193,6 +241,29 @@ export default function DealForm({
           )}
         </p>
       )}
+      {last && !clash && (
+        <div className="gr-lastdeal" style={formulaStyle(formulaOf(last.deal, editions))}>
+          <span>
+            {t("df.last", { edition: last.edition.name })}{" "}
+            <span style={{ whiteSpace: "nowrap" }}>
+              <span className="gr-fdot" />
+              <strong>{lastCustom ? OP_MAAT : last.deal.formulaName}</strong> · {eur(last.deal.cost)}
+            </span>
+          </span>
+          {edition &&
+            (again || lastCustom ? (
+              !tookLast && (
+                <button type="button" className="gr-mini" onClick={takeLast}>
+                  {again ? t("df.lastagain", { formula: again.name }) : t("df.lastcustom")}
+                </button>
+              )
+            ) : (
+              <span className="gr-muted">
+                {t("df.lastgone", { formula: last.deal.formulaName, edition: edition.name })}
+              </span>
+            ))}
+        </div>
+      )}
       {d.editionId && (
         <>
           <Field
@@ -265,7 +336,7 @@ export default function DealForm({
             <p className="gr-muted">{t("df.waiting", { when: fmtDateTime(initial?.benefitsChangedAt) })}</p>
           ) : (
             initial?.benefitsApprovedAt &&
-            changes.length > 0 && (
+            (changes.length > 0 || custom) && (
               <p className="gr-muted">
                 {t("df.approvedby", {
                   name: initial.benefitsApprovedBy || "?",
@@ -282,14 +353,42 @@ export default function DealForm({
                   <li key={line}>{line}</li>
                 ))}
               </ul>
-              {reviewed && (admin ? t("df.adminapproves") : t("df.needsapproval"))}
+              {reviewed && approvalNote}
             </div>
           ) : formula ? (
             <p className="gr-muted">{t("df.asformula", { formula: formula.name })}</p>
           ) : (
-            d.formulaName !== OP_MAAT && <p className="gr-muted">{t("df.pickfirst")}</p>
+            <>
+              {d.formulaName !== OP_MAAT && <p className="gr-muted">{t("df.pickfirst")}</p>}
+              {custom && reviewed && (
+                <div className="gr-benefitdiff" role="status">
+                  {approvalNote}
+                </div>
+              )}
+            </>
           )}
-          <BenefitFields v={d} set={set} showVouchers locked={locked} t={t} lang={lang} />
+          {locked ? (
+            benefitList.length > 0 && (
+              <ul className="gr-benefitlist gr-benefitread">
+                {benefitList.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )
+          ) : (
+            <BenefitFields v={d} set={set} t={t} lang={lang} />
+          )}
+          <div className="gr-benefitshead">
+            <span className="gr-label">{t("df.vouchers")}</span>
+          </div>
+          <p className="gr-muted">{t("df.vouchershint")}</p>
+          <VoucherFields v={d} set={set} t={t} lang={lang} />
+          {foodDrinkExtra(d) > 0 && (
+            <p className="gr-muted">
+              {t("df.total")} <strong>{eur(dealTotalCost(d))}</strong>{" "}
+              {t("df.totalsplit", { cost: eur(d.cost), fd: eur(foodDrinkExtra(d)) })}
+            </p>
+          )}
         </>
       )}
       {d.editionId && (
@@ -328,7 +427,7 @@ export default function DealForm({
                   t("df.noinvoice")
                 ) : (
                   <>
-                    {t("df.toinvoice")} <strong>{eur(invoiceAmount(d))}</strong> / {eur(d.cost)}{" "}
+                    {t("df.toinvoice")} <strong>{eur(invoiceAmount(d))}</strong> / {eur(dealTotalCost(d))}{" "}
                     {t("df.restinkind")}
                   </>
                 )}

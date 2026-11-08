@@ -16,6 +16,7 @@ import EmailModal from "@/components/modals/EmailModal";
 import ExampleImagesManager from "@/components/modals/ExampleImagesManager";
 import ImportModal, { type SponsorImportRow } from "@/components/modals/ImportModal";
 import NewContactModal from "@/components/modals/NewContactModal";
+import SponsorFormModal from "@/components/modals/SponsorFormModal";
 import ConfirmDialog, { type DialogSpec } from "@/components/ui/ConfirmDialog";
 import { MailLink, PhoneLink } from "@/components/ui/ContactLink";
 import Modal from "@/components/ui/Modal";
@@ -31,7 +32,7 @@ import DeclineForm from "@/components/forms/DeclineForm";
 import PendingAccess from "@/components/views/PendingAccess";
 import SponsorPortal from "@/components/views/SponsorPortal";
 import { changedSinceAcceptance, fmtDateTime, isAccepted } from "@/lib/acceptance";
-import { awaitsApproval, benefitChanges, changeLines, formulaOf } from "@/lib/benefits";
+import { awaitsApproval, benefitChanges, changeLines, formulaOf, isCustom } from "@/lib/benefits";
 import { formatAddress } from "@/lib/address";
 import { auditActorLabel } from "@/lib/audit-engine";
 import { formulaStyle } from "@/lib/color";
@@ -129,7 +130,10 @@ type ModalState =
   | { type: "deal"; payload?: DealDraft }
   /* `prepared`: a mail written before, to start from (EmailModal). */
   | { type: "email"; payload: Deal; prepared?: Partial<PendingMail> | null }
-  | { type: "decline"; payload: { sponsorId: string } };
+  | { type: "decline"; payload: { sponsorId: string } }
+  /* The PDF for a sponsor to fill in; neither id lets one be picked, sponsorIds
+     makes one for each sponsor ticked in the list. */
+  | { type: "sponsorForm"; payload: { sponsorId?: string; sponsorIds?: string[] } };
 
 type ViewMode =
   | { view: "landing" }
@@ -188,7 +192,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const [auQuery, setAuQuery] = useState("");
   const [auEntity, setAuEntity] = useState("");
   const [agQuery, setAgQuery] = useState("");
-  const [agEdition, setAgEdition] = useState("");
+  /* "active" = every active edition (the default), "" = all editions, else an edition id. */
+  const [agEdition, setAgEdition] = useState("active");
   const [agResponsible, setAgResponsible] = useState("");
   const [agStatus, setAgStatus] = useState("");
   const [agSettle, setAgSettle] = useState("");
@@ -578,8 +583,16 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         /* A new account needs an auth user, which only the server can create.
            Team members on the grensrock.be domain don't need this at all —
            ensure_team_profile() provisions them on their first Google sign-in. */
-        const created = await usersApi.inviteUser(u);
+        const { user: created, mailError } = await usersApi.inviteUser(u);
         setData((d) => ({ ...d, users: [...(d.users || []), created] }));
+        setSaveErr(false);
+        setModal(null);
+        /* As with approveUser: the account is real either way, and the person
+           is waiting on a mail that didn't come — say so, and how to fix it. */
+        if (mailError) {
+          notify(t("dlg.addmailfail", { name: userName(created), error: mailError }), t("dlg.addmailnotsent"));
+        }
+        return;
       }
       setSaveErr(false);
       setModal(null);
@@ -731,25 +744,33 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
     return fresh;
   };
 
-  /* Admin only: benefits a team member set apart from the formula (0026). The
-     question shows what differs, and what happens to the mail: the one that
-     was prepared goes out with the approval. With none prepared — or one that
-     couldn't go out — the mail window opens instead, so the agreement still
-     reaches the sponsor the way it would have without the wait. */
+  /* Admin only: benefits a team member set apart from the formula (0026), or
+     an agreement they made Op maat (0028), whose price is up for approval
+     too. The question shows what differs, and what happens to the mail: the
+     one that was prepared goes out with the approval. With none prepared — or
+     one that couldn't go out — the mail window opens instead, so the agreement
+     still reaches the sponsor the way it would have without the wait. */
   const approveDealBenefits = (d: Deal) => {
     const sponsor = sponsors.find((s) => s.id === d.sponsorId);
     const formula = formulaOf(d, editions);
+    const custom = !formula && isCustom(d);
+    const lines = changeLines(benefitChanges(d, formula, uiLang)).map((line) => `• ${line}`);
     const held = d.pendingMail;
     const heldTo = sponsorContacts(sponsor)
       .filter((c) => held?.contactIds?.includes(c.id))
       .map((c) => contactName(c) || c.email);
     const message = [
       `${sponsor?.companyName || "?"} — ${editions.find((e) => e.id === d.editionId)?.name || "?"}`,
-      (formula ? t("df.differs", { formula: formula.name }) : t("dlg.approvebyhand")) +
-        "\n" +
-        changeLines(benefitChanges(d, formula, uiLang))
-          .map((line) => `• ${line}`)
-          .join("\n"),
+      custom && !lines.length
+        ? t("dlg.approvecustomnone", { cost: eur(d.cost) })
+        : [
+            formula
+              ? t("df.differs", { formula: formula.name })
+              : custom
+                ? t("dlg.approvecustom", { cost: eur(d.cost) })
+                : t("dlg.approvebyhand"),
+            ...lines,
+          ].join("\n"),
       held && heldTo.length
         ? t("dlg.approvemail", { by: held.heldBy || "?", to: heldTo.join(", ") })
         : t("dlg.approvenomail"),
@@ -778,7 +799,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           failWith(e);
         }
       },
-      { title: t("dlg.approvetitle"), confirmLabel: t("ba.approve"), danger: false },
+      { title: t(custom ? "dlg.approvecustomtitle" : "dlg.approvetitle"), confirmLabel: t("ba.approve"), danger: false },
     );
   };
 
@@ -1374,8 +1395,16 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const importSponsors = async (list: SponsorImportRow[]) => {
     try {
       const payload = list.map(
-        ({ vatInvalid: _v, mailInvalid: _m, contactPreview: _c, emailPreview: _e, langPreview: _l, ...s }) =>
-          ({ ...emptySponsor, ...s }) as Sponsor,
+        ({
+          vatInvalid: _v,
+          mailInvalid: _m,
+          contactPreview: _c,
+          emailPreview: _e,
+          langPreview: _l,
+          responsiblePreview: _rp,
+          responsibleUnknown: _ru,
+          ...s
+        }) => ({ ...emptySponsor, ...s }) as Sponsor,
       );
       const created = await sponsorsApi.createSponsors(payload);
       setData((d) => ({ ...d, sponsors: [...d.sponsors, ...created] }));
@@ -2051,7 +2080,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       onClick={() => {
                         setTab("agreements");
                         setAgQuery("");
-                        setAgEdition("");
+                        // awaitingAcceptance only counts active editions, so match it
+                        setAgEdition("active");
                         setAgResponsible("");
                         setAgSettle("");
                         setAgStatus("toaccept");
@@ -2215,6 +2245,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
               <button className="gr-btn-ghost" onClick={exportSponsors}>
                 {t("common.export")}
               </button>
+              <button className="gr-btn-ghost" onClick={() => setModal({ type: "sponsorForm", payload: {} })}>
+                {t("pf.button")}
+              </button>
               <button className="gr-btn" onClick={() => setModal({ type: "sponsor" })}>
                 {t("sp.new")}
               </button>
@@ -2272,10 +2305,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 {filteredSponsors.length} {t("common.of")} {sponsors.length} {t("sp.count")}
               </span>
             </div>
-            {/* Selecting is only there for the bulk delete, which is an admin's.
-                For anyone else the boxes ticked and led nowhere — and on a phone
-                the column cost 40px of a 375px screen. */}
-            {admin && spSelected.length > 0 && (
+            {/* Selecting is there for the PDF forms, which the whole team may
+                make, and for the bulk delete, which is an admin's. */}
+            {spSelected.length > 0 && (
               <div className="gr-toolbar">
                 <div className="gr-detail-btns">
                   <span className="gr-muted">
@@ -2285,13 +2317,23 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     {t("common.clear")}
                   </button>
                 </div>
-                <button
-                  className="gr-btn gr-danger"
-                  disabled={spBusy}
-                  onClick={() => deleteSponsors(spSelected)}
-                >
-                  {spBusy ? "…" : `${t("sp.delsel")} (${spSelected.length})`}
-                </button>
+                <div className="gr-detail-btns">
+                  <button
+                    className="gr-btn-ghost"
+                    onClick={() => setModal({ type: "sponsorForm", payload: { sponsorIds: spSelected } })}
+                  >
+                    {`${t("pf.many")} (${spSelected.length})`}
+                  </button>
+                  {admin && (
+                    <button
+                      className="gr-btn gr-danger"
+                      disabled={spBusy}
+                      onClick={() => deleteSponsors(spSelected)}
+                    >
+                      {spBusy ? "…" : `${t("sp.delsel")} (${spSelected.length})`}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {filteredSponsors.length === 0 ? (
@@ -2303,21 +2345,19 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 <table className="gr-table gr-clickable">
                   <thead>
                     <tr>
-                      {admin && (
-                        <th style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            aria-label={t("sp.selectall")}
-                            checked={allVisibleSelected}
-                            ref={(el) => {
-                              if (el) el.indeterminate = spSelected.length > 0 && !allVisibleSelected;
-                            }}
-                            onChange={(e) =>
-                              setSpSel(e.target.checked ? filteredSponsors.map((x) => x.id) : [])
-                            }
-                          />
-                        </th>
-                      )}
+                      <th style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={t("sp.selectall")}
+                          checked={allVisibleSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = spSelected.length > 0 && !allVisibleSelected;
+                          }}
+                          onChange={(e) =>
+                            setSpSel(e.target.checked ? filteredSponsors.map((x) => x.id) : [])
+                          }
+                        />
+                      </th>
                       {(
                         [
                           ["companyName", t("sp.company"), ""],
@@ -2339,22 +2379,20 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                   <tbody>
                     {filteredSponsors.map((s) => {
                       const hs = deals.filter((d) => d.sponsorId === s.id);
-                      const tot = hs.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
+                      const tot = hs.reduce((sum, d) => sum + dealTotalCost(d), 0);
                       return (
                         <tr key={s.id} onClick={() => setOpenSponsorId(s.id)}>
                           {/* Stops the row's own click, or ticking a box would open the sponsor. */}
-                          {admin && (
-                            <td onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                aria-label={`${t("sp.select")} ${s.companyName}`}
-                                checked={spSel.includes(s.id)}
-                                onChange={(e) =>
-                                  setSpSel(e.target.checked ? [...spSel, s.id] : spSel.filter((x) => x !== s.id))
-                                }
-                              />
-                            </td>
-                          )}
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              aria-label={`${t("sp.select")} ${s.companyName}`}
+                              checked={spSel.includes(s.id)}
+                              onChange={(e) =>
+                                setSpSel(e.target.checked ? [...spSel, s.id] : spSel.filter((x) => x !== s.id))
+                              }
+                            />
+                          </td>
                           <td>
                             <strong>{s.companyName}</strong>
                             {s.vatNumber && <span className="gr-muted"> · {s.vatNumber}</span>}
@@ -2438,6 +2476,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             logos={(data.logos || []).filter((l) => l.sponsorId === openSponsor.id)}
             onLogosChange={(next) => applyLogos(openSponsor.id, next)}
             onEmail={(d) => setModal({ type: "email", payload: d })}
+            onDownloadForm={() => setModal({ type: "sponsorForm", payload: { sponsorId: openSponsor.id } })}
           />
         )}
 
@@ -2465,7 +2504,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             {sortedEditions.length === 0 && <p className="gr-empty">{t("ed.none")}</p>}
             {sortedEditions.map((ed) => {
               const edDeals = deals.filter((d) => d.editionId === ed.id);
-              const tot = edDeals.reduce((s, d) => s + (Number(d.cost) || 0), 0);
+              const tot = edDeals.reduce((s, d) => s + dealTotalCost(d), 0);
               return (
                 <div key={ed.id} className="gr-card">
                   <div className="gr-cardhead">
@@ -3180,7 +3219,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 edition: editions.find((e) => e.id === d.editionId),
               }))
               .filter(({ sponsor, edition, deal: d }) => {
-                if (agEdition && d.editionId !== agEdition) return false;
+                if (agEdition === "active" ? !edition?.active : agEdition && d.editionId !== agEdition) return false;
                 if (agResponsible === "me" && sponsor?.responsibleId !== userId) return false;
                 else if (agResponsible === "none" && sponsor?.responsibleId) return false;
                 else if (
@@ -3299,6 +3338,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     value={agEdition}
                     onChange={(e) => setAgEdition(e.target.value)}
                   >
+                    <option value="active">{t("ag.activeeditions")}</option>
                     <option value="">{t("sp.alleditions")}</option>
                     {sortedEditions.map((e) => (
                       <option key={e.id} value={e.id}>
@@ -3346,12 +3386,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     <option value="inkind">{t("set.inkind")}</option>
                     <option value="mixed">{t("set.mixed")}</option>
                   </select>
-                  {(agQuery || agEdition || agResponsible || agStatus || agSettle) && (
+                  {(agQuery || agEdition !== "active" || agResponsible || agStatus || agSettle) && (
                     <button
                       className="gr-mini"
                       onClick={() => {
                         setAgQuery("");
-                        setAgEdition("");
+                        setAgEdition("active");
                         setAgResponsible("");
                         setAgStatus("");
                         setAgSettle("");
@@ -3475,7 +3515,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                               <strong>{eur(dealTotalCost(d))}</strong>
                               {foodDrinkExtra(d) > 0 && (
                                 <div style={{ fontSize: 11, color: "var(--orange-deep)" }}>
-                                  +{eur(foodDrinkExtra(d))}
+                                  incl. {eur(foodDrinkExtra(d))} {t("sd.extrafd")}
                                 </div>
                               )}
                             </td>
@@ -4113,7 +4153,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                                     {eur(invoiceAmount(d))}
                                     {d.settlement === "mixed" && (
                                       <div className="gr-muted" style={{ fontSize: 11 }}>
-                                        {t("inv.oftotal")} {eur(d.cost)}
+                                        {t("inv.oftotal")} {eur(dealTotalCost(d))}
                                       </div>
                                     )}
                                   </td>
@@ -4307,7 +4347,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 <dt>{t("c.formula")}</dt>
                 <dd>{snap.formulaName || "—"}</dd>
                 <dt>{t("c.contribution")}</dt>
-                <dd>{eur(snap.cost)}</dd>
+                <dd>{eur(dealTotalCost(snap))}</dd>
               </dl>
               <h4 className="gr-subhead">{t("ac.termsaccepted")}</h4>
               <ul className="gr-benefitlist">
@@ -4325,7 +4365,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       <li key={i}>{line}</li>
                     ))}
                   </ul>
-                  <p className="gr-muted">{t("ac.currentcontribution")}: {eur(d.cost)}</p>
+                  <p className="gr-muted">{t("ac.currentcontribution")}: {eur(dealTotalCost(d))}</p>
                   {canManage(sponsors.find((s) => s.id === d.sponsorId)) && (
                     <div className="gr-actions">
                       <button
@@ -4403,6 +4443,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       {modal?.type === "import" && admin && (
         <ImportModal
           sponsors={sponsors}
+          users={users}
           onImport={importSponsors}
           onClose={() => setModal(null)}
           t={t}
@@ -4416,7 +4457,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           deals={deals}
           declines={declines}
           /* The edition the list is narrowed to, else the running one if there is just one. */
-          defaultEditionId={agEdition || (activeEditions.length === 1 ? activeEditions[0].id : "")}
+          defaultEditionId={
+            editions.some((e) => e.id === agEdition) ? agEdition : activeEditions.length === 1 ? activeEditions[0].id : ""
+          }
           onImport={importDeals}
           onClose={() => setModal(null)}
           t={t}
@@ -4479,6 +4522,19 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
             onCancel={() => setModal(null)}
           />
         </Modal>
+      )}
+      {modal?.type === "sponsorForm" && (
+        <SponsorFormModal
+          sponsors={sponsors}
+          sponsorId={modal.payload.sponsorId}
+          sponsorIds={modal.payload.sponsorIds}
+          editions={sortedEditions}
+          deals={deals}
+          users={users}
+          t={t}
+          lang={uiLang}
+          onClose={() => setModal(null)}
+        />
       )}
       {modal?.type === "email" &&
         (() => {

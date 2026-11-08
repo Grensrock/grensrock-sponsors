@@ -17,7 +17,8 @@ export default function SponsorPicker({
   sponsors: Sponsor[];
   value?: string;
   onChange: (id: string) => void;
-  onCreateNew: () => void;
+  /** Without it, the list offers no new sponsor: only picking one that exists. */
+  onCreateNew?: () => void;
   locked?: boolean;
   tr?: TranslateFn;
 }) {
@@ -97,10 +98,12 @@ export default function SponsorPicker({
             </button>
           ))}
           {matches.length === 0 && <div className="gr-picker-none">{tr("pick.none")} &quot;{q}&quot;</div>}
-          <button type="button" className="gr-picker-item gr-picker-new" onMouseDown={keepFocus} onClick={onCreateNew}>
-            {tr("pick.add")}
-            {q.trim() ? ` "${q.trim()}"` : ""}
-          </button>
+          {onCreateNew && (
+            <button type="button" className="gr-picker-item gr-picker-new" onMouseDown={keepFocus} onClick={onCreateNew}>
+              {tr("pick.add")}
+              {q.trim() ? ` "${q.trim()}"` : ""}
+            </button>
+          )}
         </div>
       )}
     </div>

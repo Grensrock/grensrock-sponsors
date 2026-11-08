@@ -443,7 +443,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   ],
   "df.openclash": ["Bestaande overeenkomst openen", "Open the existing agreement"],
   "df.last": ["Laatste overeenkomst ({edition}):", "Last agreement ({edition}):"],
-  "df.lastagain": ["Opnieuw {formula} kiezen", "Choose {formula} again"],
+  "df.lastagain": ["Opnieuw {formula}, zelfde voordelen", "{formula} again, same benefits"],
   "df.lastcustom": ["Opnieuw dezelfde voorwaarden", "Same terms again"],
   "df.lastgone": ["{formula} bestaat niet in {edition}", "{edition} has no {formula}"],
   /* ---------- the benefits in the agreement form (0026) ---------- */

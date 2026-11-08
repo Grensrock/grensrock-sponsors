@@ -192,7 +192,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   const [auQuery, setAuQuery] = useState("");
   const [auEntity, setAuEntity] = useState("");
   const [agQuery, setAgQuery] = useState("");
-  const [agEdition, setAgEdition] = useState("");
+  /* "active" = every active edition (the default), "" = all editions, else an edition id. */
+  const [agEdition, setAgEdition] = useState("active");
   const [agResponsible, setAgResponsible] = useState("");
   const [agStatus, setAgStatus] = useState("");
   const [agSettle, setAgSettle] = useState("");
@@ -582,8 +583,16 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
         /* A new account needs an auth user, which only the server can create.
            Team members on the grensrock.be domain don't need this at all —
            ensure_team_profile() provisions them on their first Google sign-in. */
-        const created = await usersApi.inviteUser(u);
+        const { user: created, mailError } = await usersApi.inviteUser(u);
         setData((d) => ({ ...d, users: [...(d.users || []), created] }));
+        setSaveErr(false);
+        setModal(null);
+        /* As with approveUser: the account is real either way, and the person
+           is waiting on a mail that didn't come — say so, and how to fix it. */
+        if (mailError) {
+          notify(t("dlg.addmailfail", { name: userName(created), error: mailError }), t("dlg.addmailnotsent"));
+        }
+        return;
       }
       setSaveErr(false);
       setModal(null);
@@ -2071,7 +2080,8 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       onClick={() => {
                         setTab("agreements");
                         setAgQuery("");
-                        setAgEdition("");
+                        // awaitingAcceptance only counts active editions, so match it
+                        setAgEdition("active");
                         setAgResponsible("");
                         setAgSettle("");
                         setAgStatus("toaccept");
@@ -3209,7 +3219,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                 edition: editions.find((e) => e.id === d.editionId),
               }))
               .filter(({ sponsor, edition, deal: d }) => {
-                if (agEdition && d.editionId !== agEdition) return false;
+                if (agEdition === "active" ? !edition?.active : agEdition && d.editionId !== agEdition) return false;
                 if (agResponsible === "me" && sponsor?.responsibleId !== userId) return false;
                 else if (agResponsible === "none" && sponsor?.responsibleId) return false;
                 else if (
@@ -3328,6 +3338,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     value={agEdition}
                     onChange={(e) => setAgEdition(e.target.value)}
                   >
+                    <option value="active">{t("ag.activeeditions")}</option>
                     <option value="">{t("sp.alleditions")}</option>
                     {sortedEditions.map((e) => (
                       <option key={e.id} value={e.id}>
@@ -3375,12 +3386,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                     <option value="inkind">{t("set.inkind")}</option>
                     <option value="mixed">{t("set.mixed")}</option>
                   </select>
-                  {(agQuery || agEdition || agResponsible || agStatus || agSettle) && (
+                  {(agQuery || agEdition !== "active" || agResponsible || agStatus || agSettle) && (
                     <button
                       className="gr-mini"
                       onClick={() => {
                         setAgQuery("");
-                        setAgEdition("");
+                        setAgEdition("active");
                         setAgResponsible("");
                         setAgStatus("");
                         setAgSettle("");
@@ -4446,7 +4457,9 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           deals={deals}
           declines={declines}
           /* The edition the list is narrowed to, else the running one if there is just one. */
-          defaultEditionId={agEdition || (activeEditions.length === 1 ? activeEditions[0].id : "")}
+          defaultEditionId={
+            editions.some((e) => e.id === agEdition) ? agEdition : activeEditions.length === 1 ? activeEditions[0].id : ""
+          }
           onImport={importDeals}
           onClose={() => setModal(null)}
           t={t}

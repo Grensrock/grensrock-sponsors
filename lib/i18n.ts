@@ -55,6 +55,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "an.returning": ["Terugkerend", "Returning"],
   "an.totalcol": ["Totaal", "Total"],
   "an.newnote": ["De eerste editie telt iedereen als nieuw (er is geen vorige editie om mee te vergelijken).", "The first edition counts everyone as new (there is no previous edition to compare against)."],
+  "ag.activeeditions": ["Enkel actieve edities", "Only active editions"],
   "ag.allstatus": ["Alle statussen", "All statuses"],
   "ag.accepted": ["Aanvaard", "Accepted"],
   "ag.toaccept": ["Nog te aanvaarden", "To accept"],
@@ -442,7 +443,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   ],
   "df.openclash": ["Bestaande overeenkomst openen", "Open the existing agreement"],
   "df.last": ["Laatste overeenkomst ({edition}):", "Last agreement ({edition}):"],
-  "df.lastagain": ["Opnieuw {formula} kiezen", "Choose {formula} again"],
+  "df.lastagain": ["Opnieuw {formula}, zelfde voordelen", "{formula} again, same benefits"],
   "df.lastcustom": ["Opnieuw dezelfde voorwaarden", "Same terms again"],
   "df.lastgone": ["{formula} bestaat niet in {edition}", "{edition} has no {formula}"],
   /* ---------- the benefits in the agreement form (0026) ---------- */
@@ -570,6 +571,11 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "dlg.usermailfail": [
     "{name} heeft nu toegang, maar de verwittigingsmail kon niet verzonden worden: {error}\n\nLaat het hen op een andere manier weten — ze kunnen zich meteen aanmelden.",
     "{name} now has access, but the notification email couldn't be sent: {error}\n\nLet them know another way — they can sign in straight away.",
+  ],
+  "dlg.addmailnotsent": ["Account aangemaakt, e-mail niet verzonden", "Account created, email not sent"],
+  "dlg.addmailfail": [
+    '{name} heeft nu toegang, maar de e-mail daarover kon niet verzonden worden: {error}\n\nKlik "Uitnodiging kopiëren" naast de naam en stuur de tekst zelf door — ze kunnen zich meteen aanmelden.',
+    '{name} now has access, but the email about it couldn\'t be sent: {error}\n\nClick "Copy invite" next to their name and send the text yourself — they can sign in straight away.',
   ],
   "dlg.declineask": [
     "De toegangsaanvraag van {name} weigeren? Ze kunnen zich opnieuw aanmelden, wat hen terug op deze lijst zet.",
@@ -1065,8 +1071,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     'Team members sign in with their Google account, using "Sign in with Google" on the start page. There is no separate password for this tool.',
   ],
   "tm.signin2": [
-    "Wie zich voor het eerst aanmeldt met een @grensrock.be-account, verschijnt hierboven als toegangsaanvraag. Een account dat u hier zelf toevoegt, heeft meteen toegang: die persoon meldt zich aan met het Google-account van dat e-mailadres.",
-    "Anyone signing in with a @grensrock.be account for the first time shows up above as an access request. An account you add here yourself has access straight away: that person signs in with the Google account for that email address.",
+    "Wie zich voor het eerst aanmeldt met een @grensrock.be-account, verschijnt hierboven als toegangsaanvraag. Een account dat u hier zelf toevoegt, heeft meteen toegang en krijgt daarover een e-mail: die persoon meldt zich aan met het Google-account van dat e-mailadres.",
+    "Anyone signing in with a @grensrock.be account for the first time shows up above as an access request. An account you add here yourself has access straight away and gets an email about it: that person signs in with the Google account for that email address.",
   ],
   "uf.usestandard": ["Het standaardadres op {domain} gebruiken", "Use the standard {domain} address"],
   "uf.roleshint": [

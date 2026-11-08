@@ -84,8 +84,8 @@ export default function DealForm({
   const changes = benefitChanges(d, formula, lang === "en" ? "en" : "nl");
 
   /* A new agreement shows what the sponsor had in the latest edition before
-     this one, so it can start from the same formula. Editions run in order of
-     their start date, as in the analysis. */
+     this one, so it can start from the same formula and benefits. Editions
+     run in order of their start date, as in the analysis. */
   const order = (e?: Edition) => e?.startDate || e?.name || "";
   const last =
     d.id || !d.sponsorId
@@ -96,10 +96,17 @@ export default function DealForm({
           .filter((x): x is { deal: Deal; edition: Edition } => !!x.edition && (!edition || order(x.edition) < order(edition)))
           .sort((a, b) => order(b.edition).localeCompare(order(a.edition)))[0];
   const lastCustom = !!last && isCustom(last.deal);
-  /* The same formula is the one of that name in this edition — its price and
-     benefits now, not last time's. Op maat has no formula to look up, so its
-     terms come over as they were, price included. */
+  /* The same formula is the one of that name in this edition, at its price
+     now; the benefits are last time's, even where the formula has changed
+     since. Op maat has no formula to look up, so its price comes over too. */
   const again = last && !lastCustom ? formulas.find((f) => f.name === last.deal.formulaName) : undefined;
+  /* Once taken there is nothing left to offer — a formula's price is agreed
+     apart, so changing it doesn't bring the offer back. */
+  const tookLast =
+    !!last &&
+    d.formulaName === (again ? again.name : OP_MAAT) &&
+    sameBenefits(d, last.deal) &&
+    (!!again || Number(d.cost) === Number(last.deal.cost));
   /* Op maat, or no formula: always up to an admin, price included (0028). */
   const custom = isCustom(d);
 
@@ -142,9 +149,16 @@ export default function DealForm({
     setD((p) => ({ ...p, ...dealFieldsFromFormula(f) }));
     setOpened(false);
   };
-  const customAgain = () => {
+  const takeLast = () => {
     if (!last) return;
-    setD((p) => ({ ...p, ...dealFieldsFromFormula({ ...last.deal, name: OP_MAAT }) }));
+    const next = dealFieldsFromFormula({
+      ...last.deal,
+      name: again ? again.name : OP_MAAT,
+      cost: again ? again.cost : last.deal.cost,
+    });
+    setD((p) => ({ ...p, ...next }));
+    /* Benefits apart from the formula show as fields, with what differs. */
+    setOpened(!!again && benefitChanges(next, again).length > 0);
   };
   /* The formula's benefits again, but not its price: that is agreed apart. */
   const resetBenefits = () => {
@@ -236,22 +250,11 @@ export default function DealForm({
               <strong>{lastCustom ? OP_MAAT : last.deal.formulaName}</strong> · {eur(last.deal.cost)}
             </span>
           </span>
-          {/* Once it is picked there is nothing left to offer. */}
           {edition &&
-            (lastCustom ? (
-              !(
-                d.formulaName === OP_MAAT &&
-                sameBenefits(d, last.deal) &&
-                Number(d.cost) === Number(last.deal.cost)
-              ) && (
-                <button type="button" className="gr-mini" onClick={customAgain}>
-                  {t("df.lastcustom")}
-                </button>
-              )
-            ) : again ? (
-              d.formulaName !== again.name && (
-                <button type="button" className="gr-mini" onClick={() => applyFormula(again.name)}>
-                  {t("df.lastagain", { formula: again.name })}
+            (again || lastCustom ? (
+              !tookLast && (
+                <button type="button" className="gr-mini" onClick={takeLast}>
+                  {again ? t("df.lastagain", { formula: again.name }) : t("df.lastcustom")}
                 </button>
               )
             ) : (

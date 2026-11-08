@@ -356,38 +356,87 @@ export function renderAgreementHtml(body: string, subject: string, lang: Languag
 }
 
 /* ---------- team invitation text ----------
-   Copied from the Team tab and sent by hand, in the account's own language
-   (NL/EN, like buildAccessGranted below). Team members sign in with Google;
-   there is no password of theirs to mention. */
+   In the account's own language (NL/EN, like buildAccessGranted below).
+   Team members sign in with Google; there is no password of theirs to
+   mention. Two ways out: copied from the Team tab and sent by hand
+   (buildUserInvite), or mailed by app/api/team/invite the moment an admin
+   adds the account (buildTeamAccountAdded), which also names that admin.
+
+   The text is shaped for lib/email/layout.ts, which lays the mailed copy
+   out like every sponsor mail: the account and role lines become the
+   summary card, and the link alone on its line becomes the button. Read
+   as plain text — pasted by hand, or in a client without HTML — the same
+   shape is just a short message. */
 export function buildUserInvite(user: User, appUrl: string) {
+  return teamInviteBody(user, appUrl, null);
+}
+
+export function buildTeamAccountAdded(user: User, addedBy: User | null | undefined, appUrl: string) {
+  const en = user.language === "en";
+  const subject = en ? "You have access to the Grensrock sponsor tool" : "U hebt toegang tot de Grensrock-sponsortool";
+  const body = teamInviteBody(user, appUrl, addedBy);
+  const html = teamEmailHtml(body, en, en ? "Welcome to the sponsor tool" : "Welkom in de sponsortool", appUrl);
+  return { subject, body, html };
+}
+
+/* The house layout, dressed for the team: the line under the logo is the
+   app's own (hd.subtitle), as the sponsor mails carry the portal's, and the
+   link to the app is the button. */
+function teamEmailHtml(body: string, en: boolean, heading: string, appUrl?: string) {
+  return renderEmailHtml({
+    text: body,
+    lang: en ? "en" : "nl",
+    kicker: en ? "Sponsor management" : "Sponsorbeheer",
+    heading,
+    buttons: appUrl ? { [appUrl]: en ? "Open the sponsor tool" : "Open de sponsortool" } : {},
+  });
+}
+
+const teamRole = (user: User, en: boolean) =>
+  en
+    ? user.role === "admin"
+      ? "admin — everything, including editions, invoicing and team accounts"
+      : "user — view and update sponsors and agreements"
+    : user.role === "admin"
+      ? "admin — alles, inclusief edities, facturatie en teamaccounts"
+      : "user — sponsors en overeenkomsten bekijken en bijwerken";
+
+function teamInviteBody(user: User, appUrl: string, addedBy: User | null | undefined) {
+  const by = addedBy ? userName(addedBy) : null;
   if (user.language === "en") {
     return `Hi ${userName(user)},
 
-You have access to the Grensrock sponsor tool.
+${by ? `${by} has given you access to the Grensrock sponsor tool.` : "You have access to the Grensrock sponsor tool."}
 
-Link: ${appUrl}
-Sign in with your Google account (${user.email}) using "Sign in with Google". There is no separate password for the tool.
-Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
+Google account: ${user.email}
+Role: ${teamRole(user, true)}
+
+Sign in with that account using "Sign in with Google". There is no separate password for the tool.
+
+${appUrl}
 
 Grensrock`;
   }
   return `Dag ${userName(user)},
 
-U hebt toegang tot de Grensrock-sponsortool.
+${by ? `${by} heeft u toegang gegeven tot de Grensrock-sponsortool.` : "U hebt toegang tot de Grensrock-sponsortool."}
 
-Link: ${appUrl}
-Meld u aan met uw Google-account (${user.email}) via "Aanmelden met Google". Een apart wachtwoord voor de tool is er niet.
-Uw rol: ${user.role === "admin" ? "admin — alles, inclusief edities, facturatie en teamaccounts" : "user — sponsors en overeenkomsten bekijken en bijwerken"}
+Google-account: ${user.email}
+Rol: ${teamRole(user, false)}
+
+Meld u met dat account aan via "Aanmelden met Google". Een apart wachtwoord voor de tool is er niet.
+
+${appUrl}
 
 Grensrock`;
 }
 
 /* ---------- team access granted ----------
    Sent to a @grensrock.be account after an admin turns their registration
-   into access (see 0011_team_access_approval.sql). Plain text and free of
-   any transport detail, so the same builder serves whichever way it ends
-   up being sent. Team accounts are NL/EN only — unlike sponsor contacts,
-   there is no French here. */
+   into access (see 0011_team_access_approval.sql). Shaped like the
+   invitation above, so it lays out the same way: the account and role as
+   the summary card, the link as the button. Team accounts are NL/EN only —
+   unlike sponsor contacts, there is no French here. */
 export function buildAccessGranted(user: User, grantedBy?: User | null, appUrl?: string) {
   const nl = user.language !== "en";
   const link = appUrl || "[link naar de sponsortool]";
@@ -411,28 +460,31 @@ export function buildAccessGranted(user: User, grantedBy?: User | null, appUrl?:
 
 ${openedNl}
 
-Link: ${link}
-Meld u aan met uw Grensrock-account (${user.email}) via "Aanmelden met Google".
-Uw rol: ${user.role === "admin" ? "admin — alles, inclusief edities, facturatie en teamaccounts" : "user — sponsors en overeenkomsten bekijken en bijwerken"}
+Google-account: ${user.email}
+Rol: ${teamRole(user, false)}
 
-Als u nog aangemeld was, meldt u zich best even af en opnieuw aan.
+Meld u met dat account aan via "Aanmelden met Google". Als u nog aangemeld was, meldt u zich best even af en opnieuw aan.
+
+${link}
 
 Grensrock`
     : `Hi ${userName(user)},
 
 ${openedEn}
 
-Link: ${link}
-Sign in with your Grensrock account (${user.email}) using "Sign in with Google".
-Your role: ${user.role === "admin" ? "admin — everything, including editions, invoicing and team accounts" : "user — view and update sponsors and agreements"}
+Google account: ${user.email}
+Role: ${teamRole(user, true)}
 
-If you were still signed in, sign out and back in once.
+Sign in with that account using "Sign in with Google". If you were still signed in, sign out and back in once.
+
+${link}
 
 Grensrock`;
 
-  return { subject, body };
-}
+  const html = teamEmailHtml(body, !nl, nl ? "Uw toegang is goedgekeurd" : "Your access has been approved", appUrl);
 
+  return { subject, body, html };
+}
 /* ---------- new agreement, for the admins ----------
    Sent to each admin when an agreement is created — by a team member in
    the app, or by a sponsor picking a formula in the portal — so a new one

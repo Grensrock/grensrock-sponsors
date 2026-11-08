@@ -55,6 +55,7 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "an.returning": ["Terugkerend", "Returning"],
   "an.totalcol": ["Totaal", "Total"],
   "an.newnote": ["De eerste editie telt iedereen als nieuw (er is geen vorige editie om mee te vergelijken).", "The first edition counts everyone as new (there is no previous edition to compare against)."],
+  "ag.activeeditions": ["Enkel actieve edities", "Only active editions"],
   "ag.allstatus": ["Alle statussen", "All statuses"],
   "ag.accepted": ["Aanvaard", "Accepted"],
   "ag.toaccept": ["Nog te aanvaarden", "To accept"],

@@ -7,6 +7,7 @@ import Field from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
 import { LANGS } from "@/lib/constants";
 import { primaryContact } from "@/lib/contacts";
+import { userName } from "@/lib/users";
 import { isNetworkError } from "@/lib/errors";
 import type { Deal, Edition, Language, Sponsor, TranslateFn, User } from "@/types";
 
@@ -16,7 +17,9 @@ import type { Deal, Edition, Language, Sponsor, TranslateFn, User } from "@/type
    in the list, where each gets a PDF of their own — every one goes to a
    different sponsor — and they come together in one zip. The edition
    decides which formulas are on it; the language starts as each sponsor's
-   own. The PDFs are made right here in the browser (lib/pdf/sponsor-form.ts),
+   own. Opened from the list, it can also be the blank form: no sponsor at
+   all, for a team member to take along to someone new, and it goes back to
+   whoever downloaded it. The PDFs are made right here in the browser (lib/pdf/sponsor-form.ts),
    and pdf-lib and the zip library are only fetched once someone asks. */
 
 const sponsorLang = (s?: Sponsor | null): Language => primaryContact(s)?.language || "nl";
@@ -42,6 +45,7 @@ export default function SponsorFormModal({
   editions,
   deals,
   users,
+  me,
   t,
   lang,
   onClose,
@@ -55,6 +59,8 @@ export default function SponsorFormModal({
   editions: Edition[];
   deals: Deal[];
   users: User[];
+  /** Who is downloading: a blank form goes back to them. */
+  me?: User | null;
   t: TranslateFn;
   lang: Language;
   onClose: () => void;
@@ -65,6 +71,9 @@ export default function SponsorFormModal({
       ? sponsorIds.map((id) => sponsors.find((s) => s.id === id)).filter((s): s is Sponsor => !!s)
       : null;
   const [sid, setSid] = useState(fixedId || "");
+  /* Only offered when no sponsor was given: from the list's own button. */
+  const canBlank = !fixedId && !group;
+  const [blank, setBlank] = useState(false);
   const [editionId, setEditionId] = useState(() => (editions.find((e) => e.active) || editions[0])?.id || "");
   /* "" is each sponsor in their own language, which only a group is offered. */
   const [formLang, setFormLang] = useState<Language | "">(() =>
@@ -76,9 +85,9 @@ export default function SponsorFormModal({
 
   const sponsor = sponsors.find((s) => s.id === sid);
   const edition = editions.find((e) => e.id === editionId);
-  const list = group || (sponsor ? [sponsor] : []);
-  const dealOf = (s: Sponsor) =>
-    edition ? deals.find((d) => d.sponsorId === s.id && d.editionId === edition.id) : undefined;
+  const list: (Sponsor | null)[] = group || (blank ? [null] : sponsor ? [sponsor] : []);
+  const dealOf = (s: Sponsor | null) =>
+    s && edition ? deals.find((d) => d.sponsorId === s.id && d.editionId === edition.id) : undefined;
   const withDeal = list.filter(dealOf).length;
 
   const download = async () => {
@@ -111,7 +120,7 @@ export default function SponsorFormModal({
           sponsor: s,
           edition,
           deal: dealOf(s),
-          responsible: users.find((u) => u.id === s.responsibleId) || null,
+          responsible: s ? users.find((u) => u.id === s.responsibleId) || null : me || null,
           lang: l,
           wordmark: mark,
         });
@@ -139,8 +148,16 @@ export default function SponsorFormModal({
   return (
     <Modal title={group ? t("pf.titlemany", { n: group.length }) : t("pf.title")} onClose={onClose} lang={lang}>
       <p className="gr-muted" style={{ margin: "0 0 12px" }}>
-        {t(group ? "pf.intromany" : "pf.intro")}
+        {t(group ? "pf.intromany" : blank ? "pf.introblank" : "pf.intro")}
       </p>
+      {canBlank && (
+        <div className="gr-checkrow" style={{ marginBottom: 12 }}>
+          <label className={"gr-check gr-check-sm" + (blank ? " on" : "")}>
+            <input type="checkbox" checked={blank} onChange={(e) => setBlank(e.target.checked)} />
+            <span>{t("pf.blank")}</span>
+          </label>
+        </div>
+      )}
       {group ? (
         <Field label={`${t("nav.sponsors")} (${group.length})`} group>
           <p style={{ margin: 0 }}>
@@ -151,7 +168,7 @@ export default function SponsorFormModal({
             {group.length > NAMES_SHOWN && ` ${t("pf.andmore", { n: group.length - NAMES_SHOWN })}`}
           </p>
         </Field>
-      ) : (
+      ) : blank ? null : (
         <Field label={t("pf.sponsor")} group>
           <SponsorPicker
             sponsors={sponsors}
@@ -200,6 +217,7 @@ export default function SponsorFormModal({
             : t("pf.hasdeal", { edition: edition?.name || "" })}
         </p>
       )}
+      {blank && <p className="gr-muted">{me ? t("pf.blankback", { name: userName(me) }) : t("pf.blankbackanyone")}</p>}
       {err && <p className="gr-blockbanner">{err}</p>}
       <div className="gr-actions">
         <button className="gr-btn-ghost" onClick={onClose}>

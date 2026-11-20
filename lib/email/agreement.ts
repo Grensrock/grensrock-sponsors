@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAcceptLink } from "@/lib/auth/portal-accept-link";
 import { PORTAL_CONTACT_COLUMNS, toPortalContact } from "@/lib/auth/portal-account";
 import { ACCEPT_PATH } from "@/lib/constants";
-import { MailNotConfiguredError, mailConfigured, sendMail } from "@/lib/email/send";
+import { MailNotConfiguredError, fromAddress, mailConfigured, sendMail } from "@/lib/email/send";
 import { renderAgreementHtml } from "@/lib/email-templates";
 import { sameEmail, validateEmail } from "@/lib/email-validate";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -31,11 +31,15 @@ import type { Language } from "@/types";
    here — the link is the way in, so no separate set-password mail is
    needed to make it work.
 
-   The sponsor's responsible is in Cc, so a reply-all from the sponsor
-   reaches them too. Only in the headers, though: a contact's copy is
-   delivered to that contact alone, since its link signs in AS them.
-   The responsible gets one copy of their own, with the app's address
-   where the link was.
+   The sponsor's responsible gets one copy of their own, with the app's
+   address where the link was. They are NOT in Cc on the contacts' mails,
+   and the contacts are not on theirs: whoever is in To or Cc receives the
+   message, and a contact's copy signs in AS that contact. (This once
+   relied on an SMTP envelope narrower than the headers; Gmail delivered
+   to every header address regardless, so each contact also got the
+   responsible's copy, and the responsible every contact's link.) Instead,
+   replies to a contact's mail go to the sponsor mailbox and the
+   responsible both, through Reply-To.
    ============================================================ */
 
 export interface AgreementMail {
@@ -142,7 +146,7 @@ export async function deliverAgreement(
     try {
       await sendMail({
         to: String(row.email),
-        ...(cc && { cc, deliverTo: String(row.email) }),
+        ...(cc && { replyTo: [fromAddress(), cc] }),
         subject,
         text: personal,
         html: renderAgreementHtml(personal, subject, language, personalLink),
@@ -158,17 +162,15 @@ export async function deliverAgreement(
     return { ok: false, status: 502, error: warnings.join("\n") || "Could not send the email." };
   }
 
-  /* The responsible's copy: addressed like the ones that went out, so it reads
-     as the same conversation, but with the app where the personal link was —
-     as a plain link, since the sponsor's button would ask them to accept. */
+  /* The responsible's copy, addressed to them alone (see the top of this
+     file), with the app where the personal link was — as a plain link, since
+     the sponsor's button would ask them to accept. */
   let ccSent: string | null = null;
   if (cc) {
     const copy = hasLink ? text.split(bareLink).join(origin) : text;
     try {
       await sendMail({
-        to: sentTo,
-        cc,
-        deliverTo: cc,
+        to: cc,
         subject,
         text: copy,
         html: renderAgreementHtml(copy, subject, language),

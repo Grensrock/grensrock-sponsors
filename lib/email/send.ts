@@ -38,7 +38,7 @@ export const mailConfigured = () => !!(process.env.GOOGLE_SMTP_USER && process.e
    what a deployment whose account owns a different address sets. */
 export const SPONSORS_FROM = "Grensrock <sponsors@grensrock.be>";
 
-const fromAddress = () => process.env.GOOGLE_SMTP_FROM || SPONSORS_FROM;
+export const fromAddress = () => process.env.GOOGLE_SMTP_FROM || SPONSORS_FROM;
 
 /* ---------- staging must never reach a real sponsor ----------
    Staging runs against its own database, but that database is seeded from
@@ -91,11 +91,11 @@ export interface Message {
   /** The same message laid out (lib/email/layout.ts). Optional: a client that
       shows no HTML, and a message without one, fall back to the text. */
   html?: string;
-  /** Who this copy is actually delivered to, when that isn't everyone in To
-      and Cc. The headers still name them all, so a reply-all reaches them —
-      send-agreement uses this to give each contact a copy with their own
-      sign-in link, and the Cc'd responsible a copy without one. */
-  deliverTo?: string | string[];
+  /** Where a reply goes instead of the From. Not a way to limit delivery:
+      every address in To and Cc receives the message. (A custom SMTP envelope
+      naming fewer recipients than the headers was tried for that, and Gmail
+      delivered to the headers anyway.) */
+  replyTo?: string | string[];
 }
 
 const addresses = (v?: string | string[]) => (Array.isArray(v) ? v : v ? [v] : []).map((a) => a.trim()).filter(Boolean);
@@ -105,18 +105,18 @@ const addresses = (v?: string | string[]) => (Array.isArray(v) ? v : v ? [v] : [
  * the staging redirect. Separate from the sending so the rule can be read —
  * and tested — without a mail server.
  */
-export function composeForDelivery({ to, cc, subject, text, html, deliverTo }: Message) {
+export function composeForDelivery({ to, cc, subject, text, html, replyTo }: Message) {
   const intended = addresses(to);
   if (intended.length === 0) throw new Error("No recipient address.");
   const copied = addresses(cc);
-  const envelope = addresses(deliverTo);
+  const replies = addresses(replyTo);
 
   const redirect = mailRedirectTo();
   if (!redirect) {
     return {
       to: intended,
       cc: copied,
-      envelope: envelope.length ? envelope : null,
+      replyTo: replies,
       subject,
       text,
       html,
@@ -129,11 +129,10 @@ export function composeForDelivery({ to, cc, subject, text, html, deliverTo }: M
      from doing the exact damage the redirect exists to prevent. The Cc goes
      the same way. The real recipients are written into the subject and the
      body instead, which is what makes a diverted mail readable as a test
-     rather than confusing. */
-  const reaches = envelope.length ? envelope : [...intended, ...copied];
+     rather than confusing. Reply-To goes too, for the same reason. */
+  const reaches = [...intended, ...copied];
   const headers = intended.join(", ") + (copied.length ? `, cc ${copied.join(", ")}` : "");
-  const delivered = envelope.length ? `, delivered to ${envelope.join(", ")} only,` : "";
-  const note = `Not production. This message was addressed to ${headers}${delivered} and diverted here.`;
+  const note = `Not production. This message was addressed to ${headers} and diverted here.`;
   /* The laid-out part says it too, first thing: it is the part a mail app
      shows, so a note only in the text would go unseen. */
   const banner =
@@ -142,7 +141,7 @@ export function composeForDelivery({ to, cc, subject, text, html, deliverTo }: M
   return {
     to: [redirect],
     cc: [],
-    envelope: null,
+    replyTo: [] as string[],
     subject: `[STAGING → ${reaches.join(", ")}] ${subject}`,
     text: `--- ${note} ---\n\n${text}`,
     html: html?.replace(/<body\b[^>]*>/i, (body) => body + banner),
@@ -156,10 +155,7 @@ export async function sendMail(message: Message) {
     from: fromAddress(),
     to: out.to.join(", "),
     cc: out.cc.length ? out.cc.join(", ") : undefined,
-    /* A custom envelope replaces the one nodemailer would derive from the
-       headers, sender included: without `from` it would go out with an empty
-       return path. */
-    envelope: out.envelope ? { from: fromAddress(), to: out.envelope } : undefined,
+    replyTo: out.replyTo.length ? out.replyTo.join(", ") : undefined,
     subject: out.subject,
     text: out.text,
     html: out.html,

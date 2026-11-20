@@ -4531,6 +4531,7 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
           editions={sortedEditions}
           deals={deals}
           users={users}
+          me={me}
           t={t}
           lang={uiLang}
           onClose={() => setModal(null)}

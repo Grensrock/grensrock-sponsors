@@ -135,6 +135,19 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "A PDF for the sponsor to fill in: the details we have for them, and the edition's formulas to choose from.",
   ],
   "pf.sponsor": ["Sponsor", "Sponsor"],
+  "pf.blank": ["Blanco formulier, voor een nieuwe sponsor", "Blank form, for a new sponsor"],
+  "pf.introblank": [
+    "Een leeg formulier om mee te nemen naar een nieuwe sponsor: zij vullen hun gegevens in en kiezen een formule van de editie.",
+    "An empty form to take along to a new sponsor: they fill in their details and pick one of the edition's formulas.",
+  ],
+  "pf.blankback": [
+    "Het formulier vraagt de sponsor om het ingevuld terug te bezorgen aan jou ({name}).",
+    "The form asks the sponsor to return it, completed, to you ({name}).",
+  ],
+  "pf.blankbackanyone": [
+    "Het formulier vraagt de sponsor om het ingevuld terug te bezorgen aan hun contactpersoon bij Grensrock.",
+    "The form asks the sponsor to return it, completed, to their contact at Grensrock.",
+  ],
   "pf.edition": ["Editie", "Edition"],
   "pf.language": ["Taal van het formulier", "Language of the form"],
   "pf.download": ["PDF downloaden", "Download PDF"],

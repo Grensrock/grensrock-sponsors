@@ -12,6 +12,10 @@ export interface Sponsor {
   vatNumber: string;
   /** Ticked on purpose: this sponsor has no VAT number, so a blank one is fine. */
   noVatNumber: boolean;
+  /** Ticked on purpose: the company no longer exists (bankruptcy, stopped, taken over …). */
+  ceased: boolean;
+  /** Optional free text saying why / since when, e.g. "Faillissement 03/2025". */
+  ceasedNote: string;
   entityType: EntityType;
   contacts: Contact[];
   /** The single contact who receives the vouchers ("" = automatic). */

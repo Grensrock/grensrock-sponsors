@@ -135,6 +135,19 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "A PDF for the sponsor to fill in: the details we have for them, and the edition's formulas to choose from.",
   ],
   "pf.sponsor": ["Sponsor", "Sponsor"],
+  "pf.blank": ["Blanco formulier, voor een nieuwe sponsor", "Blank form, for a new sponsor"],
+  "pf.introblank": [
+    "Een leeg formulier om mee te nemen naar een nieuwe sponsor: zij vullen hun gegevens in en kiezen een formule van de editie.",
+    "An empty form to take along to a new sponsor: they fill in their details and pick one of the edition's formulas.",
+  ],
+  "pf.blankback": [
+    "Het formulier vraagt de sponsor om het ingevuld terug te bezorgen aan jou ({name}).",
+    "The form asks the sponsor to return it, completed, to you ({name}).",
+  ],
+  "pf.blankbackanyone": [
+    "Het formulier vraagt de sponsor om het ingevuld terug te bezorgen aan hun contactpersoon bij Grensrock.",
+    "The form asks the sponsor to return it, completed, to their contact at Grensrock.",
+  ],
   "pf.edition": ["Editie", "Edition"],
   "pf.language": ["Taal van het formulier", "Language of the form"],
   "pf.download": ["PDF downloaden", "Download PDF"],
@@ -253,6 +266,13 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Enter a VAT number, or tick that this sponsor does not have one.",
   ],
   "sd.novat": ["Geen BTW-nummer", "No VAT number"],
+  "sf.ceased": ["Dit bedrijf bestaat niet meer (faillissement, gestopt, overgenomen…)",
+                "This company no longer exists (bankruptcy, stopped, taken over…)"],
+  "sf.ceasednote": ["Toelichting (optioneel)", "Note (optional)"],
+  "sf.ceasedph": ["bv. Faillissement 03/2025, overgenomen door …", "e.g. Bankrupt 03/2025, taken over by …"],
+  "sd.ceasedtag": ["Bestaat niet meer", "No longer exists"],
+  "sd.ceased": ["Status", "Status"],
+  "sd.active": ["Actief", "Active"],
   "sf.refreq": ["Deze sponsor vereist een referentie op contract & factuur (PO-nummer, bestelbon, kostenplaats…)",
                 "This sponsor requires a reference on contract & invoice (PO number, order reference, cost centre…)"],
   // sponsor detail info
@@ -884,8 +904,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "em.sentto": ["Verzonden naar {to}.", "Sent to {to}."],
   "em.senttocc": ["Verzonden naar {to}, in cc {cc}.", "Sent to {to}, cc {cc}."],
   "em.cc": [
-    "In cc: {name}, verantwoordelijke voor deze sponsor. Die krijgt één kopie, zonder de persoonlijke links.",
-    "Cc: {name}, responsible for this sponsor. They get one copy, without the personal links.",
+    "In cc: {name}, verantwoordelijke voor deze sponsor.",
+    "Cc: {name}, responsible for this sponsor.",
   ],
   "em.sendfailed": ["Versturen mislukt", "Sending failed"],
   "em.marksenthint": [

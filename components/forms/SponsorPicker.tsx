@@ -44,6 +44,7 @@ export default function SponsorPicker({
       <div className="gr-picked">
         <div>
           <strong>{selected.companyName}</strong>
+          {selected.ceased && <span className="gr-muted"> · {tr("sd.ceasedtag")}</span>}
           {selected.contactName && <span className="gr-muted"> · {selected.contactName}</span>}
         </div>
         {!locked && (
@@ -93,7 +94,7 @@ export default function SponsorPicker({
             >
               <strong>{s.companyName}</strong>
               <span className="gr-muted">
-                {[s.vatNumber, contactName(primaryContact(s))].filter(Boolean).join(" · ") || " "}
+                {[s.ceased ? tr("sd.ceasedtag") : "", s.vatNumber, contactName(primaryContact(s))].filter(Boolean).join(" · ") || " "}
               </span>
             </button>
           ))}

@@ -13,6 +13,10 @@
    Western European letters and little else, which is why everything
    written into the PDF goes through winAnsi() first.
 
+   Without a sponsor it is the blank form: the same pages with every box
+   empty, for a team member to take along to someone who isn't a sponsor
+   yet. It then goes back to whoever downloaded it.
+
    The sponsor reads this, so nothing internal reaches it: not the
    agreement's notes, nor its settlement, nor who approved what.
    ============================================================ */
@@ -27,11 +31,12 @@ import { ticketLines, visibilityLines } from "@/lib/vouchers";
 import type { Deal, Edition, Language, NumLike, Sponsor, User } from "@/types";
 
 export interface SponsorFormInput {
-  sponsor: Sponsor;
+  /** Null for the blank form, for a sponsor we don't know yet. */
+  sponsor: Sponsor | null;
   edition: Edition;
   /** The sponsor's agreement for this edition, if there is one: it comes ticked. */
   deal?: Deal | null;
-  /** Who the form goes back to: the sponsor's responsible. */
+  /** Who the form goes back to: the sponsor's responsible, or for a blank form who takes it along. */
   responsible?: User | null;
   lang: Language;
   /** assets/wordmark.png; the header goes without it when it couldn't be read. */
@@ -134,12 +139,12 @@ export const fileSlug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-/** sponsorformulier-grensrock-2026-brouwerij-vanhonsebrouck.pdf */
-export const sponsorFormFileName = (sponsor: Sponsor, edition: Edition, lang: Language) =>
+/** sponsorformulier-grensrock-2026-brouwerij-vanhonsebrouck.pdf; for a blank form, sponsorformulier-grensrock-2026-blanco.pdf */
+export const sponsorFormFileName = (sponsor: Sponsor | null, edition: Edition, lang: Language) =>
   [
     { nl: "sponsorformulier", fr: "formulaire-sponsoring", en: "sponsorship-form" }[lang],
     edition.name,
-    sponsor.companyName,
+    sponsor ? sponsor.companyName : { nl: "blanco", fr: "vierge", en: "blank" }[lang],
   ]
     .map(fileSlug)
     .filter(Boolean)
@@ -166,7 +171,7 @@ export async function sponsorFormPdf({
   const title = T("Sponsorformulier", "Formulaire de sponsoring", "Sponsorship form");
 
   const doc = await PDFDocument.create();
-  doc.setTitle(`${title} ${edition.name} – ${sponsor.companyName}`);
+  doc.setTitle([`${title} ${edition.name}`, sponsor?.companyName].filter(Boolean).join(" – "));
   doc.setAuthor("Grensrock");
   doc.setCreator("Grensrock sponsorplatform");
   doc.setLanguage(LOCALES[lang]);
@@ -199,7 +204,7 @@ export async function sponsorFormPdf({
     /* Past the first page, a running head says whose form a loose page is. */
     if (pages.length > 1) {
       write(`${title} ${edition.name}`, M, y - 8, 8, bold, MUT);
-      writeRight(sponsor.companyName, M + W, y - 8, 8, regular, MUT);
+      if (sponsor) writeRight(sponsor.companyName, M + W, y - 8, 8, regular, MUT);
       y -= 28;
     }
   };
@@ -289,11 +294,17 @@ export async function sponsorFormPdf({
   y = headTop - 66;
 
   paragraph(
-    T(
-      "Hieronder vindt u de gegevens die we van u hebben. Kijk ze na, vul aan wat ontbreekt en duid de formule aan die u wenst. U kunt dit formulier op uw computer invullen, of het afdrukken en met de hand invullen.",
-      "Vous trouverez ci-dessous les données dont nous disposons. Vérifiez-les, complétez ce qui manque et indiquez la formule souhaitée. Vous pouvez remplir ce formulaire sur votre ordinateur, ou l'imprimer et le compléter à la main.",
-      "Below are the details we have for you. Please check them, fill in what is missing and mark the formula you would like. You can fill in this form on your computer, or print it and fill it in by hand.",
-    ),
+    sponsor
+      ? T(
+          "Hieronder vindt u de gegevens die we van u hebben. Kijk ze na, vul aan wat ontbreekt en duid de formule aan die u wenst. U kunt dit formulier op uw computer invullen, of het afdrukken en met de hand invullen.",
+          "Vous trouverez ci-dessous les données dont nous disposons. Vérifiez-les, complétez ce qui manque et indiquez la formule souhaitée. Vous pouvez remplir ce formulaire sur votre ordinateur, ou l'imprimer et le compléter à la main.",
+          "Below are the details we have for you. Please check them, fill in what is missing and mark the formula you would like. You can fill in this form on your computer, or print it and fill it in by hand.",
+        )
+      : T(
+          "Vul hieronder uw gegevens in en duid de formule aan die u wenst. U kunt dit formulier op uw computer invullen, of het afdrukken en met de hand invullen.",
+          "Indiquez ci-dessous vos coordonnées et la formule souhaitée. Vous pouvez remplir ce formulaire sur votre ordinateur, ou l'imprimer et le compléter à la main.",
+          "Please fill in your details below and mark the formula you would like. You can fill in this form on your computer, or print it and fill it in by hand.",
+        ),
   );
   const backTo = responsible
     ? [userName(responsible), responsible.email ? `(${responsible.email})` : ""].filter(Boolean).join(" ")
@@ -320,7 +331,7 @@ export async function sponsorFormPdf({
   const GAP = 12;
   const half = (W - GAP) / 2;
 
-  textField("company", T("Bedrijf / naam", "Société / nom", "Company / name"), M, y, W, sponsor.companyName);
+  textField("company", T("Bedrijf / naam", "Société / nom", "Company / name"), M, y, W, sponsor?.companyName);
   y -= LABELLED + 9;
 
   /* What kind of sponsor, on the left; the VAT number beside it. */
@@ -337,23 +348,23 @@ export async function sponsorFormPdf({
     write(text, ex + BOX + 5, y - 11 - FIELD_H / 2 - 3, 9);
     ex += BOX + 5 + regular.widthOfTextAtSize(winAnsi(text), 9) + 16;
   });
-  entity.select(sponsor.entityType === "person" ? "person" : "legal");
+  if (sponsor) entity.select(sponsor.entityType === "person" ? "person" : "legal");
 
   const vatX = M + half + GAP;
   const noVatText = T("Geen btw-nummer", "Pas de numéro de TVA", "No VAT number");
   const noVatW = BOX + 5 + regular.widthOfTextAtSize(winAnsi(noVatText), 8.5);
   const vatW = half - noVatW - 14; // 4pt to spare: viewers stand in for Helvetica with wider fonts
-  textField("vat", T("BTW-nummer", "Numéro de TVA", "VAT number"), vatX, y, vatW, sponsor.vatNumber);
-  checkBox("no_vat", vatX + vatW + 10, y - 11 - (FIELD_H + BOX) / 2, !!sponsor.noVatNumber && !sponsor.vatNumber);
+  textField("vat", T("BTW-nummer", "Numéro de TVA", "VAT number"), vatX, y, vatW, sponsor?.vatNumber);
+  checkBox("no_vat", vatX + vatW + 10, y - 11 - (FIELD_H + BOX) / 2, !!sponsor?.noVatNumber && !sponsor.vatNumber);
   write(noVatText, vatX + vatW + 10 + BOX + 5, y - 11 - FIELD_H / 2 - 3, 8.5);
   y -= LABELLED + 9;
 
   const numW = 80;
-  textField("street", T("Straat", "Rue", "Street"), M, y, W - numW - GAP, sponsor.street);
-  textField("number", T("Nummer", "Numéro", "Number"), M + W - numW, y, numW, sponsor.houseNumber);
+  textField("street", T("Straat", "Rue", "Street"), M, y, W - numW - GAP, sponsor?.street);
+  textField("number", T("Nummer", "Numéro", "Number"), M + W - numW, y, numW, sponsor?.houseNumber);
   y -= LABELLED + 9;
-  textField("postal_code", T("Postcode", "Code postal", "Postal code"), M, y, numW, sponsor.postalCode);
-  textField("city", T("Gemeente", "Commune", "City"), M + numW + GAP, y, W - numW - GAP, sponsor.city);
+  textField("postal_code", T("Postcode", "Code postal", "Postal code"), M, y, numW, sponsor?.postalCode);
+  textField("city", T("Gemeente", "Commune", "City"), M + numW + GAP, y, W - numW - GAP, sponsor?.city);
   y -= LABELLED + 9;
   need(LABELLED + 9);
   textField(
@@ -371,7 +382,7 @@ export async function sponsorFormPdf({
   y -= LABELLED + 4;
 
   /* ================= 2. Contact persons ================= */
-  const contacts = sponsorContacts(sponsor);
+  const contacts = sponsorContacts(sponsor ?? undefined);
   /* Room to add people too: at least two empty rows, and four in all. */
   const rows = contacts.length + Math.max(2, 4 - contacts.length);
   const ROW = FIELD_H + 6;
@@ -410,7 +421,7 @@ export async function sponsorFormPdf({
     11 + 2 * ROW,
   );
   contactHead();
-  const voucherTo = voucherContact(sponsor);
+  const voucherTo = voucherContact(sponsor ?? undefined);
   const receiver = form.createRadioGroup("voucher_receiver");
   for (let i = 0; i < rows; i++) {
     if (y - ROW < BOTTOM) {
@@ -590,7 +601,7 @@ export async function sponsorFormPdf({
   /* ----- footers, now that the pages are counted ----- */
   pages.forEach((p, i) => {
     page = p;
-    write(`Grensrock · ${edition.name} · ${sponsor.companyName}`, M, 28, 7.5, regular, MUT);
+    write(["Grensrock", edition.name, sponsor?.companyName].filter(Boolean).join(" · "), M, 28, 7.5, regular, MUT);
     writeRight(`${i + 1} / ${pages.length}`, M + W, 28, 7.5, regular, MUT);
   });
 

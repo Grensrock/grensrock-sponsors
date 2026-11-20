@@ -15,7 +15,7 @@ import type { EntityType, Sponsor } from "@/types";
    ============================================================ */
 
 const COLUMNS =
-  "id, company_name, street, house_number, postal_code, city, vat_number, no_vat_number, entity_type, voucher_contact_id, responsible_id, ref_required";
+  "id, company_name, street, house_number, postal_code, city, vat_number, no_vat_number, ceased, ceased_note, entity_type, voucher_contact_id, responsible_id, ref_required";
 
 export function rowToSponsor(row: Row): Sponsor {
   return {
@@ -27,6 +27,8 @@ export function rowToSponsor(row: Row): Sponsor {
     city: orEmpty(row.city),
     vatNumber: orEmpty(row.vat_number),
     noVatNumber: !!row.no_vat_number,
+    ceased: !!row.ceased,
+    ceasedNote: orEmpty(row.ceased_note),
     entityType: (row.entity_type || "legal") as EntityType,
     contacts: [],
     voucherContactId: row.voucher_contact_id ? String(row.voucher_contact_id) : "",
@@ -44,6 +46,8 @@ export function sponsorToRow(s: Partial<Sponsor>): Row {
   if (s.city !== undefined) r.city = s.city || "";
   if (s.vatNumber !== undefined) r.vat_number = s.vatNumber || "";
   if (s.noVatNumber !== undefined) r.no_vat_number = !!s.noVatNumber;
+  if (s.ceased !== undefined) r.ceased = !!s.ceased;
+  if (s.ceasedNote !== undefined) r.ceased_note = s.ceasedNote || "";
   if (s.entityType !== undefined) r.entity_type = s.entityType || "legal";
   if (s.voucherContactId !== undefined) r.voucher_contact_id = orNull(s.voucherContactId);
   if (s.responsibleId !== undefined) r.responsible_id = orNull(s.responsibleId);

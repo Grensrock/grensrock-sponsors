@@ -102,6 +102,8 @@
    sponsor someone else is responsible for. */
 .gr-clickable tbody tr.gr-readonly { cursor:default; }
 .gr-clickable tbody tr.gr-readonly:hover { background:none; }
+/* A sponsor whose company no longer exists: still listed, but greyed out. */
+.gr-table tbody tr.gr-ceased td { color:var(--mut); }
 /* Text inputs inside a clickable row keep their own cursor; buttons and
    checkboxes are clickable in their own right and say so. */
 .gr-clickable input { cursor:auto; }

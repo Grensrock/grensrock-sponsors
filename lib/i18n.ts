@@ -266,6 +266,13 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
     "Enter a VAT number, or tick that this sponsor does not have one.",
   ],
   "sd.novat": ["Geen BTW-nummer", "No VAT number"],
+  "sf.ceased": ["Dit bedrijf bestaat niet meer (faillissement, gestopt, overgenomen…)",
+                "This company no longer exists (bankruptcy, stopped, taken over…)"],
+  "sf.ceasednote": ["Toelichting (optioneel)", "Note (optional)"],
+  "sf.ceasedph": ["bv. Faillissement 03/2025, overgenomen door …", "e.g. Bankrupt 03/2025, taken over by …"],
+  "sd.ceasedtag": ["Bestaat niet meer", "No longer exists"],
+  "sd.ceased": ["Status", "Status"],
+  "sd.active": ["Actief", "Active"],
   "sf.refreq": ["Deze sponsor vereist een referentie op contract & factuur (PO-nummer, bestelbon, kostenplaats…)",
                 "This sponsor requires a reference on contract & invoice (PO number, order reference, cost centre…)"],
   // sponsor detail info

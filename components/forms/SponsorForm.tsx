@@ -151,6 +151,23 @@ export default function SponsorForm({
         />
         {t("sf.refreq")}
       </label>
+      <label className={"gr-check" + (s.ceased ? " on" : "")} style={{ marginBottom: 12 }}>
+        <input
+          type="checkbox"
+          checked={!!s.ceased}
+          onChange={(e) => setS({ ...s, ceased: e.target.checked })}
+        />
+        {t("sf.ceased")}
+      </label>
+      {s.ceased && (
+        <Field label={t("sf.ceasednote")}>
+          <input
+            value={s.ceasedNote || ""}
+            onChange={set("ceasedNote")}
+            placeholder={t("sf.ceasedph")}
+          />
+        </Field>
+      )}
       {vatMissing && s.companyName.trim() && (
         <p className="gr-muted" style={{ marginBottom: 12 }}>
           {t("sf.vatrequired")}
@@ -168,7 +185,7 @@ export default function SponsorForm({
         <button className="gr-btn-ghost" onClick={onCancel}>
           {t("common.cancel")}
         </button>
-        <button className="gr-btn" disabled={!valid} onClick={() => onSave({ ...s, vatNumber: vatToStore(s.vatNumber) })}>
+        <button className="gr-btn" disabled={!valid} onClick={() => onSave({ ...s, vatNumber: vatToStore(s.vatNumber), ceasedNote: s.ceased ? s.ceasedNote.trim() : "" })}>
           {t("sf.save")}
         </button>
       </div>

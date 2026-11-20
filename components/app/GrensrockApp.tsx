@@ -436,7 +436,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
       const agreed = (s: Sponsor) => deals.some((d) => d.sponsorId === s.id && d.editionId === edId);
       const declined = (s: Sponsor) => declines.some((x) => x.sponsorId === s.id && x.editionId === edId);
       list = list.filter((s) =>
-        kind === "agr" ? agreed(s) : kind === "decl" ? declined(s) : !agreed(s) && !declined(s),
+        kind === "agr"
+          ? agreed(s)
+          : kind === "decl"
+            ? declined(s)
+            : /* A company that no longer exists has nothing left to answer. */
+              !agreed(s) && !declined(s) && !s.ceased,
       );
     }
 
@@ -2381,7 +2386,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       const hs = deals.filter((d) => d.sponsorId === s.id);
                       const tot = hs.reduce((sum, d) => sum + dealTotalCost(d), 0);
                       return (
-                        <tr key={s.id} onClick={() => setOpenSponsorId(s.id)}>
+                        <tr
+                          key={s.id}
+                          onClick={() => setOpenSponsorId(s.id)}
+                          className={s.ceased ? "gr-ceased" : undefined}
+                          title={s.ceased ? [t("sd.ceasedtag"), s.ceasedNote].filter(Boolean).join(" · ") : undefined}
+                        >
                           {/* Stops the row's own click, or ticking a box would open the sponsor. */}
                           <td onClick={(e) => e.stopPropagation()}>
                             <input
@@ -2396,6 +2406,12 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                           <td>
                             <strong>{s.companyName}</strong>
                             {s.vatNumber && <span className="gr-muted"> · {s.vatNumber}</span>}
+                            {s.ceased && (
+                              <>
+                                {" "}
+                                <Tag tone="grey">{t("sd.ceasedtag")}</Tag>
+                              </>
+                            )}
                             {s.refRequired && (
                               <>
                                 {" "}

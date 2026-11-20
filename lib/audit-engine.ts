@@ -67,6 +67,8 @@ export function diffForAudit(prev: AppData, next: AppData, actor?: AuditActor | 
         "companyName",
         "vatNumber",
         "noVatNumber",
+        "ceased",
+        "ceasedNote",
         "street",
         "houseNumber",
         "postalCode",

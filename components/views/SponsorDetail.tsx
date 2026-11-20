@@ -142,6 +142,12 @@ export default function SponsorDetail({
             {sponsor.vatNumber && <> · {t("c.vat")} {sponsor.vatNumber}</>}
             {responsibleName(sponsor, users) && <> · {t("sd.managedby")} {responsibleName(sponsor, users)}</>}
           </p>
+          {sponsor.ceased && (
+            <>
+              <Tag tone="grey">{t("sd.ceasedtag")}</Tag>
+              {sponsor.ceasedNote && <span className="gr-muted"> {sponsor.ceasedNote}</span>}{" "}
+            </>
+          )}
           {sponsor.refRequired && <Tag tone="amber">{t("sd.reftag")}</Tag>}
           {/* responsibleId, not responsibleName: a legacy free-text responsible
               is a name only, not an account that may change anything. */}
@@ -201,6 +207,12 @@ export default function SponsorDetail({
               <dl className="gr-dl">
                 <dt>{t("c.company")}</dt>
                 <dd>{sponsor.companyName}</dd>
+                <dt>{t("sd.ceased")}</dt>
+                <dd>
+                  {sponsor.ceased
+                    ? [t("sd.ceasedtag"), sponsor.ceasedNote].filter(Boolean).join(" · ")
+                    : t("sd.active")}
+                </dd>
                 <dt>{t("c.type")}</dt>
                 <dd>{sponsor.entityType === "legal" ? t("c.legal") : t("c.person")}</dd>
                 <dt>{t("c.vatnr")}</dt>

@@ -897,8 +897,8 @@ export const TEAM_TEXT: Record<string, [string, string]> = {
   "em.sentto": ["Verzonden naar {to}.", "Sent to {to}."],
   "em.senttocc": ["Verzonden naar {to}, in cc {cc}.", "Sent to {to}, cc {cc}."],
   "em.cc": [
-    "In cc: {name}, verantwoordelijke voor deze sponsor. Die krijgt één kopie, zonder de persoonlijke links.",
-    "Cc: {name}, responsible for this sponsor. They get one copy, without the personal links.",
+    "In cc: {name}, verantwoordelijke voor deze sponsor.",
+    "Cc: {name}, responsible for this sponsor.",
   ],
   "em.sendfailed": ["Versturen mislukt", "Sending failed"],
   "em.marksenthint": [

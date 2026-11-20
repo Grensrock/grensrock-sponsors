@@ -31,11 +31,11 @@ import type { Language } from "@/types";
    here — the link is the way in, so no separate set-password mail is
    needed to make it work.
 
-   The sponsor's responsible is in Cc, so a reply-all from the sponsor
-   reaches them too. Only in the headers, though: a contact's copy is
-   delivered to that contact alone, since its link signs in AS them.
-   The responsible gets one copy of their own, with the app's address
-   where the link was.
+   The sponsor's responsible is in Cc on each contact's mail, so they see
+   exactly what the sponsor got and a reply-all reaches them. There is no
+   separate copy for them. That does mean they receive each contact's
+   personal link, which signs in AS that contact: an accepted trade-off,
+   since the responsible is the team member who handles this sponsor.
    ============================================================ */
 
 export interface AgreementMail {
@@ -142,7 +142,7 @@ export async function deliverAgreement(
     try {
       await sendMail({
         to: String(row.email),
-        ...(cc && { cc, deliverTo: String(row.email) }),
+        ...(cc && { cc }),
         subject,
         text: personal,
         html: renderAgreementHtml(personal, subject, language, personalLink),
@@ -158,31 +158,10 @@ export async function deliverAgreement(
     return { ok: false, status: 502, error: warnings.join("\n") || "Could not send the email." };
   }
 
-  /* The responsible's copy: addressed like the ones that went out, so it reads
-     as the same conversation, but with the app where the personal link was —
-     as a plain link, since the sponsor's button would ask them to accept. */
-  let ccSent: string | null = null;
-  if (cc) {
-    const copy = hasLink ? text.split(bareLink).join(origin) : text;
-    try {
-      await sendMail({
-        to: sentTo,
-        cc,
-        deliverTo: cc,
-        subject,
-        text: copy,
-        html: renderAgreementHtml(copy, subject, language),
-      });
-      ccSent = cc;
-    } catch (ex) {
-      warnings.push(`The copy for ${cc} (cc) could not be sent: ${ex instanceof Error ? ex.message : "unknown error"}`);
-    }
-  }
-
   const sentAt = new Date().toISOString();
   const { error: markError } = await supabase.from("deals").update({ email_sent_at: sentAt }).eq("id", deal.id);
   /* The mail is gone; failing the request now would invite a second send. */
   if (markError) warnings.push(`The email was sent, but the agreement wasn't marked as sent: ${markError.message}`);
 
-  return { ok: true, sentAt, to: sentTo, cc: ccSent, warnings };
+  return { ok: true, sentAt, to: sentTo, cc: cc || null, warnings };
 }

@@ -38,7 +38,7 @@ export const mailConfigured = () => !!(process.env.GOOGLE_SMTP_USER && process.e
    what a deployment whose account owns a different address sets. */
 export const SPONSORS_FROM = "Grensrock <sponsors@grensrock.be>";
 
-export const fromAddress = () => process.env.GOOGLE_SMTP_FROM || SPONSORS_FROM;
+const fromAddress = () => process.env.GOOGLE_SMTP_FROM || SPONSORS_FROM;
 
 /* ---------- staging must never reach a real sponsor ----------
    Staging runs against its own database, but that database is seeded from
@@ -91,11 +91,6 @@ export interface Message {
   /** The same message laid out (lib/email/layout.ts). Optional: a client that
       shows no HTML, and a message without one, fall back to the text. */
   html?: string;
-  /** Where a reply goes instead of the From. Not a way to limit delivery:
-      every address in To and Cc receives the message. (A custom SMTP envelope
-      naming fewer recipients than the headers was tried for that, and Gmail
-      delivered to the headers anyway.) */
-  replyTo?: string | string[];
 }
 
 const addresses = (v?: string | string[]) => (Array.isArray(v) ? v : v ? [v] : []).map((a) => a.trim()).filter(Boolean);
@@ -105,18 +100,16 @@ const addresses = (v?: string | string[]) => (Array.isArray(v) ? v : v ? [v] : [
  * the staging redirect. Separate from the sending so the rule can be read —
  * and tested — without a mail server.
  */
-export function composeForDelivery({ to, cc, subject, text, html, replyTo }: Message) {
+export function composeForDelivery({ to, cc, subject, text, html }: Message) {
   const intended = addresses(to);
   if (intended.length === 0) throw new Error("No recipient address.");
   const copied = addresses(cc);
-  const replies = addresses(replyTo);
 
   const redirect = mailRedirectTo();
   if (!redirect) {
     return {
       to: intended,
       cc: copied,
-      replyTo: replies,
       subject,
       text,
       html,
@@ -129,7 +122,7 @@ export function composeForDelivery({ to, cc, subject, text, html, replyTo }: Mes
      from doing the exact damage the redirect exists to prevent. The Cc goes
      the same way. The real recipients are written into the subject and the
      body instead, which is what makes a diverted mail readable as a test
-     rather than confusing. Reply-To goes too, for the same reason. */
+     rather than confusing. */
   const reaches = [...intended, ...copied];
   const headers = intended.join(", ") + (copied.length ? `, cc ${copied.join(", ")}` : "");
   const note = `Not production. This message was addressed to ${headers} and diverted here.`;
@@ -141,7 +134,6 @@ export function composeForDelivery({ to, cc, subject, text, html, replyTo }: Mes
   return {
     to: [redirect],
     cc: [],
-    replyTo: [] as string[],
     subject: `[STAGING → ${reaches.join(", ")}] ${subject}`,
     text: `--- ${note} ---\n\n${text}`,
     html: html?.replace(/<body\b[^>]*>/i, (body) => body + banner),
@@ -155,7 +147,6 @@ export async function sendMail(message: Message) {
     from: fromAddress(),
     to: out.to.join(", "),
     cc: out.cc.length ? out.cc.join(", ") : undefined,
-    replyTo: out.replyTo.length ? out.replyTo.join(", ") : undefined,
     subject: out.subject,
     text: out.text,
     html: out.html,

@@ -117,9 +117,9 @@ export function buildEmail(
     const split = dvt ? B(`, verdeeld in: ${dvt}`, `, répartis en : ${dvt}`, `, divided into: ${dvt}`) : "";
     benefits.push(
       B(
-        `Drankvouchers ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
-        `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}${split}`,
-        `Drink vouchers worth ${eur(drinkPoolValue(deal))}${split}`,
+        `Drankvouchers ter waarde van ${eurExcl(drinkPoolValue(deal), lang)}${split}`,
+        `Bons boissons d'une valeur de ${eurExcl(drinkPoolValue(deal), lang)}${split}`,
+        `Drink vouchers worth ${eurExcl(drinkPoolValue(deal), lang)}${split}`,
       ),
     );
   }
@@ -130,9 +130,9 @@ export function buildEmail(
       : "";
     benefits.push(
       B(
-        `Vouchers eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
-        `Bons food & boissons d'une valeur de ${eur(deal.foodDrinkValue)}${split}`,
-        `Food & drink vouchers worth ${eur(deal.foodDrinkValue)}${split}`,
+        `Vouchers eten & drinken ter waarde van ${eurExcl(deal.foodDrinkValue, lang)}${split}`,
+        `Bons food & boissons d'une valeur de ${eurExcl(deal.foodDrinkValue, lang)}${split}`,
+        `Food & drink vouchers worth ${eurExcl(deal.foodDrinkValue, lang)}${split}`,
       ),
     );
   }

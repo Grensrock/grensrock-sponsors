@@ -453,7 +453,7 @@ export async function sponsorFormPdf({
     name: f.name,
     color: formulaColor(f),
     cost: f.cost,
-    tickets: ticketLines(f, lang),
+    tickets: ticketLines(f, lang, true),
     visibility: visibilityLines(f, lang),
   }));
   /* An agreement already made for this edition comes ticked: on its formula
@@ -474,7 +474,7 @@ export async function sponsorFormPdf({
           : `${deal.formulaName} ${T("(aangepast)", "(adaptée)", "(adjusted)")}`,
         color: own ? formulaColor(own) : NO_FORMULA_COLOR,
         cost: deal.cost,
-        tickets: ticketLines({ ...deal, foodDrinkValue: 0, drinkVouchers: [] }, lang),
+        tickets: ticketLines({ ...deal, foodDrinkValue: 0, drinkVouchers: [] }, lang, true),
         visibility: visibilityLines(deal, lang),
       });
     }
@@ -557,12 +557,14 @@ export async function sponsorFormPdf({
   fdLines.forEach((line, j) => write(line, M, y - 8.5 - j * 12, 8.5, regular, MUT));
   write("€", M + W - fdW - 12, y - FIELD_H / 2 - 3.5, 10, bold);
   const fd = Number(deal?.foodDrinkValue) || 0;
+  const fdVatW = regular.widthOfTextAtSize(winAnsi(EXCL_VAT[lang]), 8);
+  write(EXCL_VAT[lang], M + W - fdVatW, y - FIELD_H / 2 - 3, 8, regular, MUT);
   textField(
     "food_drink_value",
     "",
     M + W - fdW,
     y,
-    fdW,
+    fdW - fdVatW - 6,
     fd > 0 ? fd.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "",
   );
   y -= Math.max(fdLines.length * 12, FIELD_H) + 4;

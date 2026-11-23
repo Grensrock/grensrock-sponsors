@@ -1,5 +1,5 @@
 -- ============================================================
--- 0029 — sponsors can read the editions of their own agreements
+-- 0030 — sponsors can read the editions of their own agreements
 -- ============================================================
 -- Portal sessions could only read active editions (0003), so once an edition
 -- was deactivated the sponsor's agreement for it lost its edition: the portal

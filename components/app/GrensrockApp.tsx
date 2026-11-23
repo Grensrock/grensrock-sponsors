@@ -1785,7 +1785,14 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   /* ----- overview stats ----- */
   const pendingRequests = deals.filter((d) => d.requestedAt && !d.confirmedAt);
   const toApprove = deals.filter(awaitsApproval);
-  const awaitingAcceptance = deals.filter((d) => !isAccepted(d) && editions.find((e) => e.id === d.editionId)?.active);
+  /* A team member only hears about the agreements of sponsors they are
+     responsible for; an admin sees them all. */
+  const awaitingAcceptance = deals.filter(
+    (d) =>
+      !isAccepted(d) &&
+      editions.find((e) => e.id === d.editionId)?.active &&
+      (admin || (!!userId && sponsors.find((s) => s.id === d.sponsorId)?.responsibleId === userId)),
+  );
   const overviewEdition = activeEditions[0] || sortedEditions[0];
   const ovDeals = overviewEdition ? deals.filter((d) => d.editionId === overviewEdition.id) : [];
   const ovTotal = ovDeals.reduce((s, d) => s + dealTotalCost(d), 0);
@@ -2085,9 +2092,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       onClick={() => {
                         setTab("agreements");
                         setAgQuery("");
-                        // awaitingAcceptance only counts active editions, so match it
+                        // awaitingAcceptance only counts active editions (and, for a
+                        // team member, their own sponsors), so match it
                         setAgEdition("active");
-                        setAgResponsible("");
+                        setAgResponsible(admin ? "" : "me");
                         setAgSettle("");
                         setAgStatus("toaccept");
                       }}

@@ -715,29 +715,32 @@ export default function SponsorPortal({
                     )}
                   </p>
                   <div className="gr-formulacards">
-                    {(ed.formulas || []).map((f) => (
-                      <div
-                        key={f.name}
-                        className={
-                          "gr-formulacard" + (chosen?.editionId === ed.id && chosen?.name === f.name ? " on" : "")
-                        }
-                        style={f.color ? { borderTopColor: formulaColor(f) } : undefined}
-                      >
-                        <h5>{f.name}</h5>
-                        <div className="gr-formulaprice">{eur(f.cost)}</div>
-                        <ul>
-                          {benefitLines(f, lang).map((b, i) => (
-                            <li key={i}>{b}</li>
-                          ))}
-                        </ul>
-                        <button
-                          className="gr-btn"
-                          onClick={() => setChosen({ editionId: ed.id, name: f.name, edName: ed.name, cost: f.cost })}
+                    {/* Cheapest first, so sponsors can compare at a glance; ties keep the edition's order */}
+                    {[...(ed.formulas || [])]
+                      .sort((a, b) => (Number(a.cost) || 0) - (Number(b.cost) || 0))
+                      .map((f) => (
+                        <div
+                          key={f.name}
+                          className={
+                            "gr-formulacard" + (chosen?.editionId === ed.id && chosen?.name === f.name ? " on" : "")
+                          }
+                          style={f.color ? { borderTopColor: formulaColor(f) } : undefined}
                         >
-                          {T("Deze formule kiezen", "Choisir cette formule", "Choose this formula")}
-                        </button>
-                      </div>
-                    ))}
+                          <h5>{f.name}</h5>
+                          <div className="gr-formulaprice">{eur(f.cost)}</div>
+                          <ul>
+                            {benefitLines(f, lang).map((b, i) => (
+                              <li key={i}>{b}</li>
+                            ))}
+                          </ul>
+                          <button
+                            className="gr-btn"
+                            onClick={() => setChosen({ editionId: ed.id, name: f.name, edName: ed.name, cost: f.cost })}
+                          >
+                            {T("Deze formule kiezen", "Choisir cette formule", "Choose this formula")}
+                          </button>
+                        </div>
+                      ))}
                   </div>
                   {(() => {
                     const types = [...new Set((ed.formulas || []).flatMap(returnTypesOf))] as ReturnExampleType[];

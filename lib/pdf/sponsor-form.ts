@@ -25,7 +25,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFRa
 import { benefitChanges, isCustom } from "@/lib/benefits";
 import { NO_FORMULA_COLOR, formulaColor } from "@/lib/color";
 import { contactName, sponsorContacts, voucherContact } from "@/lib/contacts";
-import { eur } from "@/lib/money";
+import { EXCL_VAT, eur } from "@/lib/money";
 import { userName } from "@/lib/users";
 import { ticketLines, visibilityLines } from "@/lib/vouchers";
 import type { Deal, Edition, Language, NumLike, Sponsor, User } from "@/types";
@@ -525,7 +525,9 @@ export async function sponsorFormPdf({
       write(line, M + 14 + BOX + 7, ny, 11, bold, INK);
       ny -= 13;
     });
-    write(eur(c.cost), M + 14 + BOX + 7, ny - 1, 9.5, bold, MUT);
+    const price = winAnsi(eur(c.cost));
+    write(price, M + 14 + BOX + 7, ny - 1, 9.5, bold, MUT);
+    write(EXCL_VAT[lang], M + 14 + BOX + 7 + bold.widthOfTextAtSize(price, 9.5) + 4, ny - 1, 8, regular, MUT);
 
     const empty = b.lists.every((l) => l.length === 0);
     if (empty) write("—", colsX, top - PAD - 9, 9, regular, MUT);

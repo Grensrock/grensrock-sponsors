@@ -218,6 +218,90 @@ export default function SponsorPortal({
     .map((d) => ({ ...d, edition: editions.find((e) => e.id === d.editionId) }))
     .sort((a, b) => (b.edition?.startDate || "").localeCompare(a.edition?.startDate || ""));
 
+  /* Agreements of active editions belong on the sponsoring tab; those of
+     deactivated editions are history and get a tab of their own. */
+  const current = history.filter((d) => d.edition?.active);
+  const past = history.filter((d) => !d.edition?.active);
+
+  /* One row per agreement. A past edition's agreement can no longer be
+     confirmed, so it isn't flagged as waiting for that. */
+  const agreementTable = (rows: DealWithEdition[]) => (
+    <div className="gr-tablewrap">
+      <table className="gr-table gr-compact">
+        <thead>
+          <tr>
+            <th>{T("Editie", "Édition", "Edition")}</th>
+            <th>{T("Formule", "Formule", "Formula")}</th>
+            <th className="gr-r">{T("Bijdrage", "Contribution", "Contribution")}</th>
+            <th>{T("Tickets & vouchers", "Tickets & bons", "Tickets & vouchers")}</th>
+            <th>{T("Zichtbaarheid", "Visibilité", "Visibility")}</th>
+            <th>{T("Akkoord", "Accord", "Accepted")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((d) => {
+            const tickets = ticketLines(d, lang);
+            const vis = visibilityLines(d, lang);
+            return (
+              <tr key={d.id}>
+                <td>
+                  {d.edition ? d.edition.name : "—"}
+                  {d.edition?.active && ((d.requestedAt && !d.confirmedAt) || awaitsApproval(d)) && (
+                    <>
+                      {" "}
+                      <Tag tone="amber">
+                        {T("in bevestiging", "en confirmation", "awaiting confirmation")}
+                      </Tag>
+                    </>
+                  )}
+                </td>
+                <td>{d.formulaName || "—"}</td>
+                <td className="gr-r">
+                  <strong>{eur(dealTotalCost(d))}</strong>
+                  {d.settlement === "inkind" && (
+                    <div className="gr-muted" style={{ fontSize: 11 }}>
+                      {T("in natura", "en nature", "in kind")}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  {tickets.length === 0 ? (
+                    <span className="gr-muted">—</span>
+                  ) : (
+                    <ul className="gr-benefitlist">
+                      {tickets.map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  )}
+                </td>
+                <td className="gr-muted">{vis.join(" · ") || "—"}</td>
+                <td>
+                  {isAccepted(d) ? (
+                    <>
+                      <Tag tone="green">{T("aanvaard", "accepté", "accepted")}</Tag>
+                      <div className="gr-muted" style={{ fontSize: 11 }}>
+                        {fmtDateTime(d.acceptance!.acceptedAt)}
+                        <br />
+                        {d.acceptance!.byTeam
+                          ? T("via Grensrock", "via Grensrock", "via Grensrock")
+                          : d.acceptance!.name}
+                      </div>
+                    </>
+                  ) : !d.edition?.active ? (
+                    <span className="gr-muted">{T("niet bevestigd", "non confirmé", "not confirmed")}</span>
+                  ) : (
+                    <Tag tone="amber">{T("nog te bevestigen", "à confirmer", "to confirm")}</Tag>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
   /* Per agreement and per pool: may the sponsor still divide, or were the vouchers already created? */
   const created = (dealId: string, type: string) =>
     vouchers.some((v) => v.dealId === dealId && v.type === type && v.status !== "pending");
@@ -283,7 +367,10 @@ export default function SponsorPortal({
     ["info", T("Gegevens", "Données", "Information")],
     ["logos", `${T("Logo's", "Logos", "Logos")} (${logos.length})`],
     ["contacts", `${T("Contactpersonen", "Contacts", "Contact persons")} (${contacts.length})`],
-    ["sponsoring", `${T("Sponsoring", "Sponsoring", "Sponsorship")} (${history.length})`],
+    ["sponsoring", `${T("Sponsoring", "Sponsoring", "Sponsorship")} (${current.length})`],
+    ...(past.length > 0
+      ? [["past", `${T("Vorige edities", "Éditions précédentes", "Past editions")} (${past.length})`] as [string, string]]
+      : []),
     [
       "vouchers",
       `${T("Tickets & vouchers", "Tickets & bons", "Tickets & vouchers")} (${
@@ -824,85 +911,18 @@ export default function SponsorPortal({
                 </div>
               ))}
 
-              {history.length === 0 && openEditions.length === 0 ? (
+              {current.length === 0 && openEditions.length === 0 ? (
                 <p className="gr-empty">
-                  {T("Nog geen sponsoring geregistreerd.", "Aucun sponsoring enregistré.", "No sponsorship registered yet.")}
+                  {past.length > 0
+                    ? T(
+                        "Nog geen sponsoring voor de huidige editie. Eerdere overeenkomsten vindt u onder Vorige edities.",
+                        "Pas encore de sponsoring pour l'édition actuelle. Vos accords précédents se trouvent sous Éditions précédentes.",
+                        "No sponsorship for the current edition yet. Earlier agreements are under Past editions.",
+                      )
+                    : T("Nog geen sponsoring geregistreerd.", "Aucun sponsoring enregistré.", "No sponsorship registered yet.")}
                 </p>
               ) : (
-                history.length > 0 && (
-                  <div className="gr-tablewrap">
-                    <table className="gr-table gr-compact">
-                      <thead>
-                        <tr>
-                          <th>{T("Editie", "Édition", "Edition")}</th>
-                          <th>{T("Formule", "Formule", "Formula")}</th>
-                          <th className="gr-r">{T("Bijdrage", "Contribution", "Contribution")}</th>
-                          <th>{T("Tickets & vouchers", "Tickets & bons", "Tickets & vouchers")}</th>
-                          <th>{T("Zichtbaarheid", "Visibilité", "Visibility")}</th>
-                          <th>{T("Akkoord", "Accord", "Accepted")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {history.map((d) => {
-                          const tickets = ticketLines(d, lang);
-                          const vis = visibilityLines(d, lang);
-                          return (
-                            <tr key={d.id}>
-                              <td>
-                                {d.edition ? d.edition.name : "?"}
-                                {((d.requestedAt && !d.confirmedAt) || awaitsApproval(d)) && (
-                                  <>
-                                    {" "}
-                                    <Tag tone="amber">
-                                      {T("in bevestiging", "en confirmation", "awaiting confirmation")}
-                                    </Tag>
-                                  </>
-                                )}
-                              </td>
-                              <td>{d.formulaName || "—"}</td>
-                              <td className="gr-r">
-                                <strong>{eur(dealTotalCost(d))}</strong>
-                                {d.settlement === "inkind" && (
-                                  <div className="gr-muted" style={{ fontSize: 11 }}>
-                                    {T("in natura", "en nature", "in kind")}
-                                  </div>
-                                )}
-                              </td>
-                              <td>
-                                {tickets.length === 0 ? (
-                                  <span className="gr-muted">—</span>
-                                ) : (
-                                  <ul className="gr-benefitlist">
-                                    {tickets.map((line, i) => (
-                                      <li key={i}>{line}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </td>
-                              <td className="gr-muted">{vis.join(" · ") || "—"}</td>
-                              <td>
-                                {isAccepted(d) ? (
-                                  <>
-                                    <Tag tone="green">{T("aanvaard", "accepté", "accepted")}</Tag>
-                                    <div className="gr-muted" style={{ fontSize: 11 }}>
-                                      {fmtDateTime(d.acceptance!.acceptedAt)}
-                                      <br />
-                                      {d.acceptance!.byTeam
-                                        ? T("via Grensrock", "via Grensrock", "via Grensrock")
-                                        : d.acceptance!.name}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <Tag tone="amber">{T("nog te bevestigen", "à confirmer", "to confirm")}</Tag>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )
+                current.length > 0 && agreementTable(current)
               )}
 
               {(splittable.length > 0 || lockedSplits.length > 0) && (
@@ -1126,6 +1146,9 @@ export default function SponsorPortal({
           )}
 
           {/* ---- Vouchers ---- */}
+          {/* ---- Past editions ---- */}
+          {sub === "past" && agreementTable(past)}
+
           {sub === "vouchers" &&
             (myVouchers.length === 0 ? (
               <p className="gr-empty">

@@ -40,9 +40,38 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+/* ------------------------------------------------------------
+   Where the proxy runs: the two real pages, nothing else.
+   ------------------------------------------------------------
+   On Vercel every proxy run is a function invocation billed as Active
+   CPU, and the old catch-all matcher ran it in front of everything —
+   robots.txt, /icon, every /api call, prefetches, and every path a
+   vulnerability scanner probes (/wp-login.php, /.env, …) on the open
+   production and dev domains.
+
+   Nothing else needs it. No Server Component reads the session (the app
+   is client-rendered and the browser client refreshes its own tokens),
+   and the route handlers under /api and /auth build their own client via
+   lib/supabase/server.ts, which can write refreshed cookies itself.
+
+   Add a path here only if a Server Component on it starts reading the
+   session. Prefetches are skipped: they render nothing the user sees.
+   ------------------------------------------------------------ */
 export const config = {
   matcher: [
-    /* Everything except Next internals and static assets. */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    {
+      source: "/",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
+    {
+      source: "/set-password",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
   ],
 };

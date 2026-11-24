@@ -25,7 +25,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFRa
 import { benefitChanges, isCustom } from "@/lib/benefits";
 import { NO_FORMULA_COLOR, formulaColor } from "@/lib/color";
 import { contactName, sponsorContacts, voucherContact } from "@/lib/contacts";
-import { eur } from "@/lib/money";
+import { EXCL_VAT, eur } from "@/lib/money";
 import { userName } from "@/lib/users";
 import { ticketLines, visibilityLines } from "@/lib/vouchers";
 import type { Deal, Edition, Language, NumLike, Sponsor, User } from "@/types";
@@ -453,7 +453,7 @@ export async function sponsorFormPdf({
     name: f.name,
     color: formulaColor(f),
     cost: f.cost,
-    tickets: ticketLines(f, lang),
+    tickets: ticketLines(f, lang, true),
     visibility: visibilityLines(f, lang),
   }));
   /* An agreement already made for this edition comes ticked: on its formula
@@ -474,7 +474,7 @@ export async function sponsorFormPdf({
           : `${deal.formulaName} ${T("(aangepast)", "(adaptée)", "(adjusted)")}`,
         color: own ? formulaColor(own) : NO_FORMULA_COLOR,
         cost: deal.cost,
-        tickets: ticketLines({ ...deal, foodDrinkValue: 0, drinkVouchers: [] }, lang),
+        tickets: ticketLines({ ...deal, foodDrinkValue: 0, drinkVouchers: [] }, lang, true),
         visibility: visibilityLines(deal, lang),
       });
     }
@@ -525,7 +525,9 @@ export async function sponsorFormPdf({
       write(line, M + 14 + BOX + 7, ny, 11, bold, INK);
       ny -= 13;
     });
-    write(eur(c.cost), M + 14 + BOX + 7, ny - 1, 9.5, bold, MUT);
+    const price = winAnsi(eur(c.cost));
+    write(price, M + 14 + BOX + 7, ny - 1, 9.5, bold, MUT);
+    write(EXCL_VAT[lang], M + 14 + BOX + 7 + bold.widthOfTextAtSize(price, 9.5) + 4, ny - 1, 8, regular, MUT);
 
     const empty = b.lists.every((l) => l.length === 0);
     if (empty) write("—", colsX, top - PAD - 9, 9, regular, MUT);
@@ -555,12 +557,14 @@ export async function sponsorFormPdf({
   fdLines.forEach((line, j) => write(line, M, y - 8.5 - j * 12, 8.5, regular, MUT));
   write("€", M + W - fdW - 12, y - FIELD_H / 2 - 3.5, 10, bold);
   const fd = Number(deal?.foodDrinkValue) || 0;
+  const fdVatW = regular.widthOfTextAtSize(winAnsi(EXCL_VAT[lang]), 8);
+  write(EXCL_VAT[lang], M + W - fdVatW, y - FIELD_H / 2 - 3, 8, regular, MUT);
   textField(
     "food_drink_value",
     "",
     M + W - fdW,
     y,
-    fdW,
+    fdW - fdVatW - 6,
     fd > 0 ? fd.toLocaleString(LOCALES[lang], { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "",
   );
   y -= Math.max(fdLines.length * 12, FIELD_H) + 4;

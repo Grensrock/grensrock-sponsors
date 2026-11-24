@@ -41,9 +41,9 @@ export default function Landing({
   authError = "",
 }: {
   onSignedIn: () => void | Promise<void>;
-  /* Read out of the URL server-side (app/page.tsx), not here: as a prop it is
-     there for the first render, so a sponsor whose link died sees why straight
-     away rather than after a flash of an ordinary sign-in form. */
+  /* Read out of the URL by GrensrockApp before this mounts, not here: as a
+     prop it is there for the first render, so a sponsor whose link died sees
+     why straight away rather than after a flash of an ordinary sign-in form. */
   authError?: string;
 }) {
   const linkFailed = LINK_CODES.includes(authError);

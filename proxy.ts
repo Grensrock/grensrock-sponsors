@@ -41,7 +41,7 @@ export async function proxy(request: NextRequest) {
 }
 
 /* ------------------------------------------------------------
-   Where the proxy runs: the two real pages, nothing else.
+   Where the proxy runs: /set-password, nothing else.
    ------------------------------------------------------------
    On Vercel every proxy run is a function invocation billed as Active
    CPU, and the old catch-all matcher ran it in front of everything —
@@ -54,18 +54,16 @@ export async function proxy(request: NextRequest) {
    and the route handlers under /api and /auth build their own client via
    lib/supabase/server.ts, which can write refreshed cookies itself.
 
+   Not on / either: it is a static page served straight from the CDN
+   (app/page.tsx), and a proxy match would put a billed invocation back in
+   front of every hit to it, bots included. /set-password is rarely visited,
+   so keeping it there costs next to nothing.
+
    Add a path here only if a Server Component on it starts reading the
    session. Prefetches are skipped: they render nothing the user sees.
    ------------------------------------------------------------ */
 export const config = {
   matcher: [
-    {
-      source: "/",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
     {
       source: "/set-password",
       missing: [

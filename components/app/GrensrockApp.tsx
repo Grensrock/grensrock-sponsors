@@ -163,9 +163,17 @@ const groupFormulas = (editions: Edition[], formulas: formulasApi.FormulaWithEdi
       .map(({ editionId: _editionId, ...f }) => f as Formula),
   }));
 
-/* `authError` is a code from app/auth/callback, read server-side in app/page.tsx
-   and passed straight through to Landing — the only screen that can act on it. */
-export default function GrensrockApp({ authError = "" }: { authError?: string }) {
+/* `?auth_error=<code>` from app/auth/callback, passed straight through to
+   Landing — the only screen that can act on it. Read from the URL here rather
+   than server-side so app/page.tsx stays a static, CDN-served page. The lazy
+   initializer runs on the client during hydration; the server sees "" but
+   renders the same "Loading…" either way, so there is no mismatch, and the
+   code is in state before Landing first renders. */
+const readAuthError = () =>
+  typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("auth_error") || "";
+
+export default function GrensrockApp() {
+  const [authError] = useState(readAuthError);
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [loaded, setLoaded] = useState(false);
   const [saveErr, setSaveErr] = useState(false);

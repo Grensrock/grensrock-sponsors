@@ -1,11 +1,14 @@
 import GrensrockApp from "@/components/app/GrensrockApp";
 
-/* app/auth/callback sends a failed sign-in back here as ?auth_error=<code>.
-   Reading it on the server and handing it down, rather than reaching for the
-   URL once the page is already up, is what lets the landing page render the
-   explanation in the FIRST paint — a sponsor whose link expired sees why
-   immediately, instead of a plain sign-in form that flickers into an error. */
-export default async function Home(props: PageProps<"/">) {
-  const { auth_error } = await props.searchParams;
-  return <GrensrockApp authError={typeof auth_error === "string" ? auth_error : ""} />;
+/* A static page: nothing here reads the request, so Next prerenders it at
+   build time and Vercel serves every hit from the CDN without running a
+   function. Keep it that way — reading searchParams, cookies() or headers()
+   here would make every visit (bots included) a billed server render.
+
+   The ?auth_error=<code> that app/auth/callback sends a failed sign-in back
+   with is read in the browser instead (GrensrockApp). That costs no flicker:
+   the app shows "Loading…" until the session check is done, and by then the
+   code is already in state for Landing's first render. */
+export default function Home() {
+  return <GrensrockApp />;
 }

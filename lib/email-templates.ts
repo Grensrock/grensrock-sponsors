@@ -2,7 +2,7 @@ import { benefitChanges, changeLines, isCustom } from "@/lib/benefits";
 import { LED_ZONES, SETTLEMENTS, label } from "@/lib/constants";
 import { contactName, primaryContact } from "@/lib/contacts";
 import { renderEmailHtml } from "@/lib/email/layout";
-import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount, refRequiredFor } from "@/lib/money";
+import { dealTotalCost, eur, eurExcl, foodDrinkExtra, invoiceAmount, refRequiredFor } from "@/lib/money";
 import { normFolder, normLed } from "@/lib/normalize";
 import { userName } from "@/lib/users";
 import { drinkPoolValue, voucherText } from "@/lib/vouchers";
@@ -117,9 +117,9 @@ export function buildEmail(
     const split = dvt ? B(`, verdeeld in: ${dvt}`, `, répartis en : ${dvt}`, `, divided into: ${dvt}`) : "";
     benefits.push(
       B(
-        `Drankvouchers ter waarde van ${eur(drinkPoolValue(deal))}${split}`,
-        `Bons boissons d'une valeur de ${eur(drinkPoolValue(deal))}${split}`,
-        `Drink vouchers worth ${eur(drinkPoolValue(deal))}${split}`,
+        `Drankvouchers ter waarde van ${eurExcl(drinkPoolValue(deal), lang)}${split}`,
+        `Bons boissons d'une valeur de ${eurExcl(drinkPoolValue(deal), lang)}${split}`,
+        `Drink vouchers worth ${eurExcl(drinkPoolValue(deal), lang)}${split}`,
       ),
     );
   }
@@ -130,9 +130,9 @@ export function buildEmail(
       : "";
     benefits.push(
       B(
-        `Vouchers eten & drinken ter waarde van ${eur(deal.foodDrinkValue)}${split}`,
-        `Bons food & boissons d'une valeur de ${eur(deal.foodDrinkValue)}${split}`,
-        `Food & drink vouchers worth ${eur(deal.foodDrinkValue)}${split}`,
+        `Vouchers eten & drinken ter waarde van ${eurExcl(deal.foodDrinkValue, lang)}${split}`,
+        `Bons food & boissons d'une valeur de ${eurExcl(deal.foodDrinkValue, lang)}${split}`,
+        `Food & drink vouchers worth ${eurExcl(deal.foodDrinkValue, lang)}${split}`,
       ),
     );
   }
@@ -192,7 +192,7 @@ export function buildEmail(
   const toInvoice = invoiceAmount(deal);
   /* The total, with the food & drink vouchers bought on top spelled out:
      € 500 formula + € 100 vouchers is a contribution of € 600. */
-  const total = eur(dealTotalCost(deal));
+  const total = eurExcl(dealTotalCost(deal), lang);
   const fd = foodDrinkExtra(deal);
   const contribution =
     fd > 0
@@ -229,11 +229,11 @@ No invoice will be issued for this agreement.`,
   } else if (deal.settlement === "inkind" || deal.settlement === "mixed") {
     settlementBlock = B(
       `Een deel van deze sponsoring gebeurt in natura${inKind ? `:\n${inKind}` : "."}
-Te factureren bedrag: ${eur(toInvoice)}. De facturatie volgt via e-invoicing (BillToBox).${refLine}`,
+Te factureren bedrag: ${eurExcl(toInvoice, "nl")}. De facturatie volgt via e-invoicing (BillToBox).${refLine}`,
       `Une partie de ce sponsoring se fait en nature${inKind ? ` :\n${inKind}` : "."}
-Montant à facturer : ${eur(toInvoice)}. La facturation suivra par e-invoicing (BillToBox).${refLine}`,
+Montant à facturer : ${eurExcl(toInvoice, "fr")}. La facturation suivra par e-invoicing (BillToBox).${refLine}`,
       `Part of this sponsorship is provided in kind${inKind ? `:\n${inKind}` : "."}
-Amount to be invoiced: ${eur(toInvoice)}. Invoicing will follow via e-invoicing (BillToBox).${refLine}`,
+Amount to be invoiced: ${eurExcl(toInvoice, "en")}. Invoicing will follow via e-invoicing (BillToBox).${refLine}`,
     );
   } else {
     settlementBlock = B(

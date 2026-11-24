@@ -1,4 +1,4 @@
-import type { Deal, NumLike } from "@/types";
+import type { Deal, Language, NumLike } from "@/types";
 
 /* A no-break space after the sign, so an amount never wraps into a lone "€"
    on one line and the number on the next. */
@@ -6,6 +6,14 @@ export const eur = (n?: NumLike | null) => {
   const v = Number(n) || 0;
   return "€\u00a0" + v.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+/* Every amount the sponsor sees (emails, portal, PDF) is a price excluding
+   VAT, and says so: the invoice adds VAT on top, and a bare amount reads as
+   the full price. Team-only screens and mails leave the label off. */
+export const EXCL_VAT: Record<Language, string> = { nl: "excl. btw", fr: "HTVA", en: "excl. VAT" };
+
+/* An amount with the "excl. VAT" label, for anything addressed to a sponsor */
+export const eurExcl = (n: NumLike | null | undefined, lang: Language) => `${eur(n)} ${EXCL_VAT[lang]}`;
 
 /* The part of the F&D value the sponsor added on top of what the formula included */
 export const foodDrinkExtra = (d: Partial<Deal>) =>

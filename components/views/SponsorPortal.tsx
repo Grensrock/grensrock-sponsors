@@ -29,7 +29,7 @@ import { emailToStore, validateEmail } from "@/lib/email-validate";
 import { defaultVatLookup } from "@/lib/integrations/vat-lookup";
 import { sponsorFaq } from "@/lib/faq";
 import { formulaColor } from "@/lib/color";
-import { dealTotalCost, eur, foodDrinkExtra, invoiceAmount } from "@/lib/money";
+import { dealTotalCost, eur, EXCL_VAT, eurExcl, foodDrinkExtra, invoiceAmount } from "@/lib/money";
 import { validateVat, vatToStore } from "@/lib/vat";
 import {
   benefitLines,
@@ -240,7 +240,7 @@ export default function SponsorPortal({
         </thead>
         <tbody>
           {rows.map((d) => {
-            const tickets = ticketLines(d, lang);
+            const tickets = ticketLines(d, lang, true);
             const vis = visibilityLines(d, lang);
             return (
               <tr key={d.id}>
@@ -258,6 +258,9 @@ export default function SponsorPortal({
                 <td>{d.formulaName || "—"}</td>
                 <td className="gr-r">
                   <strong>{eur(dealTotalCost(d))}</strong>
+                  <div className="gr-muted" style={{ fontSize: 11 }}>
+                    {EXCL_VAT[lang]}
+                  </div>
                   {d.settlement === "inkind" && (
                     <div className="gr-muted" style={{ fontSize: 11 }}>
                       {T("in natura", "en nature", "in kind")}
@@ -728,8 +731,11 @@ export default function SponsorPortal({
                         >
                           <h5>{f.name}</h5>
                           <div className="gr-formulaprice">{eur(f.cost)}</div>
+                          <div className="gr-muted" style={{ fontSize: 11, marginTop: -4 }}>
+                            {EXCL_VAT[lang]}
+                          </div>
                           <ul>
-                            {benefitLines(f, lang).map((b, i) => (
+                            {benefitLines(f, lang, true).map((b, i) => (
                               <li key={i}>{b}</li>
                             ))}
                           </ul>
@@ -815,7 +821,7 @@ export default function SponsorPortal({
                     <dd>{d.formulaName || "—"}</dd>
                     <dt>{T("Bijdrage", "Contribution", "Contribution")}</dt>
                     <dd>
-                      <strong>{eur(dealTotalCost(d))}</strong>
+                      <strong>{eurExcl(dealTotalCost(d), lang)}</strong>
                       {foodDrinkExtra(d) > 0 &&
                         ` (${eur(d.cost)} ${T("formule", "formule", "formula")} + ${eur(foodDrinkExtra(d))} ${T(
                           "vouchers eten & drinken",
@@ -827,7 +833,7 @@ export default function SponsorPortal({
                         ? ""
                         : invoiceAmount(d) === 0
                           ? ` — ${T("in natura, geen factuur", "en nature, sans facture", "in kind, no invoice")}`
-                          : ` — ${T("te factureren", "à facturer", "to invoice")}: ${eur(invoiceAmount(d))}`}
+                          : ` — ${T("te factureren", "à facturer", "to invoice")}: ${eurExcl(invoiceAmount(d), lang)}`}
                     </dd>
                     {(d.inKindDescription || "").trim() && (
                       <>
@@ -835,12 +841,12 @@ export default function SponsorPortal({
                         <dd>{d.inKindDescription}</dd>
                       </>
                     )}
-                    {ticketLines(d, lang).length > 0 && (
+                    {ticketLines(d, lang, true).length > 0 && (
                       <>
                         <dt>{T("Tickets & vouchers", "Tickets & bons", "Tickets & vouchers")}</dt>
                         <dd>
                           <ul className="gr-benefitlist">
-                            {ticketLines(d, lang).map((line, i) => (
+                            {ticketLines(d, lang, true).map((line, i) => (
                               <li key={i}>{line}</li>
                             ))}
                           </ul>
@@ -955,9 +961,9 @@ export default function SponsorPortal({
                       <p className="gr-muted" style={{ margin: "0 0 10px" }}>
                         {Number(d.baseFoodDrink) > 0
                           ? T(
-                              `Uw formule bevat ${eur(d.baseFoodDrink || 0)} aan eten- en drankvouchers. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
-                              `Votre formule comprend ${eur(d.baseFoodDrink || 0)} de bons food & boissons. Vous souhaitez l'augmenter ? Indiquez la valeur totale ci-dessous — la différence s'ajoute à votre contribution.`,
-                              `Your formula includes ${eur(d.baseFoodDrink || 0)} in food & drink tickets. Want to add more? Enter the total value below — the difference is added to your contribution.`,
+                              `Uw formule bevat ${eurExcl(d.baseFoodDrink || 0, lang)} aan eten- en drankvouchers. Wilt u dit verhogen? Vul hieronder de totale waarde in — het verschil wordt bij uw bijdrage geteld.`,
+                              `Votre formule comprend ${eurExcl(d.baseFoodDrink || 0, lang)} de bons food & boissons. Vous souhaitez l'augmenter ? Indiquez la valeur totale ci-dessous — la différence s'ajoute à votre contribution.`,
+                              `Your formula includes ${eurExcl(d.baseFoodDrink || 0, lang)} in food & drink tickets. Want to add more? Enter the total value below — the difference is added to your contribution.`,
                             )
                           : T(
                               "Eten- en drankvouchers komen bovenop uw formule. Vul hieronder de totale waarde in die u wenst — die wordt bij uw bijdrage geteld.",
@@ -996,7 +1002,7 @@ export default function SponsorPortal({
                       {foodDrinkExtra(d) > 0 && (
                         <p style={{ margin: "8px 0 0", color: "var(--orange-deep)", fontWeight: 600, fontSize: 13 }}>
                           {T("Extra bijdrage", "Contribution supplémentaire", "Additional contribution")}:{" "}
-                          {eur(foodDrinkExtra(d))}
+                          {eurExcl(foodDrinkExtra(d), lang)}
                         </p>
                       )}
                     </div>
@@ -1022,13 +1028,13 @@ export default function SponsorPortal({
                             {drink && (
                               <li>
                                 {T("Drankvouchers", "Bons boissons", "Drink vouchers")}:{" "}
-                                {voucherText(d.drinkVouchers) || `1 × ${eur(drinkPoolValue(d))}`}
+                                {voucherText(d.drinkVouchers, lang) || `1 × ${eurExcl(drinkPoolValue(d), lang)}`}
                               </li>
                             )}
                             {food && (
                               <li>
                                 {T("Eten & drinken", "Food & boissons", "Food & drinks")}:{" "}
-                                {voucherText(d.foodDrinkVouchers) || `1 × ${eur(d.foodDrinkValue)}`}
+                                {voucherText(d.foodDrinkVouchers, lang) || `1 × ${eurExcl(d.foodDrinkValue, lang)}`}
                               </li>
                             )}
                           </ul>
@@ -1119,7 +1125,7 @@ export default function SponsorPortal({
               <p>
                 {T("U kiest de formule", "Vous choisissez la formule", "You are choosing the formula")}{" "}
                 <strong>{chosen.name}</strong> {T("voor", "pour", "for")} <strong>{chosen.edName}</strong>{" "}
-                {T("aan", "au prix de", "at")} <strong>{eur(chosen.cost)}</strong>.
+                {T("aan", "au prix de", "at")} <strong>{eurExcl(chosen.cost, lang)}</strong>.
               </p>
               <p className="gr-muted">
                 {T(
@@ -1190,7 +1196,7 @@ export default function SponsorPortal({
                           <tr key={v.id} className={v.status === "cancelled" ? "gr-cancelled" : undefined}>
                             <td>{ed ? ed.name : "—"}</td>
                             <td>{voucherLabel(VOUCHER_TYPES[v.type], lang, v.type)}</td>
-                            <td className="gr-r">{v.value > 0 ? eur(v.value) : "—"}</td>
+                            <td className="gr-r">{v.value > 0 ? eurExcl(v.value, lang) : "—"}</td>
                             <td>
                               <Tag tone={st.tone}>{voucherLabel(st, lang, v.status)}</Tag>
                             </td>
@@ -1238,7 +1244,7 @@ export default function SponsorPortal({
             >
               <p className="gr-muted">
                 {voucherLabel(VOUCHER_TYPES[assigning.type], lang, assigning.type)}
-                {assigning.value > 0 ? ` · ${eur(assigning.value)}` : ""}
+                {assigning.value > 0 ? ` · ${eurExcl(assigning.value, lang)}` : ""}
               </p>
               <Field label={T("Naam", "Nom", "Name")}>
                 <input

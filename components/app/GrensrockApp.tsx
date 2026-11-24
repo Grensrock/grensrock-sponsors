@@ -163,9 +163,17 @@ const groupFormulas = (editions: Edition[], formulas: formulasApi.FormulaWithEdi
       .map(({ editionId: _editionId, ...f }) => f as Formula),
   }));
 
-/* `authError` is a code from app/auth/callback, read server-side in app/page.tsx
-   and passed straight through to Landing — the only screen that can act on it. */
-export default function GrensrockApp({ authError = "" }: { authError?: string }) {
+/* `?auth_error=<code>` from app/auth/callback, passed straight through to
+   Landing — the only screen that can act on it. Read from the URL here rather
+   than server-side so app/page.tsx stays a static, CDN-served page. The lazy
+   initializer runs on the client during hydration; the server sees "" but
+   renders the same "Loading…" either way, so there is no mismatch, and the
+   code is in state before Landing first renders. */
+const readAuthError = () =>
+  typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("auth_error") || "";
+
+export default function GrensrockApp() {
+  const [authError] = useState(readAuthError);
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [loaded, setLoaded] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
@@ -1785,7 +1793,14 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
   /* ----- overview stats ----- */
   const pendingRequests = deals.filter((d) => d.requestedAt && !d.confirmedAt);
   const toApprove = deals.filter(awaitsApproval);
-  const awaitingAcceptance = deals.filter((d) => !isAccepted(d) && editions.find((e) => e.id === d.editionId)?.active);
+  /* A team member only hears about the agreements of sponsors they are
+     responsible for; an admin sees them all. */
+  const awaitingAcceptance = deals.filter(
+    (d) =>
+      !isAccepted(d) &&
+      editions.find((e) => e.id === d.editionId)?.active &&
+      (admin || (!!userId && sponsors.find((s) => s.id === d.sponsorId)?.responsibleId === userId)),
+  );
   const overviewEdition = activeEditions[0] || sortedEditions[0];
   const ovDeals = overviewEdition ? deals.filter((d) => d.editionId === overviewEdition.id) : [];
   const ovTotal = ovDeals.reduce((s, d) => s + dealTotalCost(d), 0);
@@ -2085,9 +2100,10 @@ export default function GrensrockApp({ authError = "" }: { authError?: string })
                       onClick={() => {
                         setTab("agreements");
                         setAgQuery("");
-                        // awaitingAcceptance only counts active editions, so match it
+                        // awaitingAcceptance only counts active editions (and, for a
+                        // team member, their own sponsors), so match it
                         setAgEdition("active");
-                        setAgResponsible("");
+                        setAgResponsible(admin ? "" : "me");
                         setAgSettle("");
                         setAgStatus("toaccept");
                       }}

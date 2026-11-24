@@ -7,7 +7,7 @@ import {
   label,
   type ReturnExampleType,
 } from "@/lib/constants";
-import { eur } from "@/lib/money";
+import { eur, eurExcl, EXCL_VAT } from "@/lib/money";
 import { ledLabel, normFolder, normLed } from "@/lib/normalize";
 import type { Deal, Formula, FormulaFields, Language, ProductKey, Voucher, VoucherRow, VoucherType } from "@/types";
 
@@ -18,11 +18,15 @@ export const drinkPoolValue = (d?: BenefitSource) => Number(d?.drinkValue) || 0;
 export const voucherTotal = (rows?: VoucherRow[] | null) =>
   (rows || []).reduce((s, r) => s + (Number(r.value) || 0) * (Number(r.qty) || 0), 0);
 
-export const voucherText = (rows?: VoucherRow[] | null) =>
-  (rows || [])
+/* "4 × € 25,00, 2 × € 50,00". Given a language (anything a sponsor reads),
+   the list ends in the "excl. VAT" label, once for the whole list. */
+export const voucherText = (rows?: VoucherRow[] | null, exclVatLang?: Language) => {
+  const text = (rows || [])
     .filter((r) => Number(r.qty) > 0 && Number(r.value) > 0)
     .map((r) => `${r.qty} × ${eur(r.value)}`)
     .join(", ");
+  return text && exclVatLang ? `${text} ${EXCL_VAT[exclVatLang]}` : text;
+};
 
 export interface ExpectedVoucher {
   type: VoucherType;
@@ -69,8 +73,11 @@ export function dealFromFormula(f: Formula, sponsorId: string, editionId: string
   };
 }
 
-/* Human-readable benefit list for a formula or agreement, in a given language */
-export function ticketLines(v: BenefitSource, lang: Language = "nl"): string[] {
+/* Human-readable benefit list for a formula or agreement, in a given language.
+   `exclVat` labels the voucher values "excl. VAT": on for anything a sponsor
+   reads, off for the team's own screens. */
+export function ticketLines(v: BenefitSource, lang: Language = "nl", exclVat = false): string[] {
+  const money = (n: unknown) => (exclVat ? eurExcl(n as number, lang) : eur(n as number));
   const B = (nl: string, fr: string, en: string) => ({ nl, fr, en })[lang] || en;
   const out: string[] = [];
   if (!v) return out;
@@ -83,13 +90,13 @@ export function ticketLines(v: BenefitSource, lang: Language = "nl"): string[] {
   if (Number(v.drinkValue) > 0) {
     const dvt = voucherText(v.drinkVouchers);
     out.push(
-      `${B("Drankvouchers", "Bons boissons", "Drink vouchers")}: ${eur(drinkPoolValue(v))}${dvt ? ` (${dvt})` : ""}`,
+      `${B("Drankvouchers", "Bons boissons", "Drink vouchers")}: ${money(drinkPoolValue(v))}${dvt ? ` (${dvt})` : ""}`,
     );
   }
   if (Number(v.foodDrinkValue) > 0) {
     const split = voucherText(v.foodDrinkVouchers);
     out.push(
-      `${B("Eten & drinken", "Food & boissons", "Food & drinks")}: ${eur(v.foodDrinkValue)}${
+      `${B("Eten & drinken", "Food & boissons", "Food & drinks")}: ${money(v.foodDrinkValue)}${
         split ? ` (${split})` : ""
       }`,
     );
@@ -111,8 +118,8 @@ export function visibilityLines(v: BenefitSource, lang: Language = "nl"): string
   return out;
 }
 
-export const benefitLines = (v: BenefitSource, lang: Language = "nl") => [
-  ...ticketLines(v, lang),
+export const benefitLines = (v: BenefitSource, lang: Language = "nl", exclVat = false) => [
+  ...ticketLines(v, lang, exclVat),
   ...visibilityLines(v, lang),
 ];
 
